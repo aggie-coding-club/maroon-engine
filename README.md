@@ -4,6 +4,8 @@
 
 # Upcoming Features
 
+# Project Setup Instructions
+
 # style guide
 
 	tabs used for indentation
