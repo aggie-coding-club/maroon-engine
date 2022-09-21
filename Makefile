@@ -1,7 +1,7 @@
 CC = gcc
 CXX = g++
 
-CXXFLAGS = -DUNICODE -Wall 
+CXXFLAGS = -DUNICODE -Wall
 CXXFLAGS += -Ilib/glad/include -Ilib/wgl
 CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
@@ -9,8 +9,8 @@ LDFLAGS = -municode -fno-exceptions -fno-rtti
 LDFLAGS += -lopengl32 -mwindows
 LDFLAGS += lib/glad/src/glad.o
 
-SRC = $(wildcard src/*.cpp) 
-OBJ = $(SRC:.cpp=.o) 
+SRC = $(wildcard src/*.cpp)
+OBJ = $(SRC:.cpp=.o)
 BIN = bin
 
 all: libs dirs engine
@@ -32,4 +32,4 @@ DEPFILES := $(SRC:%.cpp=%.d)
 include $(wildcard $DEPFILES)
 
 engine: $(OBJ)
-	$(CXX) -o $(BIN)/engine.exe $^ $(LDFLAGS) 
+	$(CXX) -o $(BIN)/engine.exe $^ $(LDFLAGS)

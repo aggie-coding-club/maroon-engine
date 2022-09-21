@@ -12,16 +12,19 @@
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
 
+#define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
+
 static HINSTANCE g_ins;
 static HWND g_wnd;
 static HDC g_hdc;
 static HGLRC g_glrc;
 
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
+static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
 
-static void cd_parent(LPWSTR path)
+static void cd_parent(wchar_t *path)
 {
-	WCHAR *find;
+	wchar_t *find;
 
 	find = wcsrchr(path, '\\');
 	if (find) {
@@ -31,20 +34,19 @@ static void cd_parent(LPWSTR path)
 
 static void set_default_directory(void)
 {
-	WCHAR path[MAX_PATH];
+	wchar_t path[MAX_PATH];
 
-	GetModuleFileName(NULL, path, MAX_PATH);
+	GetModuleFileNameW(NULL, path, MAX_PATH);
 	cd_parent(path);
 	cd_parent(path);
-	SetCurrentDirectory(path);
+	SetCurrentDirectoryW(path);
 }
 
 static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch (msg) {
 	case WM_DESTROY:
-		PostQuitMessage(0);
-		return 0;
+		exit(0);
 	case WM_SIZE:
 		glViewport(0, 0, LOWORD(lp), HIWORD(lp));
 		return 0;
@@ -54,7 +56,7 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		SwapBuffers(g_hdc);
 		return 0;
 	}
-	return DefWindowProc(wnd, msg, wp, lp);
+	return DefWindowProcW(wnd, msg, wp, lp);
 }
 
 static void create_main_window(void)
@@ -68,12 +70,12 @@ static void create_main_window(void)
 	wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC; 
 	wc.lpfnWndProc = wnd_proc;
 	wc.hInstance = g_ins;
-	wc.hCursor = LoadCursor(NULL, IDC_ARROW); 
+	wc.hCursor = LoadCursorW(NULL, IDC_ARROW); 
 	wc.lpszClassName = L"WndClass"; 
 
-	if (!RegisterClass(&wc)) {
-		MessageBox(NULL, L"Window registration failed", 
-				L"Error", MB_ICONERROR);
+	if (!RegisterClassW(&wc)) {
+		MessageBoxW(NULL, L"Window registration failed", 
+				L"Win32 Error", MB_ICONERROR);
 		exit(1);
 	}
 
@@ -86,18 +88,34 @@ static void create_main_window(void)
 	width = rect.right - rect.left;
 	height = rect.bottom - rect.top;
 
-	g_wnd = CreateWindow(wc.lpszClassName, L"Engine", WS_OVERLAPPEDWINDOW,
-			CW_USEDEFAULT, CW_USEDEFAULT, width, height, 
+	g_wnd = CreateWindowExW(0, wc.lpszClassName, L"Engine", 
+			WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 
+			CW_USEDEFAULT, width, height, 
 			NULL, NULL, g_ins, NULL);
 	if (!g_wnd) {
-		MessageBox(NULL, L"Window creation failed", 
-				L"Error", MB_ICONERROR);
+		MessageBoxW(NULL, L"Window creation failed", 
+				L"Win32 Error", MB_ICONERROR);
 		exit(1);
 	}
 }
-	
 
+static PROC wgl_load(const char *name) 
+{
+	PROC ret;
 
+	ret = wglGetProcAddress(name);
+	if (!ret) {
+		wchar_t wname[64];
+		wchar_t text[256];
+
+		MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, 
+				name, -1, wname, _countof(wname)); 
+		_snwprintf(text, _countof(text), L"Could not get proc: %s", wname);
+		MessageBoxW(NULL, text, L"WGL Error", MB_ICONERROR);
+		exit(1);
+	}
+	return ret;
+}
 
 static void init_open_gl(void)
 {
@@ -128,19 +146,20 @@ static void init_open_gl(void)
 	pfd.cColorBits = 32;
 	pfd.cDepthBits = 32;
 
-	fmt = ChoosePixelFormat(g_hdc, &pfd); 
-	SetPixelFormat(g_hdc, fmt, &pfd);  
+	fmt = ChoosePixelFormat(g_hdc, &pfd);
+	SetPixelFormat(g_hdc, fmt, &pfd);
 
 	tmp = wglCreateContext(g_hdc);
 	wglMakeCurrent(g_hdc, tmp);
 
-	wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC) 
-		wglGetProcAddress("wglCreateContextAttribsARB");
-	g_glrc = wglCreateContextAttribsARB(g_hdc, 0, attrib_list);	
-
+	WGL_LOAD(wglCreateContextAttribsARB);
+	g_glrc = wglCreateContextAttribsARB(g_hdc, 0, attrib_list);
 	wglMakeCurrent(NULL, NULL);
 	wglDeleteContext(tmp);
 	wglMakeCurrent(g_hdc, g_glrc);
+
+	WGL_LOAD(wglSwapIntervalEXT);
+	wglSwapIntervalEXT(1);
 
 	gladLoadGL();
 }
@@ -151,9 +170,11 @@ static void msg_loop(void)
 
 	ShowWindow(g_wnd, SW_SHOW);
 
-	while (GetMessage(&msg, NULL, 0, 0)) {
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+	while(1) {
+		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessageW(&msg);
+		}
 	}
 }
 
