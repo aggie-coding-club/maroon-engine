@@ -7,29 +7,29 @@
 # Project Setup Instructions
 
 ## System Requirements
-This project assumes you have access to x64 Windows 7 or later.
+This project assumes you have access to x64 Windows 7 or later.  
 
-You will also need to have a version of OpenGL version 3.3 or later drivers.
-You can check OpenGL version by using this download link:
-https://www.realtech-vr.com/api/deeplink?SKU=15&target=UrlWin32 
+You will also need to have a version of OpenGL version 3.3 or later drivers.  
+You can check OpenGL version by using this download link:  
+https://www.realtech-vr.com/api/deeplink?SKU=15&target=UrlWin32   
 
 ## Mingw-w64 Setup
-We will be using mingw-w64 as our main compiler, linker, and build system.
-Click this link to download a pre-built binary for mingw-w64.
-https://github.com/niXman/mingw-builds-binaries/releases/download/12.2.0-rt_v10-rev0/x86_64-12.2.0-release-win32-sjlj-rt_v10-rev0.7z
-Decompress the download using 7-Zip (You can download 9-Zip here: https://www.7-zip.org/a/7z2201-x64.exe). 
-Move the "mingw64" folder to  "C:/Program Files".
+We will be using mingw-w64 as our main compiler, linker, and build system.  
+Click this link to download a pre-built binary for mingw-w64.  
+https://github.com/niXman/mingw-builds-binaries/releases/download/12.2.0-rt_v10-rev0/x86_64-12.2.0-release-win32-sjlj-rt_v10-rev0.7z  
+Decompress the download using 7-Zip (You can download 9-Zip here: https://www.7-zip.org/a/7z2201-x64.exe).  
+Move the "mingw64" folder to  "C:/Program Files".  
 
 ## Adding Mingw64 to Path
-Use the start menu to search for "environment variables".
-Click "Edit the system environment variables".
-Click "Environment variables" at the bottom right of the prompt that opens.
-Click on "Path" under System Variables.
-Click new in the prompt that opens.
-Copy "C:\Program Files\mingw64\bin" into the textbox.
-And hit "ok" for all the windows that were opened.
+Use the start menu to search for "environment variables".  
+Click "Edit the system environment variables".  
+Click "Environment variables" at the bottom right of the prompt that opens.  
+Click on "Path" under System Variables.  
+Click new in the prompt that opens.  
+Copy "C:\Program Files\mingw64\bin" into the textbox.  
+And hit "ok" for all the windows that were opened.  
 
-If you have any problems thus far, contact Lenny or James.
+If you have any problems thus far, contact Lenny or James.  
 
 ## Running
 In order to confirm a successful setup open up CMD.
