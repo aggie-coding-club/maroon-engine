@@ -32,12 +32,12 @@ And hit "ok" for all the windows that were opened.
 If you have any problems thus far, contact Lenny or James.  
 
 ## Running
-In order to confirm a successful setup open up CMD.
-Type in "git clone https://github.com/aggie-coding-club/maroon-engine.git" and hit enter.
-Type in "cd maroon-engine" and hit enter.
-Type in "mingw32-make" and hit enter.
-If successful a bin folder will appear in the directory and within that bin folder will be "engine.exe".
-Executing "engine.exe" should show green window. 
+In order to confirm a successful setup open up CMD.  
+Type in "git clone https://github.com/aggie-coding-club/maroon-engine.git" and hit enter.  
+Type in "cd maroon-engine" and hit enter.  
+Type in "mingw32-make" and hit enter.  
+If successful a bin folder will appear in the directory and within that bin folder will be "engine.exe".  
+Executing "engine.exe" should show green window.  
 
 
 # Style Guide 
