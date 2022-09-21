@@ -1,4 +1,10 @@
-style guide:
+# The Project Goal
+
+# Current Features
+
+# Upcoming Features
+
+# style guide
 
 	tabs used for indentation
 
