@@ -13,7 +13,7 @@ You will also need to have a version of OpenGL version 3.3 or later drivers.
 You can check OpenGL version by using this download link:
 https://www.realtech-vr.com/api/deeplink?SKU=15&target=UrlWin32 
 
-## Mingw-w64
+## Mingw-w64 Setup
 We will be using mingw-w64 as our main compiler, linker, and build system.
 Click this link to download a pre-built binary for mingw-w64.
 https://github.com/niXman/mingw-builds-binaries/releases/download/12.2.0-rt_v10-rev0/x86_64-12.2.0-release-win32-sjlj-rt_v10-rev0.7z
