@@ -22,6 +22,10 @@ static HGLRC g_glrc;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
 
+/** 
+ * cd_parent() - Transforms full path into the parent full path 
+ * @path: Path to transform
+ */
 static void cd_parent(wchar_t *path)
 {
 	wchar_t *find;
@@ -32,6 +36,9 @@ static void cd_parent(wchar_t *path)
 	}
 }
 
+/** 
+ * set_default_directory() - Set working directory to be repository folder 
+ */
 static void set_default_directory(void)
 {
 	wchar_t path[MAX_PATH];
@@ -42,11 +49,22 @@ static void set_default_directory(void)
 	SetCurrentDirectoryW(path);
 }
 
+/**
+ * wnd_proc() - Callback to prcoess window messages
+ * @wnd: Handle to window, should be equal to g_wnd
+ * @msg: Message to procces
+ * @wp: Unsigned system word sized param 
+ * @lp: Signed system word sized param 
+ *
+ * The meaning of wp and lp are message specific.
+ *
+ * Return: Result of message processing, usually zero if message was processed 
+ */
 static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch (msg) {
 	case WM_DESTROY:
-		exit(0);
+		ExitProcess(0);
 	case WM_SIZE:
 		glViewport(0, 0, LOWORD(lp), HIWORD(lp));
 		return 0;
@@ -59,6 +77,9 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 	return DefWindowProcW(wnd, msg, wp, lp);
 }
 
+/**
+ * create_main_window() - creates main window
+ */
 static void create_main_window(void)
 {
 	WNDCLASS wc;
@@ -76,7 +97,7 @@ static void create_main_window(void)
 	if (!RegisterClassW(&wc)) {
 		MessageBoxW(NULL, L"Window registration failed", 
 				L"Win32 Error", MB_ICONERROR);
-		exit(1);
+		ExitProcess(1);
 	}
 
 	rect.left = 0;
@@ -95,10 +116,18 @@ static void create_main_window(void)
 	if (!g_wnd) {
 		MessageBoxW(NULL, L"Window creation failed", 
 				L"Win32 Error", MB_ICONERROR);
-		exit(1);
+		ExitProcess(1);
 	}
 }
 
+/**
+ * wgl_load() - load WGL extension function 
+ * @name: name of function 
+ *
+ * Return: Valid function pointer
+ *
+ * Crashes if function not found
+ */
 static PROC wgl_load(const char *name) 
 {
 	PROC ret;
@@ -110,13 +139,17 @@ static PROC wgl_load(const char *name)
 
 		MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, 
 				name, -1, wname, _countof(wname)); 
-		_snwprintf(text, _countof(text), L"Could not get proc: %s", wname);
+		_snwprintf(text, _countof(text), 
+				L"Could not get proc: %s", wname);
 		MessageBoxW(NULL, text, L"WGL Error", MB_ICONERROR);
-		exit(1);
+		ExitProcess(1);
 	}
 	return ret;
 }
 
+/**
+ * init_open_gl() - initialize OpenGL context and load necessary extensions 
+ */
 static void init_open_gl(void)
 {
 	static const int attrib_list[] = {
@@ -164,6 +197,9 @@ static void init_open_gl(void)
 	gladLoadGL();
 }
 
+/**
+ * msg_loop() - main loop of program
+ */
 static void msg_loop(void)
 {
 	MSG msg; 
@@ -178,6 +214,17 @@ static void msg_loop(void)
 	}
 }
 
+/**
+ * wWinMain() - Entry point of program
+ * @ins: Handle used to identify the executable
+ * @prev: always zero, hold over from Win16
+ * @cmd: command line arguments as a single string
+ * @show: flag that is used to identify the intial state of the main window 
+ *
+ * Return: Zero shall be returned on success, and one on faliure
+ *
+ * The use ExitProcess is equavilent to returning from this function 
+ */
 int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, LPWSTR cmd, int show) 
 {
 	UNREFERENCED_PARAMETER(prev);
