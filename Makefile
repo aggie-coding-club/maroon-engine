@@ -10,26 +10,27 @@ LDFLAGS += -lopengl32 -mwindows
 LDFLAGS += lib/glad/src/glad.o
 
 SRC = $(wildcard src/*.cpp)
-OBJ = $(SRC:.cpp=.o)
-BIN = bin
+OBJ = $(SRC:%.cpp=%.o)
+DEP = $(SRC:%.cpp=%.d)
 
 all: libs dirs engine
 
 libs:
-	if not exist bin \
-		mkdir bin
 	if not exist lib/glad/src/glad.o \
 		cd lib/glad && $(CC) -o src/glad.o -Iinclude -c src/glad.c
 
 dirs:
-	if not exist $(BIN) \
-		mkdir $(BIN)
+	if not exist bin \
+		mkdir bin 
 
 %.o: %.cpp %.d
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
-DEPFILES := $(SRC:%.cpp=%.d)
-include $(wildcard $DEPFILES)
+include $(wildcard $DEP)
 
 engine: $(OBJ)
-	$(CXX) -o $(BIN)/engine.exe $^ $(LDFLAGS)
+	$(CXX) -o bin/engine.exe $^ $(LDFLAGS)
+
+clean:
+	rm $(OBJ) $(DEP) -f
+	rd bin /S
