@@ -1,3 +1,5 @@
+# Team Members
+Lenny T. , James F. ,  
 # The Project Goal
 
 # Current Features
