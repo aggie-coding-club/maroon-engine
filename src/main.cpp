@@ -2,12 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 #define WIN32_LEAN_AND_MEAN
 #define WIN_32_EXTRA_LEAN
 #include <windows.h>
 
 #include <glad/glad.h>
 #include <wglext.h>
+
+#include "toolkit.h"
 
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
@@ -235,6 +238,9 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, LPWSTR cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_open_gl();
+
+	setup();
+	update_and_render(); // NOTE(Lenny): main game loop. runs once every frame
 	msg_loop();
 	
 	return 0;
