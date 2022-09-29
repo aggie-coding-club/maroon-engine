@@ -3,7 +3,7 @@
 
 void setup(){
     // NOTE(Lenny): should run once
-    int x = 0;
+    
 }
 
 void update_and_render(){
