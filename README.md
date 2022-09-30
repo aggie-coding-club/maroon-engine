@@ -1,5 +1,5 @@
 # Team Members
-Lenny T. , James F. , Robert S. , Wesley T. , 
+Lenny T. , James F. , Robert S. , Wesley T. , Jonah B. ,
 # The Project Goal
 
 # Current Features
