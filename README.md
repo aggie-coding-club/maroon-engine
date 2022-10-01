@@ -1,5 +1,5 @@
 # Team Members
-Lenny T. , James F. , Robert S. ,  Wyatt C. ,
+Lenny T. , James F. , Robert S. , Wesley T. , Jonah B. , Rahif M. , Neil K., Wyatt C.
 # The Project Goal
 
 # Current Features
@@ -19,7 +19,7 @@ https://www.realtech-vr.com/api/deeplink?SKU=15&target=UrlWin32
 We will be using mingw-w64 as our main compiler, linker, and build system.  
 Click this link to download a pre-built binary for mingw-w64.  
 https://github.com/niXman/mingw-builds-binaries/releases/download/12.2.0-rt_v10-rev0/x86_64-12.2.0-release-win32-sjlj-rt_v10-rev0.7z  
-Decompress the download using 7-Zip (You can download 9-Zip here: https://www.7-zip.org/a/7z2201-x64.exe).  
+Decompress the download using 7-Zip (You can download 7-Zip here: https://www.7-zip.org/a/7z2201-x64.exe).  
 Move the "mingw64" folder to  "C:/Program Files".  
 
 ## Adding Mingw64 to Path
