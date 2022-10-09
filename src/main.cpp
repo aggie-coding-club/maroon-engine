@@ -2,12 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 #define WIN32_LEAN_AND_MEAN
 #define WIN_32_EXTRA_LEAN
 #include <windows.h>
 
 #include <glad/glad.h>
 #include <wglext.h>
+
+#include "toolkit.h"
 
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
@@ -18,6 +21,7 @@ static HINSTANCE g_ins;
 static HWND g_wnd;
 static HDC g_hdc;
 static HGLRC g_glrc;
+static bool g_program_running = 0;
 
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
@@ -64,14 +68,9 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch (msg) {
 	case WM_DESTROY:
-		ExitProcess(0);
+		g_program_running = false;
 	case WM_SIZE:
 		glViewport(0, 0, LOWORD(lp), HIWORD(lp));
-		return 0;
-	case WM_PAINT:
-		glClear(GL_COLOR_BUFFER_BIT);  
-		glClearColor(0.0F, 1.0F, 0.0F, 1.0F);  
-		SwapBuffers(g_hdc);
 		return 0;
 	}
 	return DefWindowProcW(wnd, msg, wp, lp);
@@ -206,11 +205,9 @@ static void msg_loop(void)
 
 	ShowWindow(g_wnd, SW_SHOW);
 
-	while (1) {
-		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessageW(&msg);
-		}
+	while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+		TranslateMessage(&msg);
+		DispatchMessageW(&msg);
 	}
 }
 
@@ -230,12 +227,25 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, LPWSTR cmd, int show)
 	UNREFERENCED_PARAMETER(prev);
 	UNREFERENCED_PARAMETER(cmd);
 	UNREFERENCED_PARAMETER(show);
+	printf("\nsomething\n");
 
 	g_ins = ins;
 	set_default_directory();
 	create_main_window();
 	init_open_gl();
-	msg_loop();
+
+	setup();
+	g_program_running = true;
+
+	while(g_program_running){
+		msg_loop();
+		
+		glClear(GL_COLOR_BUFFER_BIT);  
+		glClearColor(0.0F, 1.0F, 0.0F, 1.0F);  
+		SwapBuffers(g_hdc);
+
+		update_and_render(); // NOTE(Lenny): main game loop. runs once every frame
+	}
 	
 	return 0;
 }
