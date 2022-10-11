@@ -5,6 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define WIN_32_EXTRA_LEAN
 #include <windows.h>
+#include <dbghelp.h> /*needs to go after windows.h*/
 
 #include <glad/glad.h>
 #include <wglext.h>
@@ -21,6 +22,12 @@ static HGLRC g_glrc;
 
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
+
+static uint32_t g_tile_prog;
+static uint32_t g_tile_vao;
+static uint32_t g_tile_vbo;
+static int32_t g_tile_tex_ul; 
+static uint32_t g_tile_tex;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -70,7 +77,7 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		return 0;
 	case WM_PAINT:
 		glClear(GL_COLOR_BUFFER_BIT);  
-		glClearColor(0.0F, 1.0F, 0.0F, 1.0F);  
+		glClearColor(0.0F, 1.0F, 0.0F, 1.0F);
 		SwapBuffers(g_hdc);
 		return 0;
 	}
@@ -197,8 +204,231 @@ static void init_open_gl(void)
 	gladLoadGL();
 }
 
+/*
+ * get_error_text() - Turn last Win32 error into a string. 
+ * @buf: Buffer for characters
+ * @size: Size of buffer  
+ * 
+ * Return: The length of string in buffer. 
+ *
+ * Zero is returned if "size" is zero.
+ * If size is nonzero and their is an error, the string
+ * in the buffer will be an empty string. 
+ */
+static DWORD get_error_text(wchar_t *buf, DWORD size)
+{
+	DWORD flags;
+	DWORD err;
+	DWORD lang;
+	DWORD ret;
+
+	flags = FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM;
+	err = GetLastError();
+	lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+	ret = FormatMessageW(flags, NULL, err, lang, buf, size, NULL); 
+	if (!ret && size) {
+		buf[0] = L'\0';
+	}
+	return ret;	
+}
+
 /**
- * msg_loop() - main loop of program
+ * fatal_win32_error() - Display message box with Win32 error and exit.
+ *
+ * This function is used if a Win32 function fails with
+ * a unrecoverable error.
+ */
+static void fatal_win32_err(void)
+{
+	wchar_t buf[1024];
+
+	get_error_text(buf, _countof(buf));
+	MessageBoxW(g_wnd, buf, L"Win32 Fatal Error", MB_OK);
+	ExitProcess(1);
+}
+
+/**
+ * fatal_crt_error() - Display message box with CRT error and exit 
+ *
+ * This function is used if a C-Runtime (CRT) function fails with
+ * a unrecoverable error. 
+ */
+static void fatal_crt_err(void)
+{
+	wchar_t buf[1024];
+
+	_wcserror_s(buf, _countof(buf), errno);
+	MessageBoxW(g_wnd, buf, L"CRT Fatal Error", MB_OK); 
+	ExitProcess(1);
+}
+
+/**
+ * read_all_str() - Reads entire file as a narrow string. 
+ *
+ * Exit with message box on failure.
+ *
+ * Return: The narrow string, destroy with "free" function 
+ */
+static char *read_all_str(const wchar_t *path)
+{
+	HANDLE fh;
+	DWORD size;
+	DWORD read;
+	char *buf;
+
+	fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, 
+			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL); 
+	if (fh == INVALID_HANDLE_VALUE) {
+		fatal_win32_err();
+	}
+
+	size = GetFileSize(fh, NULL); 
+	if (size == INVALID_FILE_SIZE) {
+		fatal_win32_err();
+	}
+
+	buf = (char *) malloc(size + 1);
+	if (!buf) {
+		fatal_crt_err();
+	}
+
+	if (!ReadFile(fh, buf, size, &read, NULL) || read < size) {
+		fatal_win32_err();
+	}
+	buf[size] = '\0';
+
+	CloseHandle(fh);
+	return buf;
+}
+
+/**
+ * prog_print() - Print OpenGL program log to standard error
+ * @msg: A string to prepend the error  
+ * @prog: The program 
+ */
+static void prog_print(const char *msg, GLuint prog)
+{
+	char err[1024];
+
+	glGetProgramInfoLog(prog, sizeof(err), NULL, err);
+	if (glGetError()) {
+		fprintf(stderr, "gl error: %s\n", msg);
+	} else {
+		fprintf(stderr, "gl error: %s: %s\n", msg, err);
+	}
+}
+
+/**
+ * prog_printf() - Formatted equavilent of "prog_print" 
+ * @fmt: The format string for the message to prepend the error
+ * @prog: The program
+ * @...: Format arguments
+ */
+__attribute__((format(printf, 1, 3)))
+static void prog_printf(const char *fmt, GLuint prog, ...)
+{
+	va_list ap;
+	char msg[1024];
+
+	va_start(ap, prog);
+	vsprintf_s(msg, sizeof(msg), fmt, ap);
+	va_end(ap);
+	prog_print(msg, prog);
+}
+
+/**
+ * to_utf8() - Convert UTF-16 to UTF-8 string
+ * @dst: Buffer for UTF8 string
+ * @src: UTF16 string to convert
+ * @size: Size of "dst" buffer 
+ *
+ * Exits on failure to convert or if the "size" is zero 
+ */
+static void to_utf8(char *dst, const wchar_t *src, size_t size)
+{
+	if (!WideCharToMultiByte(CP_UTF8, 0, src, -1, dst, size, NULL, NULL)) {
+		if (size == 0) {
+			SetLastError(ERROR_INVALID_PARAMETER);
+		}
+		fatal_win32_err();
+	}
+}	
+
+/**
+ * compile_shader() - Compile shader
+ * @type: Type of shader (ex. GL_VERTEX_SHADER)
+ * @path: path of shader (relative to res/shaders)
+ *
+ * Return: The shader 
+ */
+static GLuint compile_shader(GLuint type, const wchar_t *path)
+{
+	wchar_t wpath[MAX_PATH];
+	char *src;
+	GLuint shader;
+	int success;
+
+	_snwprintf(wpath, _countof(wpath), L"res/shaders/%s", path); 
+	src = read_all_str(wpath);
+	shader = glCreateShader(type);
+	glShaderSource(shader, 1, (const char **) &src, NULL);
+	free(src);
+
+	glCompileShader(shader);
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+	if (!success) {
+		char buf[MAX_PATH];
+		to_utf8(buf, path, _countof(buf));
+		prog_printf("\"%s\" compilation failed", shader, buf); 
+	}
+
+	return shader;
+}
+
+/**
+ * create_prog() - Create OpenGL program
+ * @vs_path: Vertex shader path (relative to res/shaders)
+ * @gs_path: Geometry shader path (relative to res/shaders)
+ * @fs_path: Fragment shader path (relative to res/shaders)
+ *
+ * Return: The program
+ */
+static GLuint create_prog(const wchar_t *vs_path, 
+		const wchar_t *gs_path, const wchar_t *fs_path)
+{
+	GLuint prog;
+	GLuint vs;
+	GLuint gs;
+	GLuint fs;
+	int success;
+
+	prog = glCreateProgram();
+
+	vs = compile_shader(GL_VERTEX_SHADER, vs_path);
+	glAttachShader(prog, vs);
+	gs = compile_shader(GL_GEOMETRY_SHADER, gs_path);
+	glAttachShader(prog, gs);
+	fs = compile_shader(GL_FRAGMENT_SHADER, fs_path);
+	glAttachShader(prog, fs);
+
+	glLinkProgram(prog);
+	glGetProgramiv(prog, GL_LINK_STATUS, &success);
+	if (!success) {
+		prog_print("program link failed", prog);
+	}
+
+	glDetachShader(prog, fs);
+	glDeleteShader(fs);
+	glDetachShader(prog, gs);
+	glDeleteShader(gs);
+	glDetachShader(prog, vs);
+	glDeleteShader(vs);
+
+	return prog;
+}
+
+/**
+ * msg_loop() - Main loop of program
  */
 static void msg_loop(void)
 {
@@ -206,11 +436,9 @@ static void msg_loop(void)
 
 	ShowWindow(g_wnd, SW_SHOW);
 
-	while (1) {
-		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessageW(&msg);
-		}
+	while (GetMessageW(&msg, NULL, 0, 0)) {
+		TranslateMessage(&msg);
+		DispatchMessageW(&msg);
 	}
 }
 
@@ -223,14 +451,14 @@ static void msg_loop(void)
  *
  * Return: Zero shall be returned on success, and one on faliure
  *
- * The use ExitProcess is equavilent to returning from this function 
+ * The use ExitProcess is equivalent to returning from this function 
  */
-int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, LPWSTR cmd, int show) 
+int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show) 
 {
 	UNREFERENCED_PARAMETER(prev);
 	UNREFERENCED_PARAMETER(cmd);
 	UNREFERENCED_PARAMETER(show);
-
+	
 	g_ins = ins;
 	set_default_directory();
 	create_main_window();

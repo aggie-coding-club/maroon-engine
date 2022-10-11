@@ -1,12 +1,12 @@
 CC = gcc
 CXX = g++
 
-CXXFLAGS = -DUNICODE -Wall
+CXXFLAGS = -DUNICODE -Wall -g 
 CXXFLAGS += -Ilib/glad/include -Ilib/wgl
 CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
 LDFLAGS = -municode -fno-exceptions -fno-rtti
-LDFLAGS += -lopengl32 -mwindows
+LDFLAGS += -lopengl32 -ldbghelp -mwindows -mconsole
 LDFLAGS += lib/glad/src/glad.o
 
 SRC = $(wildcard src/*.cpp)
