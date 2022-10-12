@@ -8,6 +8,7 @@
 #include <dbghelp.h> /*needs to go after windows.h*/
 
 #include <glad/glad.h>
+#include <stb_image.h>
 #include <wglext.h>
 
 #define CLIENT_WIDTH 640
@@ -427,8 +428,60 @@ static GLuint create_prog(const wchar_t *vs_path,
 	return prog;
 }
 
-static GLuint create_tile_prog(void)
+static void load_atlas(void)
 {
+	int width;
+	int height;
+	uint8_t *data;
+
+	data = stbi_load("res/textures/placeholder.png", 
+			&width, &height, NULL, 3);
+	if (data) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 
+				0, GL_RGB, GL_UNSIGNED_BYTE, data); 
+		stbi_image_free(data);
+	} else {
+		fprintf(stderr, "could not load atlas\n");
+	}
+}
+
+static void create_tile_prog(void)
+{
+	static uint8_t tiles[32][32] = {
+		{0, 1, 2},
+		{2, 1, 0},
+		{2, 1, 0},
+		{2, 1, 0},
+		{2, 1, 0}
+	};
+
+	g_tile_prog = create_prog(L"tm.vert", L"tm.geom", L"tm.frag");
+
+	glGenVertexArrays(1, &g_tile_vao);
+	glGenBuffers(1, &g_tile_vbo);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, g_tile_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(tiles), 
+			tiles, GL_DYNAMIC_DRAW);
+
+	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
+	glEnableVertexAttribArray(0);
+
+	glGenTextures(1, &g_tile_tex);
+	glBindTexture(GL_TEXTURE_2D, g_tile_tex);
+
+	glUseProgram(g_tile_prog);
+	g_tile_tex_ul = glGetUniformLocation(g_tile_prog, "tex");
+
+  	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+			GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	load_atlas();
+	glUniform1i(g_tile_tex_ul, 0);
 }
 
 /**
