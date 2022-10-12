@@ -16,6 +16,11 @@
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
+struct v2 {
+	float x;
+	float y;
+};
+
 static HINSTANCE g_ins;
 static HWND g_wnd;
 static HDC g_hdc;
@@ -40,6 +45,8 @@ static uint8_t g_tile_map[32][32] = {
 	{1, 0, 0, 0, 0, 1},
 	{1, 1, 1, 1, 1, 1}
 };
+
+struct v2 g_scroll;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -434,6 +441,9 @@ static GLuint create_prog(const wchar_t *vs_path,
 	return prog;
 }
 
+/**
+ * load_atlas() - Load placeholder texture atlas.
+ */
 static void load_atlas(void)
 {
 	int width;
@@ -486,13 +496,9 @@ static void create_tile_prog(void)
 	glUniform1i(g_tile_tex_ul, 0);
 }
 
-struct v2 {
-	float x;
-	float y;
-};
-
-struct v2 g_scroll;
-
+/**
+ * render() - Render tile map
+ */
 static void render(void)
 {
 	glUseProgram(g_tile_prog);
