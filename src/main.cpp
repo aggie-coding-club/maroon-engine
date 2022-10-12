@@ -427,6 +427,10 @@ static GLuint create_prog(const wchar_t *vs_path,
 	return prog;
 }
 
+static GLuint create_tile_prog(void)
+{
+}
+
 /**
  * msg_loop() - Main loop of program
  */
@@ -451,7 +455,7 @@ static void msg_loop(void)
  *
  * Return: Zero shall be returned on success, and one on faliure
  *
- * The use ExitProcess is equivalent to returning from this function 
+ * The use of ExitProcess is equivalent to returning from this function 
  */
 int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show) 
 {

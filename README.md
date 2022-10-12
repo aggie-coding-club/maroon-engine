@@ -72,7 +72,7 @@ Executing "engine.exe" should show green window.
 
 	K&R style brackets with mandatory brackets on single line:
 		good:
-			static void cd\_parent(wchar\_t *path)
+			static void cd_parent(wchar_t *path)
 			{
 				wchar_t *find;
 
@@ -82,7 +82,7 @@ Executing "engine.exe" should show green window.
 				}
 			}
 		bad:
-			static void cd\_parent(wchar\_t *path)
+			static void cd_parent(wchar_t *path)
 			{
 				wchar_t *find;
 
@@ -91,7 +91,7 @@ Executing "engine.exe" should show green window.
 					*find = '\0';
 			}
 
-			static void cd\_parent(wchar\_t *path) {
+			static void cd_parent(wchar_t *path) {
 				wchar_t *find;
 
 				find = wcsrchr(path, '\\');
@@ -99,7 +99,7 @@ Executing "engine.exe" should show green window.
 					*find = '\0';
 			}
 
-			static void cd\_parent(wchar\_t *path) 
+			static void cd_parent(wchar_t *path) 
 			{
 				wchar_t *find;
 
