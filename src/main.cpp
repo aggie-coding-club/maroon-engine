@@ -25,10 +25,21 @@ static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
 
 static uint32_t g_tile_prog;
+
 static uint32_t g_tile_vao;
 static uint32_t g_tile_vbo;
+
+static int32_t g_tile_scroll_ul; 
 static int32_t g_tile_tex_ul; 
+
 static uint32_t g_tile_tex;
+
+static uint8_t g_tile_map[32][32] = {
+	{1, 1, 1, 1, 1, 1},
+	{1, 0, 0, 0, 0, 1},
+	{1, 0, 0, 0, 0, 1},
+	{1, 1, 1, 1, 1, 1}
+};
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -75,11 +86,6 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		ExitProcess(0);
 	case WM_SIZE:
 		glViewport(0, 0, LOWORD(lp), HIWORD(lp));
-		return 0;
-	case WM_PAINT:
-		glClear(GL_COLOR_BUFFER_BIT);  
-		glClearColor(0.0F, 1.0F, 0.0F, 1.0F);
-		SwapBuffers(g_hdc);
 		return 0;
 	}
 	return DefWindowProcW(wnd, msg, wp, lp);
@@ -156,9 +162,9 @@ static PROC wgl_load(const char *name)
 }
 
 /**
- * init_open_gl() - initialize OpenGL context and load necessary extensions 
+ * init_gl() - initialize OpenGL context and load necessary extensions 
  */
-static void init_open_gl(void)
+static void init_gl(void)
 {
 	static const int attrib_list[] = {
 		WGL_CONTEXT_MAJOR_VERSION_ARB, 
@@ -445,24 +451,19 @@ static void load_atlas(void)
 	}
 }
 
+/**
+ * create_tile_prog() - Creates program to render background map 
+ */
 static void create_tile_prog(void)
 {
-	static uint8_t tiles[32][32] = {
-		{0, 1, 2},
-		{2, 1, 0},
-		{2, 1, 0},
-		{2, 1, 0},
-		{2, 1, 0}
-	};
-
 	g_tile_prog = create_prog(L"tm.vert", L"tm.geom", L"tm.frag");
 
 	glGenVertexArrays(1, &g_tile_vao);
 	glGenBuffers(1, &g_tile_vbo);
 	
 	glBindBuffer(GL_ARRAY_BUFFER, g_tile_vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(tiles), 
-			tiles, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_tile_map), 
+			g_tile_map, GL_DYNAMIC_DRAW);
 
 	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
 	glEnableVertexAttribArray(0);
@@ -471,6 +472,7 @@ static void create_tile_prog(void)
 	glBindTexture(GL_TEXTURE_2D, g_tile_tex);
 
 	glUseProgram(g_tile_prog);
+	g_tile_scroll_ul = glGetUniformLocation(g_tile_prog, "scroll");
 	g_tile_tex_ul = glGetUniformLocation(g_tile_prog, "tex");
 
   	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -484,6 +486,26 @@ static void create_tile_prog(void)
 	glUniform1i(g_tile_tex_ul, 0);
 }
 
+struct v2 {
+	float x;
+	float y;
+};
+
+struct v2 g_scroll;
+
+static void render(void)
+{
+	glUseProgram(g_tile_prog);
+	glBindVertexArray(g_tile_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_tile_vbo);
+	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
+	glEnableVertexAttribArray(0);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_tile_map), g_tile_map);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, g_tile_tex);
+        glDrawArrays(GL_POINTS, 0, sizeof(g_tile_map));
+}
+
 /**
  * msg_loop() - Main loop of program
  */
@@ -493,9 +515,27 @@ static void msg_loop(void)
 
 	ShowWindow(g_wnd, SW_SHOW);
 
-	while (GetMessageW(&msg, NULL, 0, 0)) {
-		TranslateMessage(&msg);
-		DispatchMessageW(&msg);
+	while (1) {
+		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessageW(&msg);
+		}
+
+		glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		g_scroll.x += 1.0F / 16.0F;
+		if (g_scroll.x >= 32.0F) {
+			g_scroll.x = 0.0F;
+		}
+		g_scroll.y += 1.0F / 16.0F;
+		if (g_scroll.y >= 32.0F) {
+			g_scroll.y = 0.0F;
+		}
+		glUniform2f(g_tile_scroll_ul, g_scroll.x, g_scroll.y);
+
+		render();
+		SwapBuffers(g_hdc);
 	}
 }
 
@@ -519,7 +559,8 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	g_ins = ins;
 	set_default_directory();
 	create_main_window();
-	init_open_gl();
+	init_gl();
+	create_tile_prog();
 	msg_loop();
 	
 	return 0;

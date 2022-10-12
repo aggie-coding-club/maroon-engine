@@ -37,4 +37,4 @@ engine: $(OBJ)
 
 clean:
 	rm $(OBJ) $(DEP) -f
-	rd bin /S
+	rm -r bin
