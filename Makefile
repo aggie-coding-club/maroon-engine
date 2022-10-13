@@ -6,14 +6,14 @@ CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl
 CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
 LDFLAGS = -municode -fno-exceptions -fno-rtti
-LDFLAGS += -lopengl32 -mwindows -mconsole
+LDFLAGS += -lopengl32 -lole32 -mwindows -mconsole
 LDFLAGS += lib/glad/src/glad.o lib/stb/stb_image.o
 
 SRC = $(wildcard src/*.cpp)
 OBJ = $(SRC:%.cpp=%.o)
 DEP = $(SRC:%.cpp=%.d)
 
-all: libs dirs engine
+all: libs dirs src/menu.o engine
 
 libs:
 	if not exist lib/stb/stb_image.o \
@@ -27,7 +27,7 @@ dirs:
 	if not exist bin \
 		mkdir bin 
 
-src/menu.o: src/menu.h src/menu.rc
+src/menu.o: src/menu.hpp src/menu.rc
 	windres src/menu.rc -o src/menu.o
 
 %.o: %.cpp %.d

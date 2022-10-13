@@ -5,18 +5,27 @@
 #define WIN32_LEAN_AND_MEAN
 #define WIN_32_EXTRA_LEAN
 #include <windows.h>
-#include <dbghelp.h> /*needs to go after windows.h*/
+#include <windowsx.h>
+
+#include <commdlg.h>
+#include <fileapi.h>
 
 #include <glad/glad.h>
 #include <stb_image.h>
 #include <wglext.h>
 
-#include "menu.h"
+#include "menu.hpp"
+
+#define VIEW_WIDTH 20
+#define VIEW_HEIGHT 15 
 
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
+
+#define MBH_LEFT 1
+#define MBH_RIGHT 2
 
 struct v2 {
 	float x;
@@ -42,14 +51,17 @@ static int32_t g_tile_tex_ul;
 
 static uint32_t g_tile_tex;
 
-static uint8_t g_tile_map[32][32] = {
-	{1, 1, 1, 1, 1, 1},
-	{1, 0, 0, 0, 0, 1},
-	{1, 0, 0, 0, 0, 1},
-	{1, 1, 1, 1, 1, 1}
-};
+static uint8_t g_tile_map[32][32];
 
-struct v2 g_scroll;
+static v2 g_scroll;
+
+static int g_client_width = CLIENT_WIDTH;
+static int g_client_height = CLIENT_HEIGHT;
+
+static wchar_t g_map_path[MAX_PATH];
+
+static bool g_change;
+static uint8_t g_mbh_flags; 
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -79,17 +91,206 @@ static void set_default_directory(void)
 }
 
 /**
+ * update_size() - Called to acknowledge changes in client area size
+ * @width: New client width
+ * @height: New client height
+ */
+static void update_size(int width, int height)
+{
+	g_client_width = width;
+	g_client_height = height;
+	glViewport(0, 0, width, height);
+}
+
+/**
+ * unsaved_warning() - Display unsaved changes will be lost
+ * if changes "g_change" is true.
+ *
+ * Return: If warning is not displayed, or the OK button
+ * is pressed returns true, elsewise false 
+ */
+static bool unsaved_warning(void)
+{
+	return !g_change || MessageBoxW(g_wnd, L"Unsaved changes will be lost", 
+			L"Warning", MB_ICONEXCLAMATION | MB_OKCANCEL) == IDOK;
+}
+
+/**
+ * write_map() - Save map to file.
+ * @path - Path to map
+ *
+ * Display message box on failure
+ *
+ * Return: Returns zero on success, and negative number on failure
+ */
+static int write_map(const wchar_t *path) 
+{
+	HANDLE fh;
+	DWORD write;
+
+	fh = CreateFileW(path, GENERIC_WRITE, 0, NULL, 
+			CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL); 
+	if (fh == INVALID_HANDLE_VALUE) {
+		goto err;
+	}
+	
+	WriteFile(fh, g_tile_map, sizeof(g_tile_map), &write, NULL); 
+	CloseHandle(fh);
+
+	if (write < sizeof(g_tile_map)) {
+		goto err;
+	}
+
+	g_change = false;
+	return 0;
+err:
+	MessageBoxW(g_wnd, L"Could not save map", L"Error", MB_ICONERROR);
+	return -1;
+}
+
+/**
+ * read_map() - Read map
+ * @path - Path to map
+ *
+ * Display message box on failure
+ *
+ * Return: Returns zero on success, and negative number on failure
+ */
+static int read_map(const wchar_t *path)
+{
+	HANDLE fh;
+	DWORD read;
+	uint8_t tmp[1024];
+
+	fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, 
+			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL); 
+	if (fh == INVALID_HANDLE_VALUE) {
+		goto err;
+	}
+	
+	ReadFile(fh, tmp, sizeof(tmp), &read, NULL); 
+	CloseHandle(fh);
+	if (read < sizeof(g_tile_map)) {
+		goto err;
+	}
+
+	g_change = false;
+	memcpy(g_tile_map, tmp, sizeof(g_tile_map));
+	return 0;
+err:
+	MessageBoxW(g_wnd, L"Could not read map", L"Error", MB_ICONERROR);
+	return -1;
+}
+
+/**
+ * open() - Open map dialog 
+ */
+static void open(void)
+{
+	wchar_t path[MAX_PATH];
+	wchar_t init[MAX_PATH];
+	OPENFILENAMEW ofn;
+
+	if (!unsaved_warning()) {
+		return;
+	}
+
+	wcscpy(path, g_map_path);
+	GetFullPathNameW(L"res\\maps", MAX_PATH, init, NULL);
+
+	memset(&ofn, 0, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = g_wnd;
+	ofn.lpstrFilter = L"Map (*.mem)\0*.mem\0";
+	ofn.lpstrFile = g_map_path;
+	ofn.nMaxFile = MAX_PATH; 
+	ofn.lpstrInitialDir = init;
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+	ofn.lpstrDefExt = L"mem";
+
+	if (!GetOpenFileName(&ofn) || read_map(g_map_path) < 0) {
+		wcscpy(g_map_path, path);
+	}
+}
+
+/**
+ * save_as() - Save as map dialog 
+ */
+static void save_as(void)
+{
+	wchar_t path[MAX_PATH];
+	wchar_t init[MAX_PATH];
+	OPENFILENAMEW ofn;
+
+	wcscpy(path, g_map_path);
+	GetFullPathNameW(L"res\\maps", MAX_PATH, init, NULL);
+
+	memset(&ofn, 0, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = g_wnd;
+	ofn.lpstrFilter = L"Map (*.mem)\0*.mem\0";
+	ofn.lpstrFile = g_map_path;
+	ofn.nMaxFile = MAX_PATH; 
+	ofn.lpstrInitialDir = init;
+        ofn.Flags = OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+	ofn.lpstrDefExt = L"mem";
+
+	if (!GetSaveFileNameW(&ofn) || write_map(g_map_path) < 0) {
+		wcscpy(g_map_path, path);
+	}
+}
+
+/**
+ * save() - Saves file if path non-empty, else identical to "save_as"
+ */
+static void save(void)
+{
+	if (g_map_path[0]) {
+		write_map(g_map_path);
+	} else {
+		save_as();
+	}
+}
+
+/**
  * process_cmds() - Process menu commands
  */
 static void process_cmds(int id)
 {
 	switch (id) {
-	case ID_NEW:
-		MessageBoxW(wnd, L"NEW", L"MSG", MB_OK);
+	case IDM_NEW:
+		if (unsaved_warning()) {
+			g_map_path[0] = '\0';
+			memset(g_tile_map, 0, sizeof(g_tile_map));
+			g_change = false;
+		}
 		break;
-	case ID_OPEN:
-		MessageBoxW(wnd, L"OPEN", L"MSG", MB_OK);
+	case IDM_OPEN:
+		open();
 		break;
+	case IDM_SAVE:
+		save();
+		break;
+	case IDM_SAVE_AS:
+		save_as();
+		break;
+	}
+}
+
+/**
+ * place_tile() - Place tile using cursor
+ * @x: Client window x coord 
+ * @y: Client window y coord 
+ * @tile: Tile to place
+ */
+static void place_tile(int x, int y, int tile)
+{
+	x = x * VIEW_WIDTH / g_client_width;
+	y = y * VIEW_HEIGHT / g_client_height;
+
+	if (g_tile_map[y][x] != tile) {
+		g_tile_map[y][x] = tile;
+		g_change = true;
 	}
 }
 
@@ -107,13 +308,41 @@ static void process_cmds(int id)
 static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch (msg) {
-	case WM_DESTROY:
-		ExitProcess(0);
+	case WM_CLOSE:
+		if (unsaved_warning()) {
+			ExitProcess(0);
+		}
+		return 0;
 	case WM_SIZE:
-		glViewport(0, 0, LOWORD(lp), HIWORD(lp));
+		update_size(LOWORD(lp), HIWORD(lp));
 		return 0;
 	case WM_COMMAND:
 		process_cmds(LOWORD(wp));
+		return 0;
+	case WM_LBUTTONDOWN:
+		if (wp & MK_SHIFT) {
+			g_mbh_flags |= MBH_LEFT;
+		}
+		place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), 1);
+		return 0;
+	case WM_LBUTTONUP:
+		g_mbh_flags &= ~MBH_LEFT;
+		return 0;
+	case WM_RBUTTONDOWN:
+		if (wp & MK_SHIFT) {
+			g_mbh_flags |= MBH_RIGHT;
+		}
+		place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), 0);
+		return 0;
+	case WM_RBUTTONUP:
+		g_mbh_flags &= ~MBH_RIGHT;
+		return 0;
+	case WM_MOUSEMOVE:
+		if (g_mbh_flags & MBH_LEFT) {
+			place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), 1);
+		} else if (g_mbh_flags & MBH_RIGHT) {
+			place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), 0);
+		}
 		return 0;
 	}
 	return DefWindowProcW(wnd, msg, wp, lp);
@@ -129,7 +358,7 @@ static void create_main_window(void)
 	int width;
 	int height;
 
-	ZeroMemory(&wc, sizeof(wc));
+	memset(&wc, 0, sizeof(wc));
 	wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC; 
 	wc.lpfnWndProc = wnd_proc;
 	wc.hInstance = g_ins;
@@ -147,7 +376,7 @@ static void create_main_window(void)
 	rect.top = 0;
 	rect.right = CLIENT_WIDTH;
 	rect.bottom = CLIENT_HEIGHT;
-	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, TRUE);
 
 	width = rect.right - rect.left;
 	height = rect.bottom - rect.top;
@@ -216,7 +445,7 @@ static void init_gl(void)
 
 	g_hdc = GetDC(g_wnd);
 
-	ZeroMemory(&pfd, sizeof(pfd));
+	memset(&pfd, 0, sizeof(pfd));
 	pfd.nSize = sizeof(pfd);
 	pfd.nVersion = 1;
 	pfd.dwFlags = PFD_DOUBLEBUFFER |  
@@ -331,7 +560,8 @@ static char *read_all_str(const wchar_t *path)
 		fatal_crt_err();
 	}
 
-	if (!ReadFile(fh, buf, size, &read, NULL) || read < size) {
+	ReadFile(fh, buf, size, &read, NULL);
+	if (read < size) {
 		fatal_win32_err();
 	}
 	buf[size] = '\0';
