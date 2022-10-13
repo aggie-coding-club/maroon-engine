@@ -11,6 +11,8 @@
 #include <stb_image.h>
 #include <wglext.h>
 
+#include "menu.h"
+
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
 
@@ -23,6 +25,7 @@ struct v2 {
 
 static HINSTANCE g_ins;
 static HWND g_wnd;
+static HACCEL g_acc; 
 static HDC g_hdc;
 static HGLRC g_glrc;
 
@@ -76,6 +79,21 @@ static void set_default_directory(void)
 }
 
 /**
+ * process_cmds() - Process menu commands
+ */
+static void process_cmds(int id)
+{
+	switch (id) {
+	case ID_NEW:
+		MessageBoxW(wnd, L"NEW", L"MSG", MB_OK);
+		break;
+	case ID_OPEN:
+		MessageBoxW(wnd, L"OPEN", L"MSG", MB_OK);
+		break;
+	}
+}
+
+/**
  * wnd_proc() - Callback to prcoess window messages
  * @wnd: Handle to window, should be equal to g_wnd
  * @msg: Message to procces
@@ -93,6 +111,9 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		ExitProcess(0);
 	case WM_SIZE:
 		glViewport(0, 0, LOWORD(lp), HIWORD(lp));
+		return 0;
+	case WM_COMMAND:
+		process_cmds(LOWORD(wp));
 		return 0;
 	}
 	return DefWindowProcW(wnd, msg, wp, lp);
@@ -114,6 +135,7 @@ static void create_main_window(void)
 	wc.hInstance = g_ins;
 	wc.hCursor = LoadCursorW(NULL, IDC_ARROW); 
 	wc.lpszClassName = L"WndClass"; 
+	wc.lpszMenuName = MAKEINTRESOURCEW(ID_MENU);
 
 	if (!RegisterClassW(&wc)) {
 		MessageBoxW(NULL, L"Window registration failed", 
@@ -139,6 +161,9 @@ static void create_main_window(void)
 				L"Win32 Error", MB_ICONERROR);
 		ExitProcess(1);
 	}
+
+	g_acc = LoadAcceleratorsW(g_ins, MAKEINTRESOURCEW(ID_ACCELERATOR));
+
 }
 
 /**
@@ -521,23 +546,15 @@ static void msg_loop(void)
 
 	ShowWindow(g_wnd, SW_SHOW);
 
-	while (1) {
-		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessageW(&msg);
+	while (GetMessageW(&msg, NULL, 0, 0)) {
+		if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
+		    TranslateMessage(&msg);
+		    DispatchMessage(&msg);
 		}
 
 		glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		g_scroll.x += 1.0F / 16.0F;
-		if (g_scroll.x >= 32.0F) {
-			g_scroll.x = 0.0F;
-		}
-		g_scroll.y += 1.0F / 16.0F;
-		if (g_scroll.y >= 32.0F) {
-			g_scroll.y = 0.0F;
-		}
 		glUniform2f(g_tile_scroll_ul, g_scroll.x, g_scroll.y);
 
 		render();

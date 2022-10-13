@@ -27,12 +27,15 @@ dirs:
 	if not exist bin \
 		mkdir bin 
 
+src/menu.o: src/menu.h src/menu.rc
+	windres src/menu.rc -o src/menu.o
+
 %.o: %.cpp %.d
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
 include $(wildcard $DEP)
 
-engine: $(OBJ)
+engine: $(OBJ) src/menu.o
 	$(CXX) -o bin/engine.exe $^ $(LDFLAGS)
 
 clean:
