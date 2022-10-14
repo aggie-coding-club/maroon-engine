@@ -27,9 +27,6 @@
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
-#define MBH_LEFT 1
-#define MBH_RIGHT 2
-
 enum edit_type {
 	EDIT_NONE,
 	EDIT_PLACE_TILE
@@ -76,7 +73,6 @@ static int g_client_height = CLIENT_HEIGHT;
 static wchar_t g_map_path[MAX_PATH];
 
 static bool g_change;
-static uint8_t g_mbh_flags; 
 
 static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
@@ -453,22 +449,19 @@ static void place_tile(int x, int y, int tile)
  * button_down() - Respond to mouse button down 
  * @wp: WPARAM from wnd_proc
  * @lp: LPARAM from wnd_proc
- * @mouse_flag: The mouse flag indicates which mouse button was down
  * @tile: Tile to place
  */
-static void button_down(WPARAM wp, LPARAM lp, int mouse_flag, int tile)
+static void button_down(WPARAM wp, LPARAM lp, int tile)
 {
-	if (wp & MK_SHIFT) {
-		g_mbh_flags |= mouse_flag;
-	}
 	place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), tile);
 }
 
 /**
  * mouse_move() - Respond to mouse move
+ * @lp: WPARAM from wnd_proc
  * @lp: LPARAM from wnd_proc
  */
-static void mouse_move(LPARAM lp)
+static void mouse_move(WPARAM wp, LPARAM lp)
 {
 	int x;
 	int y;
@@ -476,10 +469,12 @@ static void mouse_move(LPARAM lp)
 	x = GET_X_LPARAM(lp);
 	y = GET_Y_LPARAM(lp);
 
-	if (g_mbh_flags & MBH_LEFT) {
-		place_tile(x, y, 1);
-	} else if (g_mbh_flags & MBH_RIGHT) {
-		place_tile(x, y, 0);
+	if (wp & MK_SHIFT) {
+		if (wp & MK_LBUTTON) {
+			place_tile(x, y, 1);
+		} else if (wp & MK_RBUTTON) {
+			place_tile(x, y, 0);
+		}
 	}
 }
 
@@ -509,19 +504,13 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		process_cmds(LOWORD(wp));
 		return 0;
 	case WM_LBUTTONDOWN:
-		button_down(wp, lp, MBH_LEFT, 1);
-		return 0;
-	case WM_LBUTTONUP:
-		g_mbh_flags &= ~MBH_LEFT;
+		button_down(wp, lp, 1);
 		return 0;
 	case WM_RBUTTONDOWN:
-		button_down(wp, lp, MBH_RIGHT, 0);
-		return 0;
-	case WM_RBUTTONUP:
-		g_mbh_flags &= ~MBH_RIGHT;
+		button_down(wp, lp, 0);
 		return 0;
 	case WM_MOUSEMOVE:
-		mouse_move(lp);
+		mouse_move(wp, lp);
 		return 0;
 	}
 	return DefWindowProcW(wnd, msg, wp, lp);
