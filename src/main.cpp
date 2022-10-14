@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,8 @@
 
 #include "menu.hpp"
 
+#define MAX_ACTIONS 256
+
 #define VIEW_WIDTH 20
 #define VIEW_HEIGHT 15 
 
@@ -27,9 +30,21 @@
 #define MBH_LEFT 1
 #define MBH_RIGHT 2
 
+enum action_type {
+	ACT_NONE,
+	ACT_PLACE_TILE
+};
+
 struct v2 {
 	float x;
 	float y;
+};
+
+struct action {
+	action_type type;
+	int x;
+	int y;
+	int tile;
 };
 
 static HINSTANCE g_ins;
@@ -62,6 +77,9 @@ static wchar_t g_map_path[MAX_PATH];
 
 static bool g_change;
 static uint8_t g_mbh_flags; 
+
+static action g_actions[MAX_ACTIONS];
+static size_t g_action_next;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -174,12 +192,23 @@ static int read_map(const wchar_t *path)
 		goto err;
 	}
 
-	g_change = false;
 	memcpy(g_tile_map, tmp, sizeof(g_tile_map));
 	return 0;
 err:
 	MessageBoxW(g_wnd, L"Could not read map", L"Error", MB_ICONERROR);
 	return -1;
+}
+
+static void reset_actions(void)
+{
+	int undo;
+
+	/*establish barrier for redo*/
+	g_actions[g_action_next].type = ACT_NONE;
+
+	/*acts as barrier for undo*/
+	undo = ary_wrap(g_action_next - 1, MAX_ACTIONS);
+	g_actions[undo].type = ACT_NONE;
 }
 
 /**
@@ -201,14 +230,16 @@ static void open(void)
 	memset(&ofn, 0, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = g_wnd;
-	ofn.lpstrFilter = L"Map (*.mem)\0*.mem\0";
+	ofn.lpstrFilter = L"Map (*.gm)\0*.gm\0";
 	ofn.lpstrFile = g_map_path;
 	ofn.nMaxFile = MAX_PATH; 
 	ofn.lpstrInitialDir = init;
 	ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
-	ofn.lpstrDefExt = L"mem";
+	ofn.lpstrDefExt = L"gm";
 
 	if (!GetOpenFileName(&ofn) || read_map(g_map_path) < 0) {
+		g_change = false;
+		reset_actions();
 		wcscpy(g_map_path, path);
 	}
 }
@@ -228,12 +259,12 @@ static void save_as(void)
 	memset(&ofn, 0, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = g_wnd;
-	ofn.lpstrFilter = L"Map (*.mem)\0*.mem\0";
+	ofn.lpstrFilter = L"Map (*.gm)\0*.gm\0";
 	ofn.lpstrFile = g_map_path;
 	ofn.nMaxFile = MAX_PATH; 
 	ofn.lpstrInitialDir = init;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
-	ofn.lpstrDefExt = L"mem";
+	ofn.lpstrDefExt = L"gm";
 
 	if (!GetSaveFileNameW(&ofn) || write_map(g_map_path) < 0) {
 		wcscpy(g_map_path, path);
@@ -252,6 +283,53 @@ static void save(void)
 	}
 }
 
+static size_t ary_wrap(size_t i, size_t size)
+{
+	return i % size;
+}
+
+static void undo(void)
+{
+	action *act;
+	int tile;
+	
+	g_action_next = ary_wrap(g_action_next - 1, MAX_ACTIONS);
+	act = g_actions + g_action_next;
+	switch (act->type) {
+	case ACT_NONE:
+		g_action_next = ary_wrap(g_action_next + 1, MAX_ACTIONS); 
+		break;
+	case ACT_PLACE_TILE:
+		tile = g_tile_map[act->y][act->x]; 
+		g_tile_map[act->y][act->x] = act->tile;
+		act->tile = tile;
+		break;
+	default:
+		break;
+	}
+}
+
+static void redo(void)
+{
+	action *act;
+	int tile;
+	
+	act = g_actions + g_action_next;
+	g_action_next = ary_wrap(g_action_next + 1, MAX_ACTIONS);
+	switch (act->type) {
+	case ACT_NONE:
+		g_action_next = ary_wrap(g_action_next - 1, MAX_ACTIONS); 
+		break;
+	case ACT_PLACE_TILE:
+		tile = g_tile_map[act->y][act->x]; 
+		g_tile_map[act->y][act->x] = act->tile;
+		act->tile = tile;
+		break;
+	default:
+		break;
+	}
+}
+
 /**
  * process_cmds() - Process menu commands
  */
@@ -261,6 +339,7 @@ static void process_cmds(int id)
 	case IDM_NEW:
 		if (unsaved_warning()) {
 			g_map_path[0] = '\0';
+			reset_actions();
 			memset(g_tile_map, 0, sizeof(g_tile_map));
 			g_change = false;
 		}
@@ -274,7 +353,68 @@ static void process_cmds(int id)
 	case IDM_SAVE_AS:
 		save_as();
 		break;
+	case IDM_UNDO:
+		undo();
+		break;
+	case IDM_REDO:
+		redo();
+		break;
 	}
+}
+
+/**
+ * fatal_crt_error() - Display message box with CRT error and exit 
+ *
+ * This function is used if a C-Runtime (CRT) function fails with
+ * a unrecoverable error. 
+ */
+static void fatal_crt_err(void)
+{
+	wchar_t buf[1024];
+
+	_wcserror_s(buf, _countof(buf), errno);
+	MessageBoxW(g_wnd, buf, L"CRT Fatal Error", MB_OK); 
+	ExitProcess(1);
+}
+
+/**
+ * xmalloc() - Alloc memory, crash on failure
+ * @size: Size of allocation
+ *
+ * Return: Pointer to allocation 
+ *
+ * Pass to "free" to deallocate.
+ */
+static void *xmalloc(size_t size)
+{
+	void *ptr;
+
+	if (size == 0) {
+		size = 1;
+	}
+
+	ptr = (char *) malloc(size);
+	if (!ptr) {
+		fatal_crt_err();
+	}
+
+	return ptr;
+}
+
+static void push_place_tile(int x, int y, int tile)
+{
+	action *act;
+
+	act = g_actions + g_action_next;
+	act->type = ACT_PLACE_TILE;
+	act->x = x;
+	act->y = y;
+	act->tile = tile;
+	g_action_next = ary_wrap(g_action_next + 1, MAX_ACTIONS); 
+		
+	/*needed to establish barrier between undo and redo*/
+	act = g_actions + g_action_next;
+	act->type = ACT_NONE;
 }
 
 /**
@@ -289,8 +429,32 @@ static void place_tile(int x, int y, int tile)
 	y = y * VIEW_HEIGHT / g_client_height;
 
 	if (g_tile_map[y][x] != tile) {
+		push_place_tile(x, y, g_tile_map[y][x]);
 		g_tile_map[y][x] = tile;
 		g_change = true;
+	}
+}
+
+static void button_down(WPARAM wp, LPARAM lp, int mouse_flag, int tile)
+{
+	if (wp & MK_SHIFT) {
+		g_mbh_flags |= mouse_flag;
+	}
+	place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), tile);
+}
+
+static void mouse_move(LPARAM lp)
+{
+	int x;
+	int y;
+
+	x = GET_X_LPARAM(lp);
+	y = GET_Y_LPARAM(lp);
+
+	if (g_mbh_flags & MBH_LEFT) {
+		place_tile(x, y, 1);
+	} else if (g_mbh_flags & MBH_RIGHT) {
+		place_tile(x, y, 0);
 	}
 }
 
@@ -320,29 +484,19 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		process_cmds(LOWORD(wp));
 		return 0;
 	case WM_LBUTTONDOWN:
-		if (wp & MK_SHIFT) {
-			g_mbh_flags |= MBH_LEFT;
-		}
-		place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), 1);
+		button_down(wp, lp, MBH_LEFT, 1);
 		return 0;
 	case WM_LBUTTONUP:
 		g_mbh_flags &= ~MBH_LEFT;
 		return 0;
 	case WM_RBUTTONDOWN:
-		if (wp & MK_SHIFT) {
-			g_mbh_flags |= MBH_RIGHT;
-		}
-		place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), 0);
+		button_down(wp, lp, MBH_RIGHT, 0);
 		return 0;
 	case WM_RBUTTONUP:
 		g_mbh_flags &= ~MBH_RIGHT;
 		return 0;
 	case WM_MOUSEMOVE:
-		if (g_mbh_flags & MBH_LEFT) {
-			place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), 1);
-		} else if (g_mbh_flags & MBH_RIGHT) {
-			place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), 0);
-		}
+		mouse_move(lp);
 		return 0;
 	}
 	return DefWindowProcW(wnd, msg, wp, lp);
@@ -516,21 +670,6 @@ static void fatal_win32_err(void)
 }
 
 /**
- * fatal_crt_error() - Display message box with CRT error and exit 
- *
- * This function is used if a C-Runtime (CRT) function fails with
- * a unrecoverable error. 
- */
-static void fatal_crt_err(void)
-{
-	wchar_t buf[1024];
-
-	_wcserror_s(buf, _countof(buf), errno);
-	MessageBoxW(g_wnd, buf, L"CRT Fatal Error", MB_OK); 
-	ExitProcess(1);
-}
-
-/**
  * read_all_str() - Reads entire file as a narrow string. 
  *
  * Exit with message box on failure.
@@ -555,10 +694,7 @@ static char *read_all_str(const wchar_t *path)
 		fatal_win32_err();
 	}
 
-	buf = (char *) malloc(size + 1);
-	if (!buf) {
-		fatal_crt_err();
-	}
+	buf = (char *) xmalloc(size + 1);
 
 	ReadFile(fh, buf, size, &read, NULL);
 	if (read < size) {
