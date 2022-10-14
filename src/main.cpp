@@ -17,7 +17,7 @@
 
 #include "menu.hpp"
 
-#define MAX_ACTIONS 256
+#define MAX_EDITS 256ULL
 
 #define VIEW_WIDTH 20
 #define VIEW_HEIGHT 15 
@@ -30,9 +30,9 @@
 #define MBH_LEFT 1
 #define MBH_RIGHT 2
 
-enum action_type {
-	ACT_NONE,
-	ACT_PLACE_TILE
+enum edit_type {
+	EDIT_NONE,
+	EDIT_PLACE_TILE
 };
 
 struct v2 {
@@ -40,8 +40,8 @@ struct v2 {
 	float y;
 };
 
-struct action {
-	action_type type;
+struct edit {
+	edit_type type;
 	int x;
 	int y;
 	int tile;
@@ -78,8 +78,8 @@ static wchar_t g_map_path[MAX_PATH];
 static bool g_change;
 static uint8_t g_mbh_flags; 
 
-static action g_actions[MAX_ACTIONS];
-static size_t g_action_next;
+static edit g_edits[MAX_EDITS];
+static size_t g_edit_next;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -199,16 +199,22 @@ err:
 	return -1;
 }
 
-static void reset_actions(void)
+/**
+ * reset_edits() - Reset edit buffer
+ *
+ * Action buffer refers to the buffer for
+ * undo and redo.
+ */
+static void reset_edits(void)
 {
 	int undo;
 
 	/*establish barrier for redo*/
-	g_actions[g_action_next].type = ACT_NONE;
+	g_edits[g_edit_next].type = EDIT_NONE;
 
 	/*acts as barrier for undo*/
-	undo = ary_wrap(g_action_next - 1, MAX_ACTIONS);
-	g_actions[undo].type = ACT_NONE;
+	undo = (g_edit_next - 1ULL) % MAX_EDITS;
+	g_edits[undo].type = EDIT_NONE;
 }
 
 /**
@@ -237,9 +243,10 @@ static void open(void)
 	ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
 	ofn.lpstrDefExt = L"gm";
 
-	if (!GetOpenFileName(&ofn) || read_map(g_map_path) < 0) {
+	if (GetOpenFileName(&ofn) && read_map(g_map_path) >= 0) {
 		g_change = false;
-		reset_actions();
+		reset_edits();
+	} else {
 		wcscpy(g_map_path, path);
 	}
 }
@@ -283,47 +290,48 @@ static void save(void)
 	}
 }
 
-static size_t ary_wrap(size_t i, size_t size)
-{
-	return i % size;
-}
-
+/**
+ * undo() - Undos edit
+ */
 static void undo(void)
 {
-	action *act;
+	edit *ed;
 	int tile;
 	
-	g_action_next = ary_wrap(g_action_next - 1, MAX_ACTIONS);
-	act = g_actions + g_action_next;
-	switch (act->type) {
-	case ACT_NONE:
-		g_action_next = ary_wrap(g_action_next + 1, MAX_ACTIONS); 
+	g_edit_next = (g_edit_next - 1ULL) % MAX_EDITS;
+	ed = g_edits + g_edit_next;
+	switch (ed->type) {
+	case EDIT_NONE:
+		g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
 		break;
-	case ACT_PLACE_TILE:
-		tile = g_tile_map[act->y][act->x]; 
-		g_tile_map[act->y][act->x] = act->tile;
-		act->tile = tile;
+	case EDIT_PLACE_TILE:
+		tile = g_tile_map[ed->y][ed->x]; 
+		g_tile_map[ed->y][ed->x] = ed->tile;
+		ed->tile = tile;
 		break;
 	default:
 		break;
 	}
 }
 
+/**
+ * redo() - Redos edit 
+ */
 static void redo(void)
 {
-	action *act;
+	edit *ed;
 	int tile;
 	
-	act = g_actions + g_action_next;
-	g_action_next = ary_wrap(g_action_next + 1, MAX_ACTIONS);
-	switch (act->type) {
-	case ACT_NONE:
-		g_action_next = ary_wrap(g_action_next - 1, MAX_ACTIONS); 
+	ed = g_edits + g_edit_next;
+	g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS;
+	switch (ed->type) {
+	case EDIT_NONE:
+		g_edit_next = (g_edit_next - 1ULL) % MAX_EDITS;
 		break;
-	case ACT_PLACE_TILE:
-		tile = g_tile_map[act->y][act->x]; 
-		g_tile_map[act->y][act->x] = act->tile;
-		act->tile = tile;
+	case EDIT_PLACE_TILE:
+		tile = g_tile_map[ed->y][ed->x]; 
+		g_tile_map[ed->y][ed->x] = ed->tile;
+		ed->tile = tile;
 		break;
 	default:
 		break;
@@ -339,7 +347,7 @@ static void process_cmds(int id)
 	case IDM_NEW:
 		if (unsaved_warning()) {
 			g_map_path[0] = '\0';
-			reset_actions();
+			reset_edits();
 			memset(g_tile_map, 0, sizeof(g_tile_map));
 			g_change = false;
 		}
@@ -401,20 +409,26 @@ static void *xmalloc(size_t size)
 	return ptr;
 }
 
+/**
+ * push_place_tile() - Adds tile edit to edit buffer 
+ * @x: x position of tile
+ * @y: y position of tile
+ * @tile: tile to add
+ */
 static void push_place_tile(int x, int y, int tile)
 {
-	action *act;
+	edit *ed;
 
-	act = g_actions + g_action_next;
-	act->type = ACT_PLACE_TILE;
-	act->x = x;
-	act->y = y;
-	act->tile = tile;
-	g_action_next = ary_wrap(g_action_next + 1, MAX_ACTIONS); 
+	ed = g_edits + g_edit_next;
+	ed->type = EDIT_PLACE_TILE;
+	ed->x = x;
+	ed->y = y;
+	ed->tile = tile;
+	g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
 		
 	/*needed to establish barrier between undo and redo*/
-	act = g_actions + g_action_next;
-	act->type = ACT_NONE;
+	ed = g_edits + g_edit_next;
+	ed->type = EDIT_NONE;
 }
 
 /**
@@ -435,6 +449,13 @@ static void place_tile(int x, int y, int tile)
 	}
 }
 
+/**
+ * button_down() - Respond to mouse button down 
+ * @wp: WPARAM from wnd_proc
+ * @lp: LPARAM from wnd_proc
+ * @mouse_flag: The mouse flag indicates which mouse button was down
+ * @tile: Tile to place
+ */
 static void button_down(WPARAM wp, LPARAM lp, int mouse_flag, int tile)
 {
 	if (wp & MK_SHIFT) {
@@ -443,6 +464,10 @@ static void button_down(WPARAM wp, LPARAM lp, int mouse_flag, int tile)
 	place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), tile);
 }
 
+/**
+ * mouse_move() - Respond to mouse move
+ * @lp: LPARAM from wnd_proc
+ */
 static void mouse_move(LPARAM lp)
 {
 	int x;
