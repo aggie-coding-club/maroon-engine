@@ -876,6 +876,7 @@ static void create_tile_prog(void)
 	glGenVertexArrays(1, &g_tile_vao);
 	glGenBuffers(1, &g_tile_vbo);
 	
+	glBindVertexArray(g_tile_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_tile_vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_tile_map), 
 			g_tile_map, GL_DYNAMIC_DRAW);

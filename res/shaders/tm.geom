@@ -15,7 +15,6 @@ void main()
 	uint id;
 	vec2 tile;
 
-	float b;
 	float s;
 
 	vec4 pos;
@@ -41,7 +40,7 @@ void main()
 
 	/*bottom left*/
 	gl_Position = pos;
-	tex_coord = tile + vec2(b, s);
+	tex_coord = tile + vec2(0.0, s);
 	EmitVertex();
 
 	/*bottom right*/
@@ -51,12 +50,12 @@ void main()
 
 	/*top left*/
 	gl_Position = pos + vec4(0.0, 2.0/view.w, 0.0, 0.0);
-	tex_coord = tile + vec2(b, b);
+	tex_coord = tile + vec2(0.0, 0.0);
 	EmitVertex();
 
 	/*top right*/
 	gl_Position = pos + vec4(2.0/view.zw, 0.0, 0.0);
-	tex_coord = tile + vec2(s, b);
+	tex_coord = tile + vec2(s, 0.0);
 	EmitVertex();
 
 	EndPrimitive();
