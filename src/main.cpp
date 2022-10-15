@@ -18,6 +18,7 @@
 #include "menu.hpp"
 
 #define MAX_EDITS 256ULL
+#define MAX_OBJS 256ULL
 
 #define VIEW_WIDTH 20
 #define VIEW_HEIGHT 15 
@@ -44,6 +45,13 @@ struct edit {
 	int tile;
 };
 
+struct object {
+	_Float16 x; 
+	_Float16 y; 
+	uint8_t tile; 
+	uint8_t flags;
+};
+
 static HINSTANCE g_ins;
 static HWND g_wnd;
 static HACCEL g_acc; 
@@ -53,15 +61,22 @@ static HGLRC g_glrc;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
 
-static uint32_t g_tile_prog;
+static uint32_t g_tm_prog;
 
-static uint32_t g_tile_vao;
-static uint32_t g_tile_vbo;
+static uint32_t g_tm_vao;
+static uint32_t g_tm_vbo;
 
-static int32_t g_tile_scroll_ul; 
-static int32_t g_tile_tex_ul; 
+static int32_t g_tm_scroll_ul; 
+static int32_t g_tm_tex_ul; 
 
-static uint32_t g_tile_tex;
+static uint32_t g_tex;
+
+static uint32_t g_obj_prog;
+
+static uint32_t g_obj_vao;
+static uint32_t g_obj_vbo;
+
+static int32_t g_obj_tex_ul;
 
 static uint8_t g_tile_map[32][32];
 
@@ -76,6 +91,9 @@ static bool g_change;
 
 static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
+
+static object g_objects[MAX_OBJS];
+static size_t object_count;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -620,7 +638,8 @@ static void init_gl(void)
 		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
 	pfd.iPixelType = PFD_TYPE_RGBA;
 	pfd.cColorBits = 32;
-	pfd.cDepthBits = 32;
+	pfd.cDepthBits = 24;
+	pfd.cStencilBits = 8;
 
 	fmt = ChoosePixelFormat(g_hdc, &pfd);
 	SetPixelFormat(g_hdc, fmt, &pfd);
@@ -638,6 +657,8 @@ static void init_gl(void)
 	wglSwapIntervalEXT(1);
 
 	gladLoadGL();
+
+	glEnable(GL_DEPTH_TEST);
 }
 
 /*
@@ -806,28 +827,21 @@ static GLuint compile_shader(GLuint type, const wchar_t *path)
 
 /**
  * create_prog() - Create OpenGL program
- * @vs_path: Vertex shader path (relative to res/shaders)
- * @gs_path: Geometry shader path (relative to res/shaders)
- * @fs_path: Fragment shader path (relative to res/shaders)
+ * @vs_path: Vertex shader
+ * @gs_path: Geometry shader
+ * @fs_path: Fragment shader
  *
  * Return: The program
  */
-static GLuint create_prog(const wchar_t *vs_path, 
-		const wchar_t *gs_path, const wchar_t *fs_path)
+static GLuint create_prog(GLuint vs, GLuint gs, GLuint fs) 
 {
 	GLuint prog;
-	GLuint vs;
-	GLuint gs;
-	GLuint fs;
 	int success;
 
 	prog = glCreateProgram();
 
-	vs = compile_shader(GL_VERTEX_SHADER, vs_path);
 	glAttachShader(prog, vs);
-	gs = compile_shader(GL_GEOMETRY_SHADER, gs_path);
 	glAttachShader(prog, gs);
-	fs = compile_shader(GL_FRAGMENT_SHADER, fs_path);
 	glAttachShader(prog, fs);
 
 	glLinkProgram(prog);
@@ -837,11 +851,8 @@ static GLuint create_prog(const wchar_t *vs_path,
 	}
 
 	glDetachShader(prog, fs);
-	glDeleteShader(fs);
 	glDetachShader(prog, gs);
-	glDeleteShader(gs);
 	glDetachShader(prog, vs);
-	glDeleteShader(vs);
 
 	return prog;
 }
@@ -867,29 +878,12 @@ static void load_atlas(void)
 }
 
 /**
- * create_tile_prog() - Creates program to render background map 
+ * create_atlas() - Create placeholder texture
  */
-static void create_tile_prog(void)
+static void create_atlas(void)
 {
-	g_tile_prog = create_prog(L"tm.vert", L"tm.geom", L"tm.frag");
-
-	glGenVertexArrays(1, &g_tile_vao);
-	glGenBuffers(1, &g_tile_vbo);
-	
-	glBindVertexArray(g_tile_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_tile_vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_tile_map), 
-			g_tile_map, GL_DYNAMIC_DRAW);
-
-	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
-	glEnableVertexAttribArray(0);
-
-	glGenTextures(1, &g_tile_tex);
-	glBindTexture(GL_TEXTURE_2D, g_tile_tex);
-
-	glUseProgram(g_tile_prog);
-	g_tile_scroll_ul = glGetUniformLocation(g_tile_prog, "scroll");
-	g_tile_tex_ul = glGetUniformLocation(g_tile_prog, "tex");
+	glGenTextures(1, &g_tex);
+	glBindTexture(GL_TEXTURE_2D, g_tex);
 
   	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -899,7 +893,89 @@ static void create_tile_prog(void)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	load_atlas();
-	glUniform1i(g_tile_tex_ul, 0);
+}
+
+/**
+ * create_tm_prog() - Creates program to render background map 
+ */
+static void create_tm_prog(GLuint gs, GLuint fs)
+{
+	GLuint vs;
+
+	vs = compile_shader(GL_VERTEX_SHADER, L"tm.vert");
+	g_tm_prog = create_prog(vs, gs, fs);
+	glDeleteShader(vs);
+
+	glGenVertexArrays(1, &g_tm_vao);
+	glGenBuffers(1, &g_tm_vbo);
+	
+	glBindVertexArray(g_tm_vao);
+	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_tile_map), 
+			g_tile_map, GL_DYNAMIC_DRAW);
+
+	glUseProgram(g_tm_prog);
+	g_tm_scroll_ul = glGetUniformLocation(g_tm_prog, "scroll");
+	g_tm_tex_ul = glGetUniformLocation(g_tm_prog, "tex");
+
+	glUniform1i(g_tm_tex_ul, 0);
+}
+
+static void obj_vaa_set_up(void)
+{
+	glVertexAttribPointer(0, 2, GL_HALF_FLOAT, GL_FALSE, 
+			sizeof(object), (void *) 0);
+	glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, 
+			sizeof(object), (void *) 4);
+	glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 
+			sizeof(object), (void *) 5);
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+
+	glEnableVertexAttribArray(2);
+}
+
+static void create_obj_prog(GLuint gs, GLuint fs)
+{
+	GLuint vs;
+
+	vs = compile_shader(GL_VERTEX_SHADER, L"obj.vert");
+	g_obj_prog = create_prog(vs, gs, fs); 
+	glDeleteShader(vs);
+
+	glGenVertexArrays(1, &g_obj_vao);
+	glGenBuffers(1, &g_obj_vbo);
+
+	glBindVertexArray(g_obj_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_obj_vbo);
+	obj_vaa_set_up();
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_objects), 
+			g_objects, GL_DYNAMIC_DRAW);
+
+	glUseProgram(g_obj_prog);
+	g_obj_tex_ul = glGetUniformLocation(g_obj_prog, "tex");
+	glUniform1i(g_obj_tex_ul, 0);
+}
+
+static void init_gl_progs(void)
+{
+	GLuint gs;
+	GLuint fs;
+
+	gs = compile_shader(GL_GEOMETRY_SHADER, L"tile.geom");
+	fs = compile_shader(GL_FRAGMENT_SHADER, L"tile.frag");
+
+	create_atlas();
+	create_tm_prog(gs, fs);
+	create_obj_prog(gs, fs);
+
+	glDeleteShader(fs);
+	glDeleteShader(gs);
 }
 
 /**
@@ -907,15 +983,23 @@ static void create_tile_prog(void)
  */
 static void render(void)
 {
-	glUseProgram(g_tile_prog);
-	glBindVertexArray(g_tile_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_tile_vbo);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, g_tex);
+
+	glUseProgram(g_tm_prog);
+	glBindVertexArray(g_tm_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
 	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
 	glEnableVertexAttribArray(0);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_tile_map), g_tile_map);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, g_tile_tex);
         glDrawArrays(GL_POINTS, 0, sizeof(g_tile_map));
+
+	glUseProgram(g_obj_prog);
+	glBindVertexArray(g_obj_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_obj_vbo);
+	obj_vaa_set_up();
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_objects), g_objects);
+	glDrawArrays(GL_POINTS, 0, _countof(g_objects));
 }
 
 /**
@@ -927,6 +1011,13 @@ static void msg_loop(void)
 
 	ShowWindow(g_wnd, SW_SHOW);
 
+	for (int i = 0; i < 64; i++) {
+		g_objects[i].x = rand() / (float) RAND_MAX * 20.0F;
+		g_objects[i].y = rand() / (float) RAND_MAX * 15.0F;
+		g_objects[i].tile = 1;
+		g_objects[i].flags = 1;
+	}
+
 	while (GetMessageW(&msg, NULL, 0, 0)) {
 		if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
 		    TranslateMessage(&msg);
@@ -934,9 +1025,10 @@ static void msg_loop(void)
 		}
 
 		glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glUniform2f(g_tile_scroll_ul, g_scroll.x, g_scroll.y);
+		glUniform2f(g_tm_scroll_ul, g_scroll.x, g_scroll.y);
+		create_atlas();
 
 		render();
 		SwapBuffers(g_hdc);
@@ -964,7 +1056,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_gl();
-	create_tile_prog();
+	init_gl_progs();
 	msg_loop();
 	
 	return 0;
