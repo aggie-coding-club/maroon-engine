@@ -5,9 +5,11 @@ CXXFLAGS = -DUNICODE -Wall -g
 CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl
 CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
+DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o
+
 LDFLAGS = -municode -fno-exceptions -fno-rtti
 LDFLAGS += -lopengl32 -lole32 -mwindows -mconsole
-LDFLAGS += lib/glad/src/glad.o lib/stb/stb_image.o
+LDFLAGS += $(DEPOBJS)
 
 SRC = $(wildcard src/*.cpp)
 OBJ = $(SRC:%.cpp=%.o)
@@ -39,5 +41,6 @@ engine: $(OBJ) src/menu.o
 	$(CXX) -o bin/engine.exe $^ $(LDFLAGS)
 
 clean:
-	rm $(OBJ) $(DEP) -f
-	rm -r bin
+	rm $(OBJ) $(DEP) $(DEPOBJS) src/menu.o -f
+	if exist bin \
+ 		rm -r bin

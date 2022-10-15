@@ -1011,13 +1011,6 @@ static void msg_loop(void)
 
 	ShowWindow(g_wnd, SW_SHOW);
 
-	for (int i = 0; i < 64; i++) {
-		g_objects[i].x = rand() / (float) RAND_MAX * 20.0F;
-		g_objects[i].y = rand() / (float) RAND_MAX * 15.0F;
-		g_objects[i].tile = 1;
-		g_objects[i].flags = 1;
-	}
-
 	while (GetMessageW(&msg, NULL, 0, 0)) {
 		if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
 		    TranslateMessage(&msg);
