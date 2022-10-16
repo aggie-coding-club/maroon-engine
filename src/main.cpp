@@ -18,7 +18,7 @@
 #include "menu.hpp"
 
 #define MAX_EDITS 256ULL
-#define MAX_OBJS 256ULL
+#define MAX_OBJS 1024ULL 
 
 #define VIEW_WIDTH 20
 #define VIEW_HEIGHT 15 
@@ -41,6 +41,11 @@
 enum edit_type {
 	EDIT_NONE,
 	EDIT_PLACE_TILE
+};
+
+enum tile_map {
+	TM_FORE,
+	TM_GRID
 };
 
 struct v2 {
@@ -72,22 +77,23 @@ static HGLRC g_glrc;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
 
-static uint32_t g_tm_prog;
+static GLuint g_tm_prog;
 
-static uint32_t g_tm_vao;
-static uint32_t g_tm_vbo;
+static GLuint g_tm_vao;
+static GLuint g_tm_vbo[2];
 
-static int32_t g_tm_scroll_ul; 
-static int32_t g_tm_tex_ul; 
+static GLint g_tm_scroll_ul; 
+static GLint g_tm_layer_ul;
+static GLint g_tm_tex_ul; 
 
-static uint32_t g_tex;
+static GLuint g_tex;
 
-static uint32_t g_obj_prog;
+static GLuint g_obj_prog;
 
-static uint32_t g_obj_vao;
-static uint32_t g_obj_vbo;
+static GLuint g_obj_vao;
+static GLuint g_obj_vbo;
 
-static int32_t g_obj_tex_ul;
+static GLint g_obj_tex_ul;
 
 static uint8_t g_tile_map[32][32];
 
@@ -107,6 +113,7 @@ static object g_objects[MAX_OBJS];
 static size_t g_object_count;
 
 static int g_place = 1;
+static bool g_grid_on = true;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -371,13 +378,9 @@ static void redo(void)
  */
 static void update_place(int id)
 {
-	int old_id;
-
-	old_id = g_place + 0x3000; 
+	CheckMenuItem(g_menu, g_place + 0x3000, MF_UNCHECKED);
+	CheckMenuItem(g_menu, id, MF_CHECKED);
 	g_place = id - 0x3000;
-
-	ModifyMenuW(g_menu, MF_BYCOMMAND, MF_UNCHECKED, old_id, NULL);
-	ModifyMenuW(g_menu, MF_BYCOMMAND, MF_CHECKED, id, NULL);
 }
 
 /**
@@ -409,7 +412,16 @@ static void process_cmds(int id)
 	case IDM_REDO:
 		redo();
 		break;
-	default:	
+	case IDM_GRID:
+		if (g_grid_on) {
+			g_grid_on = false;
+			CheckMenuItem(g_menu, IDM_GRID, MF_UNCHECKED);
+		} else {
+			g_grid_on = true;
+			CheckMenuItem(g_menu, IDM_GRID, MF_CHECKED);
+		}
+		break;
+	default:
 		if (id & 0x3000) {
 			update_place(id);
 		}
@@ -692,6 +704,8 @@ static void init_gl(void)
 	gladLoadGL();
 
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 /*
@@ -1011,24 +1025,33 @@ static void create_atlas(void)
 static void create_tm_prog(GLuint gs, GLuint fs)
 {
 	GLuint vs;
+	uint8_t grid[32][32];
 
 	vs = compile_shader(GL_VERTEX_SHADER, L"tm.vert");
 	g_tm_prog = create_prog(vs, gs, fs);
 	glDeleteShader(vs);
 
 	glGenVertexArrays(1, &g_tm_vao);
-	glGenBuffers(1, &g_tm_vbo);
+	glGenBuffers(2, g_tm_vbo);
 	
 	glBindVertexArray(g_tm_vao);
+
+	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo[TM_FORE]);
 	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
 	glEnableVertexAttribArray(0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_tile_map), 
 			g_tile_map, GL_DYNAMIC_DRAW);
 
+	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo[TM_GRID]);
+	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
+	glEnableVertexAttribArray(0);
+	memset(grid, 4, sizeof(grid));
+	glBufferData(GL_ARRAY_BUFFER, sizeof(grid), 
+			grid, GL_STATIC_DRAW);
+
 	glUseProgram(g_tm_prog);
 	g_tm_scroll_ul = glGetUniformLocation(g_tm_prog, "scroll");
+	g_tm_layer_ul = glGetUniformLocation(g_tm_prog, "layer");
 	g_tm_tex_ul = glGetUniformLocation(g_tm_prog, "tex");
 
 	glUniform1i(g_tm_tex_ul, 0);
@@ -1106,16 +1129,30 @@ static void init_gl_progs(void)
  */
 static void render(void)
 {
+	glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, g_tex);
 
 	glUseProgram(g_tm_prog);
 	glBindVertexArray(g_tm_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
+	glUniform2f(g_tm_scroll_ul, g_scroll.x, g_scroll.y);
+
+	glUniform1i(g_tm_layer_ul, -1);
+	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo[TM_FORE]);
 	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
 	glEnableVertexAttribArray(0);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_tile_map), g_tile_map);
         glDrawArrays(GL_POINTS, 0, sizeof(g_tile_map));
+
+	if (g_grid_on) {
+		glUniform1i(g_tm_layer_ul, 1);
+		glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo[TM_GRID]);
+		glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
+		glEnableVertexAttribArray(0);
+		glDrawArrays(GL_POINTS, 0, sizeof(g_tile_map));
+	}
 
 	glUseProgram(g_obj_prog);
 	glBindVertexArray(g_obj_vao);
@@ -1139,11 +1176,6 @@ static void msg_loop(void)
 		    TranslateMessage(&msg);
 		    DispatchMessage(&msg);
 		}
-
-		glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		glUniform2f(g_tm_scroll_ul, g_scroll.x, g_scroll.y);
 
 		render();
 		SwapBuffers(g_hdc);

@@ -3,6 +3,7 @@
 layout (location = 0) in uint id;
 
 uniform vec2 scroll;
+uniform int layer;
 
 out VS_OUT {
 	uint id;
@@ -19,6 +20,6 @@ void main()
 	/*adjust position by scroll and wrap around*/
 	p = mod(t + scroll + 1.0, 32) - 1.0;
 
-	gl_Position = vec4(p, 0, 1);
+	gl_Position = vec4(p, -float(layer) / 16.0, 1.0);
 	vs_out.id = id;
 }

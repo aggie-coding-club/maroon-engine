@@ -15,47 +15,49 @@ void main()
 	uint id;
 	vec2 tile;
 
+	float b;
 	float s;
 
 	vec4 pos;
 
 	/*region seen on screen in tiles*/
-	view = vec4(0.0, 0.0, 20.0, 15.0);
+	view = vec4(0.0F, 0.0F, 20.0F, 15.0F);
 
 	/*convert id into base text coord*/
 	id = gs_in[0].id & 255u;
-	tile.x = float(id & 15u) / 16.0;
-	tile.y = float((id >> 4u) & 15u) / 16.0;
+	tile.x = float(id & 15u) / 16.0F;
+	tile.y = float((id >> 4u) & 15u) / 16.0F;
 
-	s = 1.0 / 16.0; /*number of tiles in row/col*/
+	b = 1.0F / 4096.0F;
+	s = 1.0F / 16.0F - b; /*number of tiles in row/col*/
 
 	/*transform position into screen coords*/ 
 	pos = gl_in[0].gl_Position;
 	pos.xy += view.xy;
-	pos.y += 1.0; /*flip y-axis: first step*/ 
+	pos.y += 1.0F; /*flip y-axis: first step*/ 
 	pos.xy /= view.zw;
-	pos.xy *= 2.0; /*move origin from center to corner*/
-	pos.xy -= 1.0;
+	pos.xy *= 2.0F; /*move origin from center to corner*/
+	pos.xy -= 1.0F;
 	pos.y = -pos.y; /*flip y-axis: second step*/ 
 
 	/*bottom left*/
 	gl_Position = pos;
-	tex_coord = tile + vec2(0.0, s);
+	tex_coord = tile + vec2(b, s);
 	EmitVertex();
 
 	/*bottom right*/
-	gl_Position = pos + vec4(2.0/view.z, 0.0, 0.0, 0.0);
+	gl_Position = pos + vec4(2.0F/view.z, 0.0F, 0.0F, 0.0F);
 	tex_coord = tile + vec2(s, s);
 	EmitVertex();
 
 	/*top left*/
-	gl_Position = pos + vec4(0.0, 2.0/view.w, 0.0, 0.0);
-	tex_coord = tile + vec2(0.0, 0.0);
+	gl_Position = pos + vec4(0.0F, 2.0F/view.w, 0.0F, 0.0F);
+	tex_coord = tile + vec2(b, b);
 	EmitVertex();
 
 	/*top right*/
-	gl_Position = pos + vec4(2.0/view.zw, 0.0, 0.0);
-	tex_coord = tile + vec2(s, 0.0);
+	gl_Position = pos + vec4(2.0F/view.zw, 0.0F, 0.0F);
+	tex_coord = tile + vec2(s, b);
 	EmitVertex();
 
 	EndPrimitive();
