@@ -26,6 +26,16 @@
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
 
+#define TILE_LEN 32 
+#define TILE_STRIDE (TILE_LEN * 4) 
+
+#define ATLAS_TILE_LEN 16 
+#define ATLAS_TILE_SIZE (ATLAS_TILE_LEN * ATLAS_TILE_LEN)
+
+#define ATLAS_LEN (ATLAS_TILE_LEN * TILE_LEN) 
+#define ATLAS_STRIDE (ATLAS_TILE_LEN * TILE_STRIDE) 
+#define SIZEOF_ATLAS (ATLAS_STRIDE * ATLAS_LEN) 
+
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
 enum edit_type {
@@ -93,7 +103,7 @@ static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
 
 static object g_objects[MAX_OBJS];
-static size_t object_count;
+static size_t g_object_count;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -238,7 +248,7 @@ static void open(void)
 {
 	wchar_t path[MAX_PATH];
 	wchar_t init[MAX_PATH];
-	OPENFILENAMEW ofn;
+	OPENFILENAME ofn;
 
 	if (!unsaved_warning()) {
 		return;
@@ -272,7 +282,7 @@ static void save_as(void)
 {
 	wchar_t path[MAX_PATH];
 	wchar_t init[MAX_PATH];
-	OPENFILENAMEW ofn;
+	OPENFILENAME ofn;
 
 	wcscpy(path, g_map_path);
 	GetFullPathNameW(L"res\\maps", MAX_PATH, init, NULL);
@@ -858,27 +868,99 @@ static GLuint create_prog(GLuint vs, GLuint gs, GLuint fs)
 }
 
 /**
- * load_atlas() - Load placeholder texture atlas.
+ * load_atlas() - Load images into atlas.
  */
 static void load_atlas(void)
 {
-	int width;
-	int height;
-	uint8_t *data;
+	FILE *f;
+	uint8_t *dst;
+	uint8_t *dp;
+	int src_n;
+	char file[MAX_PATH - 32];
 
-	data = stbi_load("res/textures/placeholder.png", 
-			&width, &height, NULL, 3);
-	if (data) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 
-				0, GL_RGB, GL_UNSIGNED_BYTE, data); 
-		stbi_image_free(data);
-	} else {
-		fprintf(stderr, "could not load atlas\n");
+	/*list needed to allow for specific order of images*/
+	f = _wfopen(L"res/images/list.txt", L"r");
+	if (!f) {
+		fprintf(stderr, "Cannot load image list\n");
+		return;
 	}
+
+	dst = (uint8_t *) malloc(SIZEOF_ATLAS);
+	if (!dst) {
+		goto err0;
+	}
+	
+	src_n = 256;
+	dp = dst;
+	while (fscanf(f, "%260s", file) == 1) { 
+		char path[MAX_PATH];
+
+		uint8_t *src;
+		int width;
+		int height;
+
+		uint8_t *sp;
+		int row_n;
+
+		/*images exceed what can fit in the atlas*/
+		if (src_n <= 0) {
+			fprintf(stderr, "too many images\n"); 
+			goto err1;
+		}
+
+		sprintf(path, "res/images/%s", file); 
+		src = stbi_load(path, &width, &height, NULL, 4);
+		if (!src) {
+			fprintf(stderr, "%s could not find\n", file);
+			goto err1;
+		}
+
+		/*images are expected to be tile size*/
+		if (width != TILE_LEN || height != TILE_LEN) {
+			fprintf(stderr, "invalid dimensions\n");
+			stbi_image_free(src);
+			goto err1;
+		}	
+
+		/*copy a single image into atlas*/
+		sp = src;
+		row_n = 32;
+		while (row_n-- > 0) {
+			memcpy(dp, sp, TILE_STRIDE); 
+			dp += ATLAS_STRIDE;
+			sp += TILE_STRIDE;
+		}
+		stbi_image_free(src);
+
+		/**
+		 * At this point "dp" points to first pixel
+		 * of a tile a row after the one copied. 
+		 *
+		 * If the last tile was at the end of the tile row, 
+		 * than the next tile is on this same row,
+		 * but all the way to the left.
+		 *
+		 * Elsewise, the next tile, is immediatly to
+		 * the right. 
+		 */
+		src_n--;
+		if (src_n % 16) {
+			dp -= ATLAS_STRIDE * 32;
+		} else {
+			dp -= ATLAS_STRIDE;
+		}
+		dp += TILE_STRIDE;
+	}
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ATLAS_LEN, 
+			ATLAS_LEN, 0, GL_RGBA, GL_UNSIGNED_BYTE, dst); 
+err1:
+	free(dst);
+err0:
+	fclose(f);
 }
 
 /**
- * create_atlas() - Create placeholder texture
+ * create_atlas() - Create texture atlas 
  */
 static void create_atlas(void)
 {
@@ -924,6 +1006,9 @@ static void create_tm_prog(GLuint gs, GLuint fs)
 	glUniform1i(g_tm_tex_ul, 0);
 }
 
+/**
+ * obj_vaa_set_up() - Set up vertex attributes for object program
+ */
 static void obj_vaa_set_up(void)
 {
 	glVertexAttribPointer(0, 2, GL_HALF_FLOAT, GL_FALSE, 
@@ -939,6 +1024,13 @@ static void obj_vaa_set_up(void)
 	glEnableVertexAttribArray(2);
 }
 
+/**
+ * create_obj_prog() - Create object program
+ * @gs: Geometry shader
+ * @fs: Fragment shader
+ *
+ * Vertex shader is created on the spot.
+ */
 static void create_obj_prog(GLuint gs, GLuint fs)
 {
 	GLuint vs;
@@ -962,6 +1054,9 @@ static void create_obj_prog(GLuint gs, GLuint fs)
 	glUniform1i(g_obj_tex_ul, 0);
 }
 
+/**
+ * init_gl_progs() - Create OpenGL programs
+ */
 static void init_gl_progs(void)
 {
 	GLuint gs;
@@ -999,7 +1094,7 @@ static void render(void)
 	glBindBuffer(GL_ARRAY_BUFFER, g_obj_vbo);
 	obj_vaa_set_up();
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_objects), g_objects);
-	glDrawArrays(GL_POINTS, 0, _countof(g_objects));
+	glDrawArrays(GL_POINTS, 0, g_object_count);
 }
 
 /**
@@ -1021,7 +1116,6 @@ static void msg_loop(void)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glUniform2f(g_tm_scroll_ul, g_scroll.x, g_scroll.y);
-		create_atlas();
 
 		render();
 		SwapBuffers(g_hdc);
