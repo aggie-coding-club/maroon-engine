@@ -64,6 +64,7 @@ struct object {
 
 static HINSTANCE g_ins;
 static HWND g_wnd;
+static HMENU g_menu;
 static HACCEL g_acc; 
 static HDC g_hdc;
 static HGLRC g_glrc;
@@ -104,6 +105,8 @@ static size_t g_edit_next;
 
 static object g_objects[MAX_OBJS];
 static size_t g_object_count;
+
+static int g_place = 1;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -248,7 +251,7 @@ static void open(void)
 {
 	wchar_t path[MAX_PATH];
 	wchar_t init[MAX_PATH];
-	OPENFILENAME ofn;
+	OPENFILENAMEW ofn;
 
 	if (!unsaved_warning()) {
 		return;
@@ -282,7 +285,7 @@ static void save_as(void)
 {
 	wchar_t path[MAX_PATH];
 	wchar_t init[MAX_PATH];
-	OPENFILENAME ofn;
+	OPENFILENAMEW ofn;
 
 	wcscpy(path, g_map_path);
 	GetFullPathNameW(L"res\\maps", MAX_PATH, init, NULL);
@@ -363,6 +366,21 @@ static void redo(void)
 }
 
 /**
+ * update_place() - Update selected tile base on menu command
+ * @id: ID of menu item, must be valid tile submenu ID 
+ */
+static void update_place(int id)
+{
+	int old_id;
+
+	old_id = g_place + 0x3000; 
+	g_place = id - 0x3000;
+
+	ModifyMenuW(g_menu, MF_BYCOMMAND, MF_UNCHECKED, old_id, NULL);
+	ModifyMenuW(g_menu, MF_BYCOMMAND, MF_CHECKED, id, NULL);
+}
+
+/**
  * process_cmds() - Process menu commands
  */
 static void process_cmds(int id)
@@ -391,6 +409,10 @@ static void process_cmds(int id)
 	case IDM_REDO:
 		redo();
 		break;
+	default:	
+		if (id & 0x3000) {
+			update_place(id);
+		}
 	}
 }
 
@@ -499,7 +521,7 @@ static void mouse_move(WPARAM wp, LPARAM lp)
 
 	if (wp & MK_SHIFT) {
 		if (wp & MK_LBUTTON) {
-			place_tile(x, y, 1);
+			place_tile(x, y, g_place);
 		} else if (wp & MK_RBUTTON) {
 			place_tile(x, y, 0);
 		}
@@ -532,7 +554,7 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		process_cmds(LOWORD(wp));
 		return 0;
 	case WM_LBUTTONDOWN:
-		button_down(wp, lp, 1);
+		button_down(wp, lp, g_place);
 		return 0;
 	case WM_RBUTTONDOWN:
 		button_down(wp, lp, 0);
@@ -587,6 +609,7 @@ static void create_main_window(void)
 		ExitProcess(1);
 	}
 
+	g_menu = GetMenu(g_wnd);
 	g_acc = LoadAcceleratorsW(g_ins, MAKEINTRESOURCEW(ID_ACCELERATOR));
 
 }
