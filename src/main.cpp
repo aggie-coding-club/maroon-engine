@@ -869,6 +869,11 @@ static GLuint create_prog(GLuint vs, GLuint gs, GLuint fs)
 
 /**
  * load_atlas() - Load images into atlas.
+ *
+ * Combines a bunch of individual images listed
+ * in res/images/list.h into a singel atlas,
+ * start from the top left and going right
+ * than down. 
  */
 static void load_atlas(void)
 {
