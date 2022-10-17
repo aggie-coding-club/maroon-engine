@@ -15,7 +15,7 @@ SRC = $(wildcard src/*.cpp)
 OBJ = $(SRC:%.cpp=%.o)
 DEP = $(SRC:%.cpp=%.d)
 
-all: libs dirs src/menu.o engine
+all: libs dirs src/menu.o src/helpers.o engine
 
 libs:
 	if not exist lib/stb/stb_image.o \
