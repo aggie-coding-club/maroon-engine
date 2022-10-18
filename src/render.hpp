@@ -18,12 +18,27 @@ struct object {
 	uint8_t flags;
 };
 
+/**
+ * Window Globals
+ * @g_wnd: Main window    
+ */
 extern HWND g_wnd;
 
+/**
+ * Tile Map Globals 
+ * @g_tile_map: Tile map shown on screen
+ * @g_scroll: Wrapping scroll position, measured in tiles 
+ * @g_grid_on: Whether or not to render grip over tile map
+ */
 extern uint8_t g_tile_map[32][32];
 extern v2 g_scroll;
 extern bool g_grid_on;
 
+/**
+ * Object Globals
+ * @g_objects: Objects on screen
+ * @g_object_count: Count of objects 
+ */
 extern object g_objects[MAX_OBJS];
 extern size_t g_object_count;
 

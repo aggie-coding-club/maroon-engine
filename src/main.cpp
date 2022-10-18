@@ -10,6 +10,7 @@
 
 #include <commdlg.h>
 #include <fileapi.h>
+#include <glad/glad.h>
 
 #include "menu.hpp"
 #include "render.hpp"
@@ -77,6 +78,19 @@ static void set_default_directory(void)
 	SetCurrentDirectoryW(path);
 }
 
+static void update_scrollbars(int width, int height)
+{
+	SCROLLINFO si;
+
+	si.cbSize = sizeof(si);
+	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+	si.nMin = 0;
+	si.nMax = 32 * width / 20;
+	si.nPage = width;
+	si.nPos = g_scroll.x * width / 20;
+	SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
+}
+
 /**
  * update_size() - Called to acknowledge changes in client area size
  * @width: New client width
@@ -84,9 +98,12 @@ static void set_default_directory(void)
  */
 static void update_size(int width, int height)
 {
+	/*must be called before updating client dimensions*/
+	update_scrollbars(width, height);
+
 	g_client_width = width;
 	g_client_height = height;
-	//glViewport(0, 0, width, height);
+	glViewport(0, 0, width, height);
 }
 
 /**
@@ -435,6 +452,20 @@ static void mouse_move(WPARAM wp, LPARAM lp)
 		}
 	}
 }
+		
+static void update_horz_scroll(WPARAM wp)
+{
+	if (LOWORD(wp) == SB_THUMBPOSITION) {
+		SCROLLINFO si;
+
+		si.cbSize = sizeof(si);
+		si.fMask = SIF_POS;
+		si.nPos = HIWORD(wp); 
+		SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
+
+		g_scroll.x = 32.0F - si.nPos * 20.0F / g_client_width;
+	}
+}
 
 /**
  * wnd_proc() - Callback to prcoess window messages
@@ -461,6 +492,9 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 	case WM_COMMAND:
 		process_cmds(LOWORD(wp));
 		return 0;
+	case WM_HSCROLL:
+		update_horz_scroll(wp);
+		return 0;
 	case WM_LBUTTONDOWN:
 		button_down(wp, lp, g_place);
 		return 0;
@@ -480,6 +514,7 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 static void create_main_window(void)
 {
 	WNDCLASS wc;
+	DWORD flags;
 	RECT rect;
 	int width;
 	int height;
@@ -498,18 +533,18 @@ static void create_main_window(void)
 		ExitProcess(1);
 	}
 
+	flags = WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL;
 	rect.left = 0;
 	rect.top = 0;
 	rect.right = CLIENT_WIDTH;
 	rect.bottom = CLIENT_HEIGHT;
-	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, TRUE);
+	AdjustWindowRect(&rect, flags, TRUE);
 
 	width = rect.right - rect.left;
 	height = rect.bottom - rect.top;
 
-	g_wnd = CreateWindowExW(0, wc.lpszClassName, L"Engine", 
-			WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 
-			CW_USEDEFAULT, width, height, 
+	g_wnd = CreateWindowExW(0, wc.lpszClassName, L"Engine", flags, 
+			CW_USEDEFAULT, CW_USEDEFAULT, width, height, 
 			NULL, NULL, g_ins, NULL);
 	if (!g_wnd) {
 		MessageBoxW(NULL, L"Window creation failed", 

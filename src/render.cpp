@@ -28,7 +28,7 @@ HWND g_wnd;
 
 uint8_t g_tile_map[32][32];
 v2 g_scroll;
-bool g_grid_on;
+bool g_grid_on = true;
 
 object g_objects[MAX_OBJS];
 size_t g_object_count;
@@ -42,10 +42,9 @@ static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
 static GLuint g_tm_prog;
 
 static GLuint g_tm_vao;
-static GLuint g_tm_vbo[2];
+static GLuint g_tm_vbo;
 
 static GLint g_tm_scroll_ul; 
-static GLint g_tm_layer_ul;
 static GLint g_tm_tex_ul; 
 
 static GLuint g_tex;
@@ -440,33 +439,27 @@ static void create_atlas(void)
 static void create_tm_prog(GLuint gs, GLuint fs)
 {
 	GLuint vs;
-	uint8_t grid[32][32];
+	uint8_t maps[2][32][32];
 
 	vs = compile_shader(GL_VERTEX_SHADER, L"tm.vert");
 	g_tm_prog = create_prog(vs, gs, fs);
 	glDeleteShader(vs);
 
 	glGenVertexArrays(1, &g_tm_vao);
-	glGenBuffers(2, g_tm_vbo);
+	glGenBuffers(1, &g_tm_vbo);
 	
 	glBindVertexArray(g_tm_vao);
 
-	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo[TM_FORE]);
+	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
 	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
 	glEnableVertexAttribArray(0);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_tile_map), 
-			g_tile_map, GL_DYNAMIC_DRAW);
-
-	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo[TM_GRID]);
-	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
-	glEnableVertexAttribArray(0);
-	memset(grid, 4, sizeof(grid));
-	glBufferData(GL_ARRAY_BUFFER, sizeof(grid), 
-			grid, GL_STATIC_DRAW);
+	memset(maps[TM_FORE], 0, sizeof(maps[TM_FORE]));
+	memset(maps[TM_GRID], 4, sizeof(maps[TM_GRID]));
+	glBufferData(GL_ARRAY_BUFFER, sizeof(maps), 
+			maps, GL_STATIC_DRAW);
 
 	glUseProgram(g_tm_prog);
 	g_tm_scroll_ul = glGetUniformLocation(g_tm_prog, "scroll");
-	g_tm_layer_ul = glGetUniformLocation(g_tm_prog, "layer");
 	g_tm_tex_ul = glGetUniformLocation(g_tm_prog, "tex");
 
 	glUniform1i(g_tm_tex_ul, 0);
@@ -605,20 +598,11 @@ void render(void)
 	glBindVertexArray(g_tm_vao);
 	glUniform2f(g_tm_scroll_ul, g_scroll.x, g_scroll.y);
 
-	glUniform1i(g_tm_layer_ul, -1);
-	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo[TM_FORE]);
+	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
 	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
 	glEnableVertexAttribArray(0);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_tile_map), g_tile_map);
-        glDrawArrays(GL_POINTS, 0, sizeof(g_tile_map));
-
-	if (g_grid_on) {
-		glUniform1i(g_tm_layer_ul, 1);
-		glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo[TM_GRID]);
-		glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
-		glEnableVertexAttribArray(0);
-		glDrawArrays(GL_POINTS, 0, sizeof(g_tile_map));
-	}
+        glDrawArrays(GL_POINTS, 0, (g_grid_on ? 2 : 1) * sizeof(g_tile_map));
 
 	glUseProgram(g_obj_prog);
 	glBindVertexArray(g_obj_vao);
