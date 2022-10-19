@@ -1,5 +1,5 @@
 bin
-lib/freetype_build
+bin/freetype
 
 # Prerequisites
 *.d
