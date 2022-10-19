@@ -750,12 +750,15 @@ static void create_main_window(void)
 static void chunk_to_tile_map(int off_cx, int off_cy)
 {
 	int stx, sty;
+	int ctx, cty;
 	chunk *c;
 	int ty;
 
 	stx = off_cx << 4; 
 	sty = off_cy << 4; 
-	c = touch_chunk(g_cam.x + stx, g_cam.y + sty);
+	ctx = (int) g_cam.x / 16 % 2 ? !stx : stx; 
+	cty = (int) g_cam.y / 16 % 2 ? !sty : sty; 
+	c = touch_chunk(g_cam.x + ctx, g_cam.y + cty);
 	for (ty = 0; ty < CHUNK_MAP_LEN; ty++) {
 		uint8_t *dp, *sp;
 		dp = &g_tile_map[ty + sty][stx];
