@@ -5,7 +5,7 @@ CXXFLAGS = -DUNICODE -Wall -g
 CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl
 CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
-DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o
+DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o lib/freetype_build/libfreetype.a
 
 GEN = -G "MinGW Makefiles"
 
