@@ -50,6 +50,8 @@ static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
 
 static int g_place = 1;
+static float g_cam_x;
+static float g_cam_y;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -87,8 +89,16 @@ static void update_scrollbars(int width, int height)
 	si.nMin = 0;
 	si.nMax = 32 * width / 20;
 	si.nPage = width;
-	si.nPos = g_scroll.x * width / 20;
+	si.nPos = g_cam_x * width / 20;
 	SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
+
+	si.cbSize = sizeof(si);
+	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+	si.nMin = 0;
+	si.nMax = 32 * height / 15;
+	si.nPage = height;
+	si.nPos = g_cam_y * height / 15;
+	SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 }
 
 /**
@@ -410,8 +420,8 @@ static void push_place_tile(int x, int y, int tile)
  */
 static void place_tile(int x, int y, int tile)
 {
-	x = x * VIEW_WIDTH / g_client_width;
-	y = y * VIEW_HEIGHT / g_client_height;
+	x = g_cam_x + (float) x * VIEW_WIDTH / g_client_width;
+	y = g_cam_y + (float) y * VIEW_HEIGHT / g_client_height;
 
 	if (g_tile_map[y][x] != tile) {
 		push_place_tile(x, y, g_tile_map[y][x]);
@@ -452,7 +462,7 @@ static void mouse_move(WPARAM wp, LPARAM lp)
 		}
 	}
 }
-		
+
 static void update_horz_scroll(WPARAM wp)
 {
 	if (LOWORD(wp) == SB_THUMBPOSITION) {
@@ -463,7 +473,23 @@ static void update_horz_scroll(WPARAM wp)
 		si.nPos = HIWORD(wp); 
 		SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
-		g_scroll.x = 32.0F - si.nPos * 20.0F / g_client_width;
+		g_cam_x = si.nPos * 20.0F / g_client_width;
+		g_scroll.x = -g_cam_x;
+	}
+}
+
+static void update_vert_scroll(WPARAM wp)
+{
+	if (LOWORD(wp) == SB_THUMBPOSITION) {
+		SCROLLINFO si;
+
+		si.cbSize = sizeof(si);
+		si.fMask = SIF_POS;
+		si.nPos = HIWORD(wp); 
+		SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
+
+		g_cam_y = si.nPos * 15.0F / g_client_height;
+		g_scroll.y = -g_cam_y;
 	}
 }
 
@@ -494,6 +520,9 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		return 0;
 	case WM_HSCROLL:
 		update_horz_scroll(wp);
+		return 0;
+	case WM_VSCROLL:
+		update_vert_scroll(wp);
 		return 0;
 	case WM_LBUTTONDOWN:
 		button_down(wp, lp, g_place);
