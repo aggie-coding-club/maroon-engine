@@ -23,7 +23,9 @@ libs:
 	if not exist lib/freetype_build \
 		mkdir lib\freetype_build
 	if not exist lib/freetype_build/libfreetype.a \
-		cd lib/freetype_build && cmake -G GEN ../freetype && mingw32-make
+		cd lib/freetype_build && \
+		cmake $(GEN) ../freetype && \
+		mingw32-make
 	if not exist lib/stb/stb_image.o \
 		cd lib/stb && \
 		$(CC) -x c -c stb_image.h -DSTB_IMAGE_IMPLEMENTATION 
@@ -50,3 +52,5 @@ clean:
 	rm $(OBJ) $(DEP) $(DEPOBJS) src/menu.o -f
 	if exist bin \
  		rm -r bin
+	if exist lib/freetype_build \
+ 		rm -r lib/freetype_build 
