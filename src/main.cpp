@@ -16,6 +16,9 @@
 #include "menu.hpp"
 #include "render.hpp"
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #define MAX_EDITS 256ULL
 
 #define VIEW_WIDTH 20
@@ -39,6 +42,8 @@ struct edit {
 static HINSTANCE g_ins;
 static HMENU g_menu;
 static HACCEL g_acc; 
+
+static FT_Library g_freetype_library;
 
 static int g_client_width = CLIENT_WIDTH;
 static int g_client_height = CLIENT_HEIGHT;
@@ -798,6 +803,14 @@ static void msg_loop(void)
 	}
 }
 
+void init_freetype(){
+	int error = FT_Init_FreeType( &g_freetype_library );
+	if ( error )
+	{
+		printf("Error initializing FreeType library.");
+	}
+}
+
 /**
  * wWinMain() - Entry point of program
  * @ins: Handle used to identify the executable
@@ -819,6 +832,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_gl();
+	init_freetype();
 	g_chunk_map = create_chunk_map(20, 15);
 	msg_loop();
 	
