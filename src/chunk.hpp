@@ -6,48 +6,84 @@
 #include "render.hpp"
 #include "util.hpp"
 
-#define CHUNK_NUM_DIM 16 
+#define CHUNK_LEN 16
+#define CHUNK_MAP_LEN 16 
+#define MAP_LEN (CHUNK_MAP_LEN * CHUNK_LEN)
 
 struct chunk {
-	int x, y;
-	uint8_t tiles[16][16];
+	int cx;
+	int cy;
+	uint8_t tiles[CHUNK_LEN][CHUNK_LEN];
 };
 
-typedef chunk *chunk_map[CHUNK_NUM_DIM][CHUNK_NUM_DIM];
+typedef chunk *chunk_row[CHUNK_LEN];
+
+struct chunk_map {
+	int tw;
+	int th;
+	int cw;
+	int ch;
+	chunk_row chunks[CHUNK_MAP_LEN];
+};
 
 #define endof(ary) (ary + _countof(ary))
 
-v2 g_cam; 
-chunk_map g_chunk_map;
+chunk_map *g_chunk_map;
 
 inline chunk *create_chunk(int x, int y)
 {
 	chunk *c;
 	c = (chunk *) xcalloc(1, sizeof(chunk));
-	c->x = x;
-	c->y = y;
+	c->cx = x;
+	c->cy = y;
 	return c;
 }
 
-inline void destroy_chunk(chunk *c)
+inline void destroy_chunk(chunk_map *map, chunk *c)
 {
 	if (c) {
-		g_chunk_map[c->y][c->x] = NULL;
+		map->chunks[c->cy][c->cx] = NULL;
 		free(c);
 	}
 }
 
-inline void clear_chunk_map(chunk_map map)
+inline chunk_map *create_chunk_map(int tw, int th) 
 {
-	int cy;
+	chunk_map *map;
 
-	for (cy = 0; cy < CHUNK_NUM_DIM; cy++) {
-		int cx;
+	map = (chunk_map *) xcalloc(1, sizeof(*map));
+	map->tw = tw;
+	map->th = th;
+	map->cw = (tw + CHUNK_LEN - 1) / CHUNK_LEN; 
+	map->ch = (th + CHUNK_LEN - 1) / CHUNK_LEN; 
+	return map;
+}
 
-		for (cx = 0; cx < CHUNK_NUM_DIM; cx++) {
-			destroy_chunk(map[cy][cx]);
+inline void clear_chunk_map(chunk_map *map)
+{
+	chunk_row *cr;
+	int ny;
+
+	cr = g_chunk_map->chunks;
+	ny = g_chunk_map->ch;
+	while (ny-- > 0) {
+		chunk **c;
+		int nx;
+
+		c = *cr;
+		nx = g_chunk_map->cw; 
+		while (nx-- > 0) {
+			destroy_chunk(map, *c);
+			c++;
 		}
+		cr++;
 	}
+}
+
+inline void destroy_chunk_map(chunk_map *map)
+{
+	clear_chunk_map(map);
+	free(map);
 }
 
 inline chunk *touch_chunk(int tx, int ty)
@@ -56,10 +92,10 @@ inline chunk *touch_chunk(int tx, int ty)
 	int cy;
 	chunk **c;
 
-	cx = tx / 16;
-	cy = ty / 16;
+	cx = tx / CHUNK_LEN;
+	cy = ty / CHUNK_LEN;
 
-	c = &g_chunk_map[cy][cx];
+	c = &g_chunk_map->chunks[cy][cx];
 	if (!*c) {
 		*c = create_chunk(cx, cy);
 	}
@@ -72,8 +108,8 @@ inline uint8_t *touch_tile(int tx, int ty)
 	int iy;
 	chunk *c;
 
-	ix = tx % 16; 
-	iy = ty % 16; 
+	ix = tx % CHUNK_LEN; 
+	iy = ty % CHUNK_LEN; 
 	c = touch_chunk(tx, ty);
 
 	return &c->tiles[iy][ix];

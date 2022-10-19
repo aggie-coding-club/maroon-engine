@@ -51,6 +51,7 @@ static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
 
 static int g_place = 1;
+static v2 g_cam; 
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -79,23 +80,28 @@ static void set_default_directory(void)
 	SetCurrentDirectoryW(path);
 }
 
+/**
+ * update_scrollbars() - Refresh scrollbar 
+ * @width: The new width of the window
+ * @height: The new height of the window
+ */
 static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
 
 	si.cbSize = sizeof(si);
-	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = 32 * width / 20;
-	si.nPage = width;
+	si.nMax = g_chunk_map->tw * width / 20;
+	si.nPage = width + 1;
 	si.nPos = g_cam.x * width / 20;
 	SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
 	si.cbSize = sizeof(si);
-	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
+	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = 32 * height / 15;
-	si.nPage = height;
+	si.nMax = g_chunk_map->th * height / 15;
+	si.nPage = height + 1;
 	si.nPos = g_cam.y * height / 15;
 	SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 }
@@ -124,8 +130,39 @@ static void update_size(int width, int height)
  */
 static bool unsaved_warning(void)
 {
-	return !g_change || MessageBoxW(g_wnd, L"Unsaved changes will be lost", 
-			L"Warning", MB_ICONEXCLAMATION | MB_OKCANCEL) == IDOK;
+	return !g_change || MessageBoxW(g_wnd, 
+			L"Unsaved changes will be lost", L"Warning", 
+			MB_ICONEXCLAMATION | MB_OKCANCEL) == IDOK;
+}
+
+/**
+ * write_chunk() - Write chunk data out
+ * @f: File handle
+ * @c: Chunk
+ *
+ * Return: Returns 0 on success, -1 on failure
+ */
+static int write_chunk(FILE *f, chunk *c)
+{
+	uint8_t v[2];
+
+	if (!c) {
+		return 0;
+	}
+
+	/*get position of chunk*/
+	v[0] = c->cx;
+	v[1] = c->cy;
+	if (fwrite(v, sizeof(v), 1, f) < 1) {
+		return -1;
+	}
+
+	/*get chunk data*/
+	if (fwrite(c->tiles, sizeof(c->tiles), 1, f) < 1) {
+		return -1;
+	}
+
+	return 0;
 }
 
 /**
@@ -140,7 +177,9 @@ static int write_map(const wchar_t *path)
 {
 	int err;
 	FILE *f;
-	int cy;
+	uint8_t v[2];
+	chunk_row *cr;
+	int ny;
 
 	err = -1;
 	f = _wfopen(path, L"wb");
@@ -148,25 +187,32 @@ static int write_map(const wchar_t *path)
 		goto err0;
 	}
 
-	for (cy = 0; cy < CHUNK_NUM_DIM; cy++) {
-		int cx;
-
-		for (cx = 0; cx < CHUNK_NUM_DIM; cx++) {
-			chunk *c;
-
-			c = g_chunk_map[cy][cx];
-			if (c) {
-				fwrite(&c->x, 1, 1, f);
-				fwrite(&c->y, 1, 1, f);
-				fwrite(c->tiles, sizeof(c->tiles), 1, f);
-			}
-
-			if (ferror(f)) {
-				goto err1;
-			}
-		}
+	/*write width and height of map*/
+	v[0] = g_chunk_map->tw;
+	v[1] = g_chunk_map->th;
+	if (fwrite(v, sizeof(v), 1, f) < 1) {
+		goto err1;
 	}
 
+	/*write chunks*/
+	cr = g_chunk_map->chunks;
+	ny = g_chunk_map->ch;
+	while (ny-- > 0) {
+		chunk **cp;
+		int nx;
+
+		cp = *cr;
+		nx = g_chunk_map->cw; 
+		while (nx-- > 0) {
+			if (write_chunk(f, *cp) < 0) {
+				goto err1;
+			}
+			cp++;
+		}
+		cr++;
+	}
+
+	/*error handling and cleanup*/
 	err = 0;
 err1:
 	fclose(f);
@@ -182,6 +228,46 @@ err0:
 }
 
 /**
+ * read_chunk(): Reads chunk and adds it to map
+ * @f: File to read from
+ * @map: Map to read into
+ *
+ * NOTE: Garbage chunk may be present if read fail
+ * This function's only purpose is as helper function 
+ *
+ * Return: Returns -1 on failure, 0 on success, and 1 on completion 
+ */
+static int read_chunk(FILE *f, chunk_map *map)
+{
+	chunk *c;
+	uint8_t v[2];
+
+	/*get chunk position*/
+	if (fread(&v, sizeof(v), 1, f) < 1) {
+		/*if last chunk was alread read than EOF here*/
+		if (feof(f)) {
+			return 1;
+		} else {
+			return -1;
+		}
+	}
+
+	/*check to see if chunk position is valid*/
+	if (v[0] >= map->cw || v[1] >= map->ch) {
+		return -1;
+	}
+
+	/*read in new chunk*/
+	c = create_chunk(v[0], v[1]);
+	map->chunks[v[1]][v[0]] = c;
+	if (fread(c->tiles, sizeof(c->tiles), 1, f) < 1) { 
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
  * read_map() - Read map
  * @path - Path to map
  *
@@ -193,9 +279,9 @@ static int read_map(const wchar_t *path)
 {
 	int err;
 	FILE *f;
-	uint8_t x;
-	uint8_t y;
-	chunk_map tmp;
+	uint8_t v[2];
+	chunk_map *map;
+	int res;
 
 	err = -1;
 	f = _wfopen(path, L"rb");
@@ -203,43 +289,38 @@ static int read_map(const wchar_t *path)
 		goto err0;
 	}
 
-	memset(tmp, 0, sizeof(tmp));
-	while (!feof(f)) {
-		chunk *c;
-
-		fread(&x, 1, 1, f);
-		fread(&y, 1, 1, f);
+	/*read width and height of map*/
+	if (fread(&v, sizeof(v), 1, f) < 1) {
+		goto err1;
+	}
+	if (v[0] >= MAP_LEN || v[1] >= MAP_LEN) {
+		goto err1;
+	}
 	
-		if (feof(f)) {
-			break;
-		}
-
-		if (ferror(f) || x >= CHUNK_NUM_DIM || y >= CHUNK_NUM_DIM) {
-			goto err1;
-		}
-
-		c = create_chunk(x, y);
-		if (fread(c->tiles, 256, 1, f) < 1) { 
-			goto err1;
-		}
-
-		tmp[y][x] = c;
+	/*read chunks*/
+	map = create_chunk_map(v[0], v[1]);
+	while (!(res = read_chunk(f, map)));
+	if (res < 0) {
+		destroy_chunk_map(map);
+		goto err1;
 	}
 
-	clear_chunk_map(g_chunk_map);
-	memcpy(g_chunk_map, tmp, sizeof(tmp));
+	/*swap out old chunk map with new one*/
+	destroy_chunk_map(g_chunk_map);
+	g_chunk_map = map;
+
+	/*error handling and cleanup*/
 	err = 0;
 err1:
-	if (err < 0) {
-		clear_chunk_map(tmp);
-	}
 	fclose(f);
 	if (err >= 0) {
 		g_change = false;
+		update_scrollbars(g_client_width, g_client_height);
 	}
 err0:
 	if (err < 0) {
-		MessageBoxW(g_wnd, L"Could not read map", L"Error", MB_ICONERROR);
+		MessageBoxW(g_wnd, L"Could not read map", 
+				L"Error", MB_ICONERROR);
 	}
 	return err;
 }
@@ -521,6 +602,10 @@ static void mouse_move(WPARAM wp, LPARAM lp)
 	}
 }
 
+/**
+ * update_horz_scroll() - Update horizontal scroll position
+ * @wp: WPARAM from wnd_proc  
+ */
 static void update_horz_scroll(WPARAM wp)
 {
 	if (LOWORD(wp) == SB_THUMBPOSITION) {
@@ -536,6 +621,10 @@ static void update_horz_scroll(WPARAM wp)
 	}
 }
 
+/**
+ * update_vert_scroll() - Update vertical scroll position
+ * @wp: WPARAM from wnd_proc  
+ */
 static void update_vert_scroll(WPARAM wp)
 {
 	if (LOWORD(wp) == SB_THUMBPOSITION) {
@@ -643,6 +732,11 @@ static void create_main_window(void)
 	g_acc = LoadAcceleratorsW(g_ins, MAKEINTRESOURCEW(ID_ACCELERATOR));
 }
 
+/**
+ * chunk_to_tile_map() - Move chunk to tile map
+ * @off_cx: 0/1 indicates left and right quarter respectivily 
+ * @off_cy: 0/1 indicates top and bottom quarter respectivily 
+ */
 static void chunk_to_tile_map(int off_cx, int off_cy)
 {
 	int stx, sty;
@@ -652,14 +746,17 @@ static void chunk_to_tile_map(int off_cx, int off_cy)
 	stx = off_cx << 4; 
 	sty = off_cy << 4; 
 	c = touch_chunk(g_cam.x + stx, g_cam.y + sty);
-	for (ty = 0; ty < 16; ty++) {
+	for (ty = 0; ty < CHUNK_MAP_LEN; ty++) {
 		uint8_t *dp, *sp;
 		dp = &g_tile_map[ty + sty][stx];
 		sp = c->tiles[ty];
-		memcpy(dp, sp, 16);
+		memcpy(dp, sp, CHUNK_LEN);
 	}
 }
 
+/**
+ * place_chunks() - Update tile map to contain active chunks
+ */
 static void place_chunks(void)
 {
 	chunk_to_tile_map(0, 0);
@@ -709,6 +806,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_gl();
+	g_chunk_map = create_chunk_map(20, 15);
 	msg_loop();
 	
 	return 0;
