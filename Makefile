@@ -18,6 +18,10 @@ DEP = $(SRC:%.cpp=%.d)
 all: libs dirs src/menu.o engine
 
 libs:
+	if not exist lib/freetype_build \
+		mkdir lib\freetype_build
+	if not exist lib/freetype_build/libfreetype.a \
+		cd lib/freetype_build && cmake ../freetype && mingw32-make
 	if not exist lib/stb/stb_image.o \
 		cd lib/stb && \
 		$(CC) -x c -c stb_image.h -DSTB_IMAGE_IMPLEMENTATION 

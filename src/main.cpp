@@ -627,7 +627,7 @@ static void update_horz_scroll(WPARAM wp)
 		SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
 		g_cam.x = si.nPos * 20.0F / g_client_width;
-		g_scroll.x = -fmod(g_cam.x, 16);
+		g_scroll.x = fmodf(32.0F - g_cam.x, 32.0F);
 	}
 }
 
@@ -646,7 +646,7 @@ static void update_vert_scroll(WPARAM wp)
 		SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 
 		g_cam.y = si.nPos * 15.0F / g_client_height;
-		g_scroll.y = -fmod(g_cam.y, 16);
+		g_scroll.y = fmodf(32.0F - g_cam.y, 32.0F);
 	}
 }
 
