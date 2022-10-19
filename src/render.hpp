@@ -2,14 +2,12 @@
 #define RENDER_HPP
 
 #include <stdint.h>
+#include <windows.h>
+
+#include "util.hpp"
 
 #define TILE_LEN 32 
 #define MAX_OBJS 1024 
-
-struct v2 {
-	float x;
-	float y;
-};
 
 struct object {
 	_Float16 x; 

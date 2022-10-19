@@ -4,79 +4,79 @@
 #include <stdio.h>
 
 #include "render.hpp"
+#include "util.hpp"
 
 #define CHUNK_NUM_DIM 16 
-#define CHUNK_NUM
 
 struct chunk {
 	int x, y;
 	uint8_t tiles[16][16];
 };
 
+typedef chunk *chunk_map[CHUNK_NUM_DIM][CHUNK_NUM_DIM];
+
 #define endof(ary) (ary + _countof(ary))
 
-chunk *g_chunk_map[CHUNK_NUM_DIM][CHUNK_NUM_DIM];
-chunk *g_active_chunks[2][2];
+v2 g_cam; 
+chunk_map g_chunk_map;
 
-chunk g_chunks[64];
-chunk *g_chunk_freed[64];
-chunk *g_chunk_freed_next;
-chunk *g_chunk_next;
-
-inline chunk *alloc_chunk(void)
+inline chunk *create_chunk(int x, int y)
 {
-	if (g_chunk_freed < g_chunk_freed_next) {
-		return --g_chunk_freed_next;
+	chunk *c;
+	c = (chunk *) xcalloc(1, sizeof(chunk));
+	c->x = x;
+	c->y = y;
+	return c;
+}
+
+inline void destroy_chunk(chunk *c)
+{
+	if (c) {
+		g_chunk_map[c->y][c->x] = NULL;
+		free(c);
 	}
+}
 
-	if (g_chunk_next < endof(g_chunks)) {
-		return g_chunk_next++;
+inline void clear_chunk_map(chunk_map map)
+{
+	int cy;
+
+	for (cy = 0; cy < CHUNK_NUM_DIM; cy++) {
+		int cx;
+
+		for (cx = 0; cx < CHUNK_NUM_DIM; cx++) {
+			destroy_chunk(map[cy][cx]);
+		}
 	}
-
-	abort();
 }
 
-inline void free_chunk(chunk *c)
+inline chunk *touch_chunk(int tx, int ty)
 {
-	*g_chunk_freed_next++ = c;
+	int cx;
+	int cy;
+	chunk **c;
+
+	cx = tx / 16;
+	cy = ty / 16;
+
+	c = &g_chunk_map[cy][cx];
+	if (!*c) {
+		*c = create_chunk(cx, cy);
+	}
+	return *c;
 }
 
-inline void init_active_chunks(void)
+inline uint8_t *touch_tile(int tx, int ty)
 {
-	g_active_chunks[0][0] = alloc_chunk();
-	g_active_chunks[0][1] = alloc_chunk();
-	g_active_chunks[1][0] = alloc_chunk();
-	g_active_chunks[1][1] = alloc_chunk();
-}
+	int ix;
+	int iy;
+	chunk *c;
 
-inline chunk *get_chunk(int tx, int ty)
-{
-	int chunk_x;
-	int chunk_y;
+	ix = tx % 16; 
+	iy = ty % 16; 
+	c = touch_chunk(tx, ty);
 
-	chunk_x = tx / 16;
-	chunk_y = ty / 16;
-
-	return g_active_chunks[chunk_y] + chunk_x;
-}
-
-inline uint8_t *get_tile(int scr_tx, int scr_ty)
-{
-	int tx;
-	int ty;
-
-	int rel_x;
-	int rel_y;
-
-	chunk_x += 1;
-
-	tx = g_scroll.x + x;
-	ty = g_scroll.x + y;
-
-	rel_x = tx % 16; 
-	rel_y = ty % 16; 
-
-	return g_active_chunks[chunk_y][chunk_x].tiles[rel_y] + rel_x;	
+	return &c->tiles[iy][ix];
 }
 
 #endif

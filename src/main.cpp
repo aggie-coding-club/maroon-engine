@@ -12,6 +12,7 @@
 #include <fileapi.h>
 #include <glad/glad.h>
 
+#include "chunk.hpp"
 #include "menu.hpp"
 #include "render.hpp"
 
@@ -50,8 +51,6 @@ static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
 
 static int g_place = 1;
-static float g_cam_x;
-static float g_cam_y;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -89,7 +88,7 @@ static void update_scrollbars(int width, int height)
 	si.nMin = 0;
 	si.nMax = 32 * width / 20;
 	si.nPage = width;
-	si.nPos = g_cam_x * width / 20;
+	si.nPos = g_cam.x * width / 20;
 	SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
 	si.cbSize = sizeof(si);
@@ -97,7 +96,7 @@ static void update_scrollbars(int width, int height)
 	si.nMin = 0;
 	si.nMax = 32 * height / 15;
 	si.nPage = height;
-	si.nPos = g_cam_y * height / 15;
+	si.nPos = g_cam.y * height / 15;
 	SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 }
 
@@ -139,27 +138,47 @@ static bool unsaved_warning(void)
  */
 static int write_map(const wchar_t *path) 
 {
-	HANDLE fh;
-	DWORD write;
+	int err;
+	FILE *f;
+	int cy;
 
-	fh = CreateFileW(path, GENERIC_WRITE, 0, NULL, 
-			CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL); 
-	if (fh == INVALID_HANDLE_VALUE) {
-		goto err;
-	}
-	
-	WriteFile(fh, g_tile_map, sizeof(g_tile_map), &write, NULL); 
-	CloseHandle(fh);
-
-	if (write < sizeof(g_tile_map)) {
-		goto err;
+	err = -1;
+	f = _wfopen(path, L"wb");
+	if (!f) {
+		goto err0;
 	}
 
-	g_change = false;
-	return 0;
-err:
-	MessageBoxW(g_wnd, L"Could not save map", L"Error", MB_ICONERROR);
-	return -1;
+	for (cy = 0; cy < CHUNK_NUM_DIM; cy++) {
+		int cx;
+
+		for (cx = 0; cx < CHUNK_NUM_DIM; cx++) {
+			chunk *c;
+
+			c = g_chunk_map[cy][cx];
+			if (c) {
+				fwrite(&c->x, 1, 1, f);
+				fwrite(&c->y, 1, 1, f);
+				fwrite(c->tiles, sizeof(c->tiles), 1, f);
+			}
+
+			if (ferror(f)) {
+				goto err1;
+			}
+		}
+	}
+
+	err = 0;
+err1:
+	fclose(f);
+	if (err >= 0) {
+		g_change = false;
+	}
+err0:
+	if (err < 0) {
+		MessageBoxW(g_wnd, L"Could not save map", 
+				L"Error", MB_ICONERROR);
+	}
+	return err;
 }
 
 /**
@@ -172,27 +191,57 @@ err:
  */
 static int read_map(const wchar_t *path)
 {
-	HANDLE fh;
-	DWORD read;
-	uint8_t tmp[1024];
+	int err;
+	FILE *f;
+	uint8_t x;
+	uint8_t y;
+	chunk_map tmp;
 
-	fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, 
-			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL); 
-	if (fh == INVALID_HANDLE_VALUE) {
-		goto err;
+	err = -1;
+	f = _wfopen(path, L"rb");
+	if (!f) {
+		goto err0;
 	}
+
+	memset(tmp, 0, sizeof(tmp));
+	while (!feof(f)) {
+		chunk *c;
+
+		fread(&x, 1, 1, f);
+		fread(&y, 1, 1, f);
 	
-	ReadFile(fh, tmp, sizeof(tmp), &read, NULL); 
-	CloseHandle(fh);
-	if (read < sizeof(g_tile_map)) {
-		goto err;
+		if (feof(f)) {
+			break;
+		}
+
+		if (ferror(f) || x >= CHUNK_NUM_DIM || y >= CHUNK_NUM_DIM) {
+			goto err1;
+		}
+
+		c = create_chunk(x, y);
+		if (fread(c->tiles, 256, 1, f) < 1) { 
+			goto err1;
+		}
+
+		tmp[y][x] = c;
 	}
 
-	memcpy(g_tile_map, tmp, sizeof(g_tile_map));
-	return 0;
-err:
-	MessageBoxW(g_wnd, L"Could not read map", L"Error", MB_ICONERROR);
-	return -1;
+	clear_chunk_map(g_chunk_map);
+	memcpy(g_chunk_map, tmp, sizeof(tmp));
+	err = 0;
+err1:
+	if (err < 0) {
+		clear_chunk_map(tmp);
+	}
+	fclose(f);
+	if (err >= 0) {
+		g_change = false;
+	}
+err0:
+	if (err < 0) {
+		MessageBoxW(g_wnd, L"Could not read map", L"Error", MB_ICONERROR);
+	}
+	return err;
 }
 
 /**
@@ -292,6 +341,7 @@ static void save(void)
 static void undo(void)
 {
 	edit *ed;
+	uint8_t *tp;
 	int tile;
 	
 	g_edit_next = (g_edit_next - 1ULL) % MAX_EDITS;
@@ -301,8 +351,9 @@ static void undo(void)
 		g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
 		break;
 	case EDIT_PLACE_TILE:
-		tile = g_tile_map[ed->y][ed->x]; 
-		g_tile_map[ed->y][ed->x] = ed->tile;
+		tp = touch_tile(ed->x, ed->y);
+		tile = *tp;
+		*tp = ed->tile;
 		ed->tile = tile;
 		break;
 	default:
@@ -316,6 +367,7 @@ static void undo(void)
 static void redo(void)
 {
 	edit *ed;
+	uint8_t *tp;
 	int tile;
 	
 	ed = g_edits + g_edit_next;
@@ -325,8 +377,9 @@ static void redo(void)
 		g_edit_next = (g_edit_next - 1ULL) % MAX_EDITS;
 		break;
 	case EDIT_PLACE_TILE:
-		tile = g_tile_map[ed->y][ed->x]; 
-		g_tile_map[ed->y][ed->x] = ed->tile;
+		tp = touch_tile(ed->x, ed->y);
+		tile = *tp;
+		*tp = ed->tile;
 		ed->tile = tile;
 		break;
 	default:
@@ -355,7 +408,7 @@ static void process_cmds(int id)
 		if (unsaved_warning()) {
 			g_map_path[0] = '\0';
 			reset_edits();
-			memset(g_tile_map, 0, sizeof(g_tile_map));
+			clear_chunk_map(g_chunk_map);
 			g_change = false;
 		}
 		break;
@@ -420,12 +473,17 @@ static void push_place_tile(int x, int y, int tile)
  */
 static void place_tile(int x, int y, int tile)
 {
-	x = g_cam_x + (float) x * VIEW_WIDTH / g_client_width;
-	y = g_cam_y + (float) y * VIEW_HEIGHT / g_client_height;
+	int tx;
+	int ty;
+	uint8_t *tp;
 
-	if (g_tile_map[y][x] != tile) {
-		push_place_tile(x, y, g_tile_map[y][x]);
-		g_tile_map[y][x] = tile;
+	tx = g_cam.x + (float) x * VIEW_WIDTH / g_client_width;
+	ty = g_cam.y + (float) y * VIEW_HEIGHT / g_client_height;
+
+	tp = touch_tile(tx, ty);
+	if (*tp != tile) {
+		push_place_tile(tx, ty, *tp);
+		*tp = tile;
 		g_change = true;
 	}
 }
@@ -473,8 +531,8 @@ static void update_horz_scroll(WPARAM wp)
 		si.nPos = HIWORD(wp); 
 		SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
-		g_cam_x = si.nPos * 20.0F / g_client_width;
-		g_scroll.x = -g_cam_x;
+		g_cam.x = si.nPos * 20.0F / g_client_width;
+		g_scroll.x = -g_cam.x;
 	}
 }
 
@@ -488,8 +546,8 @@ static void update_vert_scroll(WPARAM wp)
 		si.nPos = HIWORD(wp); 
 		SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 
-		g_cam_y = si.nPos * 15.0F / g_client_height;
-		g_scroll.y = -g_cam_y;
+		g_cam.y = si.nPos * 15.0F / g_client_height;
+		g_scroll.y = -g_cam.y;
 	}
 }
 
@@ -583,7 +641,31 @@ static void create_main_window(void)
 
 	g_menu = GetMenu(g_wnd);
 	g_acc = LoadAcceleratorsW(g_ins, MAKEINTRESOURCEW(ID_ACCELERATOR));
+}
 
+static void chunk_to_tile_map(int off_cx, int off_cy)
+{
+	int stx, sty;
+	chunk *c;
+	int ty;
+
+	stx = off_cx << 4; 
+	sty = off_cy << 4; 
+	c = touch_chunk(g_cam.x + stx, g_cam.y + sty);
+	for (ty = 0; ty < 16; ty++) {
+		uint8_t *dp, *sp;
+		dp = &g_tile_map[ty + sty][stx];
+		sp = c->tiles[ty];
+		memcpy(dp, sp, 16);
+	}
+}
+
+static void place_chunks(void)
+{
+	chunk_to_tile_map(0, 0);
+	chunk_to_tile_map(1, 0);
+	chunk_to_tile_map(0, 1);
+	chunk_to_tile_map(1, 1);
 }
 
 /**
@@ -600,7 +682,8 @@ static void msg_loop(void)
 		    TranslateMessage(&msg);
 		    DispatchMessage(&msg);
 		}
-
+		
+		place_chunks();
 		render();
 	}
 }

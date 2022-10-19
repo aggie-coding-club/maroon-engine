@@ -112,45 +112,6 @@ static DWORD get_error_text(wchar_t *buf, DWORD size)
 }
 
 /**
- * fatal_crt_error() - Display message box with CRT error and exit 
- *
- * This function is used if a C-Runtime (CRT) function fails with
- * a unrecoverable error. 
- */
-static void fatal_crt_err(void)
-{
-	wchar_t buf[1024];
-
-	_wcserror_s(buf, _countof(buf), errno);
-	MessageBoxW(g_wnd, buf, L"CRT Fatal Error", MB_OK); 
-	ExitProcess(1);
-}
-
-/**
- * xmalloc() - Alloc memory, crash on failure
- * @size: Size of allocation
- *
- * Return: Pointer to allocation 
- *
- * Pass to "free" to deallocate.
- */
-static void *xmalloc(size_t size)
-{
-	void *ptr;
-
-	if (size == 0) {
-		size = 1;
-	}
-
-	ptr = (char *) malloc(size);
-	if (!ptr) {
-		fatal_crt_err();
-	}
-
-	return ptr;
-}
-
-/**
  * fatal_win32_error() - Display message box with Win32 error and exit.
  *
  * This function is used if a Win32 function fails with
