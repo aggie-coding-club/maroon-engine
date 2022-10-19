@@ -7,6 +7,8 @@ CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
 DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o
 
+GEN = -G "MinGW Makefiles"
+
 LDFLAGS = -municode -fno-exceptions -fno-rtti
 LDFLAGS += -lopengl32 -lole32 -mwindows -mconsole
 LDFLAGS += $(DEPOBJS)
@@ -21,7 +23,7 @@ libs:
 	if not exist lib/freetype_build \
 		mkdir lib\freetype_build
 	if not exist lib/freetype_build/libfreetype.a \
-		cd lib/freetype_build && cmake ../freetype && mingw32-make
+		cd lib/freetype_build && cmake -G GEN ../freetype && mingw32-make
 	if not exist lib/stb/stb_image.o \
 		cd lib/stb && \
 		$(CC) -x c -c stb_image.h -DSTB_IMAGE_IMPLEMENTATION 
