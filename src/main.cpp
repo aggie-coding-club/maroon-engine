@@ -1,4 +1,4 @@
-#include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -523,6 +523,10 @@ static void process_cmds(int id)
 			CheckMenuItem(g_menu, IDM_GRID, MF_CHECKED);
 		}
 		break;
+	case IDM_RESIZE:
+		set_chunk_map_size(g_chunk_map, 64, 64);
+		update_scrollbars(g_client_width, g_client_height);
+		break;
 	default:
 		if (id & 0x3000) {
 			update_place(id);
@@ -623,7 +627,7 @@ static void update_horz_scroll(WPARAM wp)
 		SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
 		g_cam.x = si.nPos * 20.0F / g_client_width;
-		g_scroll.x = -g_cam.x;
+		g_scroll.x = -fmod(g_cam.x, 16);
 	}
 }
 
@@ -642,7 +646,7 @@ static void update_vert_scroll(WPARAM wp)
 		SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 
 		g_cam.y = si.nPos * 15.0F / g_client_height;
-		g_scroll.y = -g_cam.y;
+		g_scroll.y = -fmod(g_cam.y, 16);
 	}
 }
 
