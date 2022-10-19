@@ -5,7 +5,7 @@ CXXFLAGS = -DUNICODE -Wall -g
 CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl
 CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
-DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o lib/freetype_build/libfreetype.a
+DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o lib/freetype/objs/freetype.a
 
 GEN = -G "MinGW Makefiles"
 
@@ -20,11 +20,9 @@ DEP = $(SRC:%.cpp=%.d)
 all: libs dirs src/menu.o engine
 
 libs:
-	if not exist lib/freetype_build \
-		mkdir lib\freetype_build
-	if not exist lib/freetype_build/libfreetype.a \
-		cd lib/freetype_build && \
-		cmake $(GEN) ../freetype && \
+	if not exist lib/freetype/objs/freetype.a \
+		cd lib/freetype && \
+		mingw32-make setup CC=$(CXX) && \
 		mingw32-make
 	if not exist lib/stb/stb_image.o \
 		cd lib/stb && \
