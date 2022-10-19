@@ -490,6 +490,12 @@ static void process_cmds(int id)
 			g_map_path[0] = '\0';
 			reset_edits();
 			clear_chunk_map(g_chunk_map);
+			set_chunk_map_size(g_chunk_map, 20, 15);
+			g_scroll.x = 0;
+			g_scroll.y = 0;
+			g_cam.x = 0;
+			g_cam.y = 0;
+			update_scrollbars(g_client_width, g_client_height);
 			g_change = false;
 		}
 		break;

@@ -3,6 +3,8 @@
 
 #include <stdlib.h>
 
+#define endof(ary) (ary + _countof(ary))
+
 struct v2 {
 	float x;
 	float y;
