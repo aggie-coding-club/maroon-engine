@@ -30,8 +30,8 @@ uint8_t g_tile_map[32][32];
 v2 g_scroll;
 bool g_grid_on = true;
 
-object g_objects[MAX_OBJS];
-size_t g_object_count;
+square g_squares[MAX_OBJS];
+size_t g_square_count;
 
 static HDC g_hdc;
 static HGLRC g_glrc;
@@ -49,12 +49,12 @@ static GLint g_tm_tex_ul;
 
 static GLuint g_tex;
 
-static GLuint g_obj_prog;
+static GLuint g_square_prog;
 
-static GLuint g_obj_vao;
-static GLuint g_obj_vbo;
+static GLuint g_square_vao;
+static GLuint g_square_vbo;
 
-static GLint g_obj_tex_ul;
+static GLint g_square_tex_ul;
 
 /**
  * wgl_load() - load WGL extension function 
@@ -427,51 +427,47 @@ static void create_tm_prog(GLuint gs, GLuint fs)
 }
 
 /**
- * obj_vaa_set_up() - Set up vertex attributes for object program
+ * square_vaa_set_up() - Set up vertex attributes for square program
  */
-static void obj_vaa_set_up(void)
+static void square_vaa_set_up(void)
 {
-	glVertexAttribPointer(0, 2, GL_HALF_FLOAT, GL_FALSE, 
-			sizeof(object), (void *) 0);
-	glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, 
-			sizeof(object), (void *) 4);
-	glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 
-			sizeof(object), (void *) 5);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 
+			sizeof(square), (void *) 0);
+	glVertexAttribIPointer(1, 1, GL_INT, 
+			sizeof(square), (void *) 4);
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
-
-	glEnableVertexAttribArray(2);
 }
 
 /**
- * create_obj_prog() - Create object program
+ * create_square_prog() - Create square program
  * @gs: Geometry shader
  * @fs: Fragment shader
  *
  * Vertex shader is created on the spot.
  */
-static void create_obj_prog(GLuint gs, GLuint fs)
+static void create_square_prog(GLuint gs, GLuint fs)
 {
 	GLuint vs;
 
-	vs = compile_shader(GL_VERTEX_SHADER, L"obj.vert");
-	g_obj_prog = create_prog(vs, gs, fs); 
+	vs = compile_shader(GL_VERTEX_SHADER, L"square.vert");
+	g_square_prog = create_prog(vs, gs, fs); 
 	glDeleteShader(vs);
 
-	glGenVertexArrays(1, &g_obj_vao);
-	glGenBuffers(1, &g_obj_vbo);
+	glGenVertexArrays(1, &g_square_vao);
+	glGenBuffers(1, &g_square_vbo);
 
-	glBindVertexArray(g_obj_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_obj_vbo);
-	obj_vaa_set_up();
+	glBindVertexArray(g_square_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
+	square_vaa_set_up();
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_objects), 
-			g_objects, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_squares), 
+			g_squares, GL_DYNAMIC_DRAW);
 
-	glUseProgram(g_obj_prog);
-	g_obj_tex_ul = glGetUniformLocation(g_obj_prog, "tex");
-	glUniform1i(g_obj_tex_ul, 0);
+	glUseProgram(g_square_prog);
+	g_square_tex_ul = glGetUniformLocation(g_square_prog, "tex");
+	glUniform1i(g_square_tex_ul, 0);
 }
 
 /**
@@ -487,7 +483,7 @@ static void init_gl_progs(void)
 
 	create_atlas();
 	create_tm_prog(gs, fs);
-	create_obj_prog(gs, fs);
+	create_square_prog(gs, fs);
 
 	glDeleteShader(fs);
 	glDeleteShader(gs);
@@ -559,17 +555,19 @@ void render(void)
 	glBindVertexArray(g_tm_vao);
 	glUniform2f(g_tm_scroll_ul, g_scroll.x, g_scroll.y);
 
+	/*
 	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
 	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
 	glEnableVertexAttribArray(0);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_tile_map), g_tile_map);
         glDrawArrays(GL_POINTS, 0, (g_grid_on ? 2 : 1) * sizeof(g_tile_map));
+	*/
 
-	glUseProgram(g_obj_prog);
-	glBindVertexArray(g_obj_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_obj_vbo);
-	obj_vaa_set_up();
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_objects), g_objects);
-	glDrawArrays(GL_POINTS, 0, g_object_count);
+	glUseProgram(g_square_prog);
+	glBindVertexArray(g_square_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
+	square_vaa_set_up();
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_squares), g_squares);
+	glDrawArrays(GL_POINTS, 0, g_square_count);
 	SwapBuffers(g_hdc);
 }
