@@ -448,9 +448,9 @@ static void redo(void)
  */
 static void update_place(int id)
 {
-	CheckMenuItem(g_menu, g_place + 0x3000, MF_UNCHECKED);
+	CheckMenuItem(g_menu, g_place + 0x4000, MF_UNCHECKED);
 	CheckMenuItem(g_menu, id, MF_CHECKED);
-	g_place = id - 0x3000;
+	g_place = id - 0x4000;
 }
 
 /**
@@ -620,7 +620,7 @@ static void process_cmds(int id)
 				g_wnd, dlg_proc, 0);
 		break;
 	default:
-		if (id & 0x3000) {
+		if (id & 0x4000) {
 			update_place(id);
 		}
 	}
