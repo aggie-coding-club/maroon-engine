@@ -852,10 +852,11 @@ static void msg_loop(void)
 	}
 }
 
-void init_freetype(){
+static void init_freetype(void)
+{
 	int error = FT_Init_FreeType(&g_freetype_library);
 
-	if(error){
+	if (error) {
 		printf("ERROR: failure initializing FreeTypeLibrary");
 	}
 }
