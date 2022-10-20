@@ -18,27 +18,25 @@ SRC = $(wildcard src/*.cpp)
 OBJ = $(patsubst src/%.cpp,obj/%.o,$(SRC))
 DEP = $(patsubst src/%.cpp,obj/%.d,$(SRC))
 
-all: libs dirs obj/menu.o engine
+all: dirs obj/menu.o engine
 
-libs:
-	if not exist lib/freetype_build \
-		mkdir lib\freetype_build
-	if not exist lib/freetype_build/libfreetype.a \
-		cd lib/freetype_build && \
-		cmake $(GEN) ../freetype && \
-		mingw32-make
-	if not exist lib/stb/stb_image.o \
-		cd lib/stb && \
-		$(CC) -x c -c stb_image.h -DSTB_IMAGE_IMPLEMENTATION 
-	if not exist lib/glad/src/glad.o \
-		cd lib/glad && \
-		$(CC) -o src/glad.o -Iinclude -c src/glad.c
+lib/freetype_build/libfreetype.a:
+	mkdir -p lib\freetype_build
+	cd lib/freetype_build && \
+	cmake $(GEN) ../freetype && \
+	mingw32-make
+
+lib/stb/stb_image.o:
+	cd lib/stb && \
+	$(CC) -x c -c stb_image.h -DSTB_IMAGE_IMPLEMENTATION
+
+lib/glad/src/glad.o:
+	cd lib/glad && \
+	$(CC) -o src/glad.o -Iinclude -c src/glad.c
 
 dirs:
-	if not exist bin \
-		mkdir bin 
-	if not exist obj \
-		mkdir obj 
+	mkdir -p ./bin 
+	mkdir -p ./obj 
 
 obj/menu.o: src/menu.hpp src/menu.rc
 	windres src/menu.rc -o obj/menu.o
@@ -54,14 +52,11 @@ obj/%.d: src/%.d
 
 include $(wildcard $DEP)
 
-engine: $(OBJ) $(DEP) obj/menu.o
+engine: $(OBJ) $(DEP) obj/menu.o $(DEPOBJS)
 	$(CXX) -o bin/engine.exe $(OBJ) obj/menu.o $(LDFLAGS)
 
 clean:
 	rm $(OBJ) $(DEP) $(DEPOBJS) obj/menu.o -f
-	if exist bin \
- 		rm -r bin
-	if exist obj \
- 		rm -r obj 
-	if exist lib/freetype_build \
- 		rm -r lib/freetype_build 
+	rm -f -r bin
+	rm -f -r obj 
+	rm -f -r lib/freetype_build 
