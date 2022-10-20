@@ -1,4 +1,5 @@
 bin
+obj
 lib/freetype_build
 
 # Prerequisites

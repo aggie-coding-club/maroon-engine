@@ -14,10 +14,11 @@ LDFLAGS += -lopengl32 -lole32 -mwindows -mconsole
 LDFLAGS += $(DEPOBJS)
 
 SRC = $(wildcard src/*.cpp)
-OBJ = $(SRC:%.cpp=%.o)
-DEP = $(SRC:%.cpp=%.d)
 
-all: libs dirs src/menu.o engine
+OBJ = $(patsubst src/%.cpp,obj/%.o,$(SRC))
+DEP = $(patsubst src/%.cpp,obj/%.d,$(SRC))
+
+all: libs dirs obj/menu.o engine
 
 libs:
 	if not exist lib/freetype_build \
@@ -36,21 +37,31 @@ libs:
 dirs:
 	if not exist bin \
 		mkdir bin 
+	if not exist obj \
+		mkdir obj 
 
-src/menu.o: src/menu.hpp src/menu.rc
-	windres src/menu.rc -o src/menu.o
+obj/menu.o: src/menu.hpp src/menu.rc
+	windres src/menu.rc -o obj/menu.o
 
-%.o: %.cpp %.d
+%.o: src/%.cpp %.d
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
+
+obj/%.o: src/%.o
+	mv $< $@
+
+obj/%.d: src/%.d
+	mv $< $@
 
 include $(wildcard $DEP)
 
-engine: $(OBJ) src/menu.o
-	$(CXX) -o bin/engine.exe $^ $(LDFLAGS)
+engine: $(OBJ) $(DEP) obj/menu.o
+	$(CXX) -o bin/engine.exe $(OBJ) obj/menu.o $(LDFLAGS)
 
 clean:
-	rm $(OBJ) $(DEP) $(DEPOBJS) src/menu.o -f
+	rm $(OBJ) $(DEP) $(DEPOBJS) obj/menu.o -f
 	if exist bin \
  		rm -r bin
+	if exist obj \
+ 		rm -r obj 
 	if exist lib/freetype_build \
  		rm -r lib/freetype_build 
