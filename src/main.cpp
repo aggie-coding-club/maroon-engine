@@ -12,14 +12,16 @@
 #include <fileapi.h>
 #include <glad/glad.h>
 
-#include "chunk.hpp"
 #include "menu.hpp"
 #include "render.hpp"
+#include "tile_map.hpp"
 
 #define MAX_EDITS 256ULL
 
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
+
+#define MAX_MAP_LEN 999 
 
 enum edit_type {
 	EDIT_NONE,
@@ -113,13 +115,13 @@ static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
 
-	g_cam.x = fclampf(g_cam.x, g_chunk_map->tw - g_cam.w, 0);
-	g_cam.y = fclampf(g_cam.y, g_chunk_map->th - g_cam.h, 0);
+	g_cam.x = fclampf(g_cam.x, g_tm.w - g_cam.w, 0);
+	g_cam.y = fclampf(g_cam.y, g_tm.h - g_cam.h, 0);
 
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = g_chunk_map->tw * width / g_cam.w;
+	si.nMax = g_tm.w * width / g_cam.w;
 	si.nPage = width + 1;
 	si.nPos = g_cam.x * width / g_cam.w;
 	SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
@@ -127,7 +129,7 @@ static void update_scrollbars(int width, int height)
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = g_chunk_map->th * height / g_cam.h;
+	si.nMax = g_tm.h * height / g_cam.h;
 	si.nPage = height + 1;
 	si.nPos = g_cam.y * height / g_cam.h;
 	SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
@@ -163,36 +165,6 @@ static bool unsaved_warning(void)
 }
 
 /**
- * write_chunk() - Write chunk data out
- * @f: File handle
- * @c: Chunk
- *
- * Return: Returns 0 on success, -1 on failure
- */
-static int write_chunk(FILE *f, chunk *c)
-{
-	uint8_t v[2];
-
-	if (!c) {
-		return 0;
-	}
-
-	/*get position of chunk*/
-	v[0] = c->cx;
-	v[1] = c->cy;
-	if (fwrite(v, sizeof(v), 1, f) < 1) {
-		return -1;
-	}
-
-	/*get chunk data*/
-	if (fwrite(c->tiles, sizeof(c->tiles), 1, f) < 1) {
-		return -1;
-	}
-
-	return 0;
-}
-
-/**
  * write_map() - Save map to file.
  * @path - Path to map
  *
@@ -204,9 +176,9 @@ static int write_map(const wchar_t *path)
 {
 	int err;
 	FILE *f;
-	uint8_t v[2];
-	chunk_row *cr;
-	int ny;
+	uint16_t v[2];
+	uint8_t **row;
+	int n;
 
 	err = -1;
 	f = _wfopen(path, L"wb");
@@ -215,28 +187,19 @@ static int write_map(const wchar_t *path)
 	}
 
 	/*write width and height of map*/
-	v[0] = g_chunk_map->tw;
-	v[1] = g_chunk_map->th;
+	v[0] = g_tm.w;
+	v[1] = g_tm.h;
 	if (fwrite(v, sizeof(v), 1, f) < 1) {
 		goto err1;
 	}
 
-	/*write chunks*/
-	cr = g_chunk_map->chunks;
-	ny = g_chunk_map->ch;
-	while (ny-- > 0) {
-		chunk **cp;
-		int nx;
-
-		cp = *cr;
-		nx = g_chunk_map->cw; 
-		while (nx-- > 0) {
-			if (write_chunk(f, *cp) < 0) {
-				goto err1;
-			}
-			cp++;
+	row = g_tm.rows;
+	n = g_tm.h;
+	while (n-- > 0) {
+		if (fwrite(*row, g_tm.w, 1, f) < 1) {
+			goto err1;
 		}
-		cr++;
+		row++;
 	}
 
 	/*error handling and cleanup*/
@@ -255,46 +218,6 @@ err0:
 }
 
 /**
- * read_chunk(): Reads chunk and adds it to map
- * @f: File to read from
- * @map: Map to read into
- *
- * NOTE: Garbage chunk may be present if read fail
- * This function's only purpose is as helper function 
- *
- * Return: Returns -1 on failure, 0 on success, and 1 on completion 
- */
-static int read_chunk(FILE *f, chunk_map *map)
-{
-	chunk *c;
-	uint8_t v[2];
-
-	/*get chunk position*/
-	if (fread(&v, sizeof(v), 1, f) < 1) {
-		/*if last chunk was alread read than EOF here*/
-		if (feof(f)) {
-			return 1;
-		} else {
-			return -1;
-		}
-	}
-
-	/*check to see if chunk position is valid*/
-	if (v[0] >= map->cw || v[1] >= map->ch) {
-		return -1;
-	}
-
-	/*read in new chunk*/
-	c = create_chunk(v[0], v[1]);
-	map->chunks[v[1]][v[0]] = c;
-	if (fread(c->tiles, sizeof(c->tiles), 1, f) < 1) { 
-		return -1;
-	}
-
-	return 0;
-}
-
-/**
  * read_map() - Read map
  * @path - Path to map
  *
@@ -306,9 +229,10 @@ static int read_map(const wchar_t *path)
 {
 	int err;
 	FILE *f;
-	uint8_t v[2];
-	chunk_map *map;
-	int res;
+	uint16_t v[2];
+	tile_map tm;
+	uint8_t **row;
+	int n;
 
 	err = -1;
 	f = _wfopen(path, L"rb");
@@ -320,22 +244,25 @@ static int read_map(const wchar_t *path)
 	if (fread(&v, sizeof(v), 1, f) < 1) {
 		goto err1;
 	}
-	if (v[0] >= MAP_LEN || v[1] >= MAP_LEN) {
+
+	if (v[0] > MAX_MAP_LEN || v[1] > MAX_MAP_LEN) {
 		goto err1;
 	}
+	init_tm(&tm);	
+	size_tm(&tm, v[0], v[1]);
+
+	row = tm.rows;
+	n = tm.h;
+	while (n-- > 0) {
+		if (fread(*row, tm.w, 1, f) < 1) {
+			reset_tm(&tm);
+			goto err1;
+		}
+		row++;
+	}
+	reset_tm(&g_tm);
+	g_tm = tm;
 	
-	/*read chunks*/
-	map = create_chunk_map(v[0], v[1]);
-	while (!(res = read_chunk(f, map)));
-	if (res < 0) {
-		destroy_chunk_map(map);
-		goto err1;
-	}
-
-	/*swap out old chunk map with new one*/
-	destroy_chunk_map(g_chunk_map);
-	g_chunk_map = map;
-
 	/*error handling and cleanup*/
 	err = 0;
 err1:
@@ -451,9 +378,9 @@ static void resize_edit(edit *ed)
 
 	w = ed->resize.w;
 	h = ed->resize.h;
-	ed->resize.w = g_chunk_map->tw; 
-	ed->resize.h = g_chunk_map->th; 
-	set_chunk_map_size(g_chunk_map, w, h);
+	ed->resize.w = g_tm.w; 
+	ed->resize.h = g_tm.h; 
+	size_tm(&g_tm, w, h);
 	update_scrollbars(g_client_width, g_client_height);
 }
 
@@ -473,7 +400,7 @@ static void undo(void)
 		g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
 		break;
 	case EDIT_PLACE:
-		tp = touch_tile(ed->place.x, ed->place.y);
+		tp = &g_tm.rows[ed->place.y][ed->place.x];
 		tile = *tp;
 		*tp = ed->place.tile;
 		ed->place.tile = tile;
@@ -500,7 +427,7 @@ static void redo(void)
 		g_edit_next = (g_edit_next - 1ULL) % MAX_EDITS;
 		break;
 	case EDIT_PLACE:
-		tp = touch_tile(ed->place.x, ed->place.y);
+		tp = &g_tm.rows[ed->place.y][ed->place.x];
 		tile = *tp;
 		*tp = ed->place.tile;
 		ed->place.tile = tile;
@@ -557,13 +484,9 @@ static void attempt_resize(HWND wnd)
 		err = -1;
 		MessageBoxW(wnd, L"Invalid width", 
 				L"Error", MB_ICONERROR);
-	} else if (width < 20) {
+	} else if (width > 999) {
 		err = -1;
-		MessageBoxW(wnd, L"Width must be at least 20", 
-				L"Error", MB_ICONERROR);
-	} else if (width > MAP_LEN) {
-		err = -1;
-		MessageBoxW(wnd, L"Width must be at most 256", 
+		MessageBoxW(wnd, L"Width must be at most 999", 
 				L"Error", MB_ICONERROR);
 	} 
 
@@ -572,13 +495,9 @@ static void attempt_resize(HWND wnd)
 		err = -1;
 		MessageBoxW(wnd, L"Invalid height", 
 				L"Error", MB_ICONERROR);
-	} else if (height < 15) {
+	} else if (height > 999) {
 		err = -1;
-		MessageBoxW(wnd, L"Height must be at least 15", 
-				L"Error", MB_ICONERROR);
-	} else if (height > MAP_LEN) {
-		err = -1;
-		MessageBoxW(wnd, L"Height must be at most 256", 
+		MessageBoxW(wnd, L"Height must be at most 999", 
 				L"Error", MB_ICONERROR);
 	}
 
@@ -587,10 +506,10 @@ static void attempt_resize(HWND wnd)
 
 		ed = push_edit();
 		ed->type = EDIT_RESIZE;
-		ed->resize.w = g_chunk_map->tw;
-		ed->resize.h = g_chunk_map->th;
+		ed->resize.w = g_tm.w;
+		ed->resize.h = g_tm.h;
 
-		set_chunk_map_size(g_chunk_map, width, height);
+		size_tm(&g_tm, width, height);
 		update_scrollbars(g_client_width, g_client_height);
 
 		EndDialog(wnd, 0);
@@ -614,8 +533,8 @@ static __stdcall INT_PTR dlg_proc(HWND wnd, UINT msg,
 		
 	switch (msg) {
 	case WM_INITDIALOG:
-		SetDlgItemInt(wnd, IDD_WIDTH, g_chunk_map->tw, FALSE);
-		SetDlgItemInt(wnd, IDD_HEIGHT, g_chunk_map->th, FALSE);
+		SetDlgItemInt(wnd, IDD_WIDTH, g_tm.w, FALSE);
+		SetDlgItemInt(wnd, IDD_HEIGHT, g_tm.h, FALSE);
 		return TRUE;
 	case WM_COMMAND:
 		switch (wp) {
@@ -641,8 +560,8 @@ static void process_cmds(int id)
 		if (unsaved_warning()) {
 			g_map_path[0] = '\0';
 			reset_edits();
-			clear_chunk_map(g_chunk_map);
-			set_chunk_map_size(g_chunk_map, 20, 15);
+			reset_tm(&g_tm);
+			size_tm(&g_tm, 20, 15);
 			g_cam.x = 0;
 			g_cam.y = 0;
 			update_scrollbars(g_client_width, g_client_height);
@@ -730,8 +649,8 @@ static void place_tile(int x, int y, int tile)
 	tx = g_cam.x + (float) x * g_cam.w / g_client_width;
 	ty = g_cam.y + (float) y * g_cam.h / g_client_height;
 
-	if (tx >= 0 && tx < g_chunk_map->tw && ty >= 0 && ty < g_chunk_map->th) {
-		tp = touch_tile(tx, ty);
+	if (tx >= 0 && tx < g_tm.w && ty >= 0 && ty < g_tm.h) {
+		tp = &g_tm.rows[ty][tx];
 		if (*tp != tile) {
 			push_place_tile(tx, ty, *tp);
 			*tp = tile;
@@ -941,7 +860,8 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_gl();
-	g_chunk_map = create_chunk_map(20, 15);
+	init_tm(&g_tm);
+	size_tm(&g_tm, 20, 15);
 	msg_loop();
 	
 	return 0;

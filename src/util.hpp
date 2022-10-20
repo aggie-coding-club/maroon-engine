@@ -39,4 +39,16 @@ void *xmalloc(size_t size);
  */
 void *xcalloc(size_t count, size_t size);
 
+/**
+ * xrealloc() - Reallocates memory, crashes on failure
+ * @ptr: Pointer to realloc 
+ * @size: New size
+ *
+ * Return: Pointer to allocation 
+ *
+ * Pass to "free" to deallocate.
+ */
+void *xrealloc(void *ptr, size_t size);
+
 #endif
+

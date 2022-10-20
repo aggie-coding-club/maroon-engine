@@ -1,0 +1,74 @@
+#include <string.h>
+
+#include "tile_map.hpp"
+#include "util.hpp"
+
+tile_map g_tm;
+
+void init_tm(tile_map *tm)
+{
+	tm->rows = NULL;
+	tm->w = 0;
+	tm->h = 0;
+}
+
+static int min(int a, int b)
+{
+	return a < b ? a : b;
+}
+
+void size_tm(tile_map *tm, int w, int h)
+{
+	uint8_t **rows;
+	int mw, mh;
+	int dw, dh;
+	uint8_t **row;
+	int n;
+
+	/*get new row pointers*/
+	rows = (uint8_t **) xrealloc(tm->rows, h * sizeof(*rows));
+
+	/*calc zero padding*/
+	mw = min(w, tm->w);
+	mh = min(h, tm->h);
+	
+	dw = w - mw;
+	dh = h - mh;
+
+	/*resize old rows*/
+	row = rows;
+	n = mh;
+	while (n-- > 0) {
+		*row = (uint8_t *) xrealloc(*row, w); 
+		memset(*row + tm->w, 0, dw);
+		row++;
+	}
+
+	/*resize new rows*/
+	row = rows + tm->h;
+	n = dh;
+	while (n-- > 0) {
+		*row++ = (uint8_t *) xcalloc(w, 1);
+	}
+
+	/*copy new values*/
+	tm->w = w;
+	tm->h = h;
+	tm->rows = rows;
+}
+
+void reset_tm(tile_map *tm)
+{
+	uint8_t **row;
+	int n;
+
+	row = tm->rows;
+	n = tm->h;
+	while (n-- > 0) {
+		free(*row);
+		row++;	
+	}
+	free(tm->rows);
+
+	init_tm(tm);
+}

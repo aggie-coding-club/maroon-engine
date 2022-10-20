@@ -14,11 +14,7 @@ void *xmalloc(size_t size)
 {
 	void *ptr;
 
-	if (size == 0) {
-		size = 1;
-	}
-
-	ptr = (char *) malloc(size);
+	ptr = malloc(size);
 	if (!ptr) {
 		fatal_crt_err();
 	}
@@ -30,11 +26,7 @@ void *xcalloc(size_t count, size_t size)
 {
 	void *ptr;
 
-	if (size == 0) {
-		size = 1;
-	}
-
-	ptr = (char *) calloc(count, size);
+	ptr = calloc(count, size);
 	if (!ptr) {
 		fatal_crt_err();
 	}
@@ -42,4 +34,12 @@ void *xcalloc(size_t count, size_t size)
 	return ptr;
 }
 
+void *xrealloc(void *ptr, size_t size)
+{
+	ptr = realloc(ptr, size);
+	if (!ptr && size) {
+		fatal_crt_err();
+	}
 
+	return ptr;
+}

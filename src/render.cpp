@@ -8,8 +8,8 @@
 #include <stb_image.h>
 #include <wglext.h>
 
-#include "chunk.hpp"
 #include "render.hpp"
+#include "tile_map.hpp"
 
 #define TILE_STRIDE (TILE_LEN * 4) 
 
@@ -532,22 +532,26 @@ static void render_tiles(void)
 	int max_y;
 	int ty;
 
-	max_x = min(g_cam.w + 1, g_chunk_map->tw);
-	max_y = min(g_cam.h + 1, g_chunk_map->th);
+	max_x = min(g_cam.w + 1, g_tm.w);
+	max_y = min(g_cam.h + 1, g_tm.h);
 
 	for (ty = 0; ty < max_y; ty++) {
 		int tx;
 		for (tx = 0; tx < max_x; tx++) {
-			uint8_t *tp;
+			int atx;
+			int aty;
+			int tile;
 			square *s;
 
-			tp = touch_tile(g_cam.x + tx, g_cam.y + ty);
+			atx = g_cam.x + tx;
+			aty = g_cam.y + ty;
+			tile = g_tm.rows[aty][atx];
 	
 			s = alloc_square();
 			s->x = tx - fmodf(g_cam.x, 1.0F);
 			s->y = ty - fmodf(g_cam.y, 1.0F);
 			s->z = 0.0F;
-			s->tile = *tp; 
+			s->tile = tile; 
 			if (g_grid_on) {
 				s = alloc_square();
 				s->x = tx - fmodf(g_cam.x, 1.0F);
