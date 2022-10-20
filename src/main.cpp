@@ -80,6 +80,12 @@ static void set_default_directory(void)
 	SetCurrentDirectoryW(path);
 }
 
+template<typename lhs, typename rhs>
+auto min(lhs a, rhs b)
+{
+	return a < b ? a : b;
+}
+
 /**
  * update_scrollbars() - Refresh scrollbar 
  * @width: The new width of the window
@@ -88,6 +94,9 @@ static void set_default_directory(void)
 static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
+
+	g_cam.x = min(g_cam.x, g_chunk_map->tw - 20);
+	g_cam.y = min(g_cam.y, g_chunk_map->th - 15);
 
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
@@ -315,7 +324,6 @@ err1:
 	fclose(f);
 	if (err >= 0) {
 		g_change = false;
-		update_scrollbars(g_client_width, g_client_height);
 	}
 err0:
 	if (err < 0) {
@@ -372,6 +380,8 @@ static void open(void)
 	if (GetOpenFileName(&ofn) && read_map(g_map_path) >= 0) {
 		g_change = false;
 		reset_edits();
+		g_cam.x = 0;
+		g_cam.y = 0;
 		update_scrollbars(g_client_width, g_client_height);
 	} else {
 		wcscpy(g_map_path, path);
@@ -481,6 +491,90 @@ static void update_place(int id)
 }
 
 /**
+ * attempt_resize() - Responds to OK button on resize dialog 
+ * @wnd: Dialog window
+ */
+static void attempt_resize(HWND wnd)
+{
+	int err;
+	BOOL success;
+	int width;
+	int height;
+
+	err = 0;
+
+	width = GetDlgItemInt(wnd, IDD_WIDTH, &success, FALSE);
+	if (!success) {
+		err = -1;
+		MessageBoxW(wnd, L"Invalid width", 
+				L"Error", MB_ICONERROR);
+	} else if (width < 20) {
+		err = -1;
+		MessageBoxW(wnd, L"Width must be at least 20", 
+				L"Error", MB_ICONERROR);
+	} else if (width > MAP_LEN) {
+		err = -1;
+		MessageBoxW(wnd, L"Width must be at most 256", 
+				L"Error", MB_ICONERROR);
+	} 
+
+	height = GetDlgItemInt(wnd, IDD_HEIGHT, &success, FALSE);
+	if (!success) {
+		err = -1;
+		MessageBoxW(wnd, L"Invalid height", 
+				L"Error", MB_ICONERROR);
+	} else if (height < 15) {
+		err = -1;
+		MessageBoxW(wnd, L"Height must be at least 15", 
+				L"Error", MB_ICONERROR);
+	} else if (height > MAP_LEN) {
+		err = -1;
+		MessageBoxW(wnd, L"Height must be at most 256", 
+				L"Error", MB_ICONERROR);
+	}
+
+	if (err >= 0) {
+		set_chunk_map_size(g_chunk_map, width, height);
+		update_scrollbars(g_client_width, g_client_height);
+		EndDialog(wnd, 0);
+	}
+}
+		
+/**
+ * dlg_proc() - Callback for resize dialog 
+ * @wnd: Modal dialog handle
+ * @msg: Message to procces
+ * @wp: Unsigned system word sized param 
+ * @lp: Signed system word sized param 
+ *
+ * The meaning of wp and lp are message specific.
+ *
+ * Return: Result of message processing, usually zero if message was processed 
+ */
+static __stdcall INT_PTR dlg_proc(HWND wnd, UINT msg, 
+		WPARAM wp, LPARAM lp)
+{
+		
+	switch (msg) {
+	case WM_INITDIALOG:
+		SetDlgItemInt(wnd, IDD_WIDTH, g_chunk_map->tw, FALSE);
+		SetDlgItemInt(wnd, IDD_HEIGHT, g_chunk_map->th, FALSE);
+		return TRUE;
+	case WM_COMMAND:
+		switch (wp) {
+		case IDOK:
+			attempt_resize(wnd);
+			break;
+		case IDCANCEL:
+			EndDialog(wnd, 0);
+			break;
+		}
+		return 0;
+	}
+	return 0;
+}
+
+/**
  * process_cmds() - Process menu commands
  */
 static void process_cmds(int id)
@@ -492,8 +586,6 @@ static void process_cmds(int id)
 			reset_edits();
 			clear_chunk_map(g_chunk_map);
 			set_chunk_map_size(g_chunk_map, 20, 15);
-			g_scroll.x = 0;
-			g_scroll.y = 0;
 			g_cam.x = 0;
 			g_cam.y = 0;
 			update_scrollbars(g_client_width, g_client_height);
@@ -525,9 +617,8 @@ static void process_cmds(int id)
 		}
 		break;
 	case IDM_RESIZE:
-		set_chunk_map_size(g_chunk_map, 64, 64);
-		update_scrollbars(g_client_width, g_client_height);
-            	//DialogBox(NULL, "ResizeMapDialog", g_wnd, dlg_proc);
+            	DialogBoxParamW(NULL, MAKEINTRESOURCEW(ID_RESIZE), 
+				g_wnd, dlg_proc, 0);
 		break;
 	default:
 		if (id & 0x3000) {
@@ -629,7 +720,6 @@ static void update_horz_scroll(WPARAM wp)
 		SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
 		g_cam.x = si.nPos * 20.0F / g_client_width;
-		g_scroll.x = -fmodf(g_cam.x, 1.0F);
 	}
 }
 
@@ -648,7 +738,6 @@ static void update_vert_scroll(WPARAM wp)
 		SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 
 		g_cam.y = si.nPos * 15.0F / g_client_height;
-		g_scroll.y = -fmodf(g_cam.y, 1.0F);
 	}
 }
 
@@ -776,6 +865,8 @@ static void msg_loop(void)
 		}
 		
 		place_chunks();
+		g_scroll.x = -fmodf(g_cam.x, 1.0F);
+		g_scroll.y = -fmodf(g_cam.y, 1.0F);
 		render();
 	}
 }

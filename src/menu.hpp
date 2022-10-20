@@ -1,8 +1,12 @@
 #ifndef MENU_HPP
 #define MENU_HPP
 
-#define ID_MENU 0x1000 
-#define ID_ACCELERATOR 0x1001 
+#include <windows.h>
+
+#define ID_NORMAL 0x1000
+#define ID_MENU 0x1001 
+#define ID_ACCELERATOR 0x1002 
+#define ID_RESIZE 0x1003
 
 #define IDM_NEW 0x1000 
 #define IDM_OPEN 0x1001 
@@ -18,5 +22,9 @@
 #define IDM_WALL 0x3001
 #define IDM_PLAYER 0x3002 
 #define IDM_DOOR 0x3003 
+
+#define IDD_STATIC 0x1000
+#define IDD_WIDTH 0x1001
+#define IDD_HEIGHT 0x1002
 
 #endif
