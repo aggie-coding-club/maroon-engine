@@ -7,8 +7,15 @@
 #include "util.hpp"
 
 #define TILE_LEN 32 
-#define MAX_OBJS 1024 
+#define MAX_OBJS 16384 
 
+/**
+ * square - Render square 
+ * @x: x-pos relative to left
+ * @y: y-pos relative to top
+ * @z: depth, z goes from -1 to 0, lower means on top 
+ * @tile: the tile to render
+ */
 struct square {
 	float x; 
 	float y; 
@@ -17,20 +24,36 @@ struct square {
 };
 
 /**
+ * rect - Rectangle 
+ * @x: left-most pos 
+ * @y: top-most pos 
+ * @w: width
+ * @h: height
+ */
+struct rect {
+	float x;
+	float y;
+	float w;
+	float h;
+};
+
+/**
  * Window Globals
  * @g_wnd: Main window    
  */
 extern HWND g_wnd;
 
-extern bool g_grid_on;
-
 /**
  * Square Globals
  * @g_squares: Squares on screen
  * @g_square_count: Count of squares 
+ * @g_grid_on: Have a grid of tile map
+ * @cam: Camera rect
  */
 extern square g_squares[MAX_OBJS];
 extern size_t g_square_count;
+extern bool g_grid_on;
+extern rect g_cam;
 
 /**
  * init_gl() - initialize OpenGL context and load necessary extensions 

@@ -23,21 +23,25 @@
 
 enum edit_type {
 	EDIT_NONE,
-	EDIT_PLACE_TILE
+	EDIT_PLACE_TILE,
+	EDIT_RESIZE
+};
+
+struct edit_resize {
+	int w;
+	int h;
 };
 
 struct edit {
 	edit_type type;
-	int x;
-	int y;
-	int tile;
-};
-
-struct rect {
-	float x;
-	float y;
-	float w;
-	float h;
+	union {
+		struct {
+			int x;
+			int y;
+			int tile;
+		};
+		edit_resize resize;
+	};
 };
 
 static HINSTANCE g_ins;
@@ -55,7 +59,6 @@ static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
 
 static int g_place = 1;
-static rect g_cam = {0, 0, 20, 15}; 
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -84,6 +87,11 @@ static void set_default_directory(void)
 	SetCurrentDirectoryW(path);
 }
 
+float fclampf(float v, float l, float h)
+{
+	return fminf(fmaxf(v, l), h);
+}
+
 /**
  * update_scrollbars() - Refresh scrollbar 
  * @width: The new width of the window
@@ -97,8 +105,8 @@ static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
 
-	g_cam.x = fminf(g_cam.x, g_chunk_map->tw - g_cam.w);
-	g_cam.y = fminf(g_cam.y, g_chunk_map->th - g_cam.h);
+	g_cam.x = fclampf(g_cam.x, g_chunk_map->tw - g_cam.w, 0);
+	g_cam.y = fclampf(g_cam.y, g_chunk_map->th - g_cam.h, 0);
 
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
@@ -429,6 +437,18 @@ static void save(void)
 	}
 }
 
+static void resize_edit(edit *ed)
+{
+	int w, h;
+
+	w = ed->resize.w;
+	h = ed->resize.h;
+	ed->resize.w = g_chunk_map->tw; 
+	ed->resize.h = g_chunk_map->th; 
+	set_chunk_map_size(g_chunk_map, w, h);
+	update_scrollbars(g_client_width, g_client_height);
+}
+
 /**
  * undo() - Undos edit
  */
@@ -450,7 +470,8 @@ static void undo(void)
 		*tp = ed->tile;
 		ed->tile = tile;
 		break;
-	default:
+	case EDIT_RESIZE:
+		resize_edit(ed);
 		break;
 	}
 }
@@ -476,7 +497,8 @@ static void redo(void)
 		*tp = ed->tile;
 		ed->tile = tile;
 		break;
-	default:
+	case EDIT_RESIZE:
+		resize_edit(ed);
 		break;
 	}
 }
@@ -490,6 +512,19 @@ static void update_place(int id)
 	CheckMenuItem(g_menu, g_place + 0x3000, MF_UNCHECKED);
 	CheckMenuItem(g_menu, id, MF_CHECKED);
 	g_place = id - 0x3000;
+}
+
+static edit *push_edit(void)
+{
+	edit *ed, *br;
+
+	ed = g_edits + g_edit_next;
+	g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
+
+	br = g_edits + g_edit_next;
+	br->type = EDIT_NONE;
+
+	return ed;
 }
 
 /**
@@ -536,8 +571,16 @@ static void attempt_resize(HWND wnd)
 	}
 
 	if (err >= 0) {
+		edit *ed;
+
+		ed = push_edit();
+		ed->type = EDIT_RESIZE;
+		ed->resize.w = g_chunk_map->tw;
+		ed->resize.h = g_chunk_map->th;
+
 		set_chunk_map_size(g_chunk_map, width, height);
 		update_scrollbars(g_client_width, g_client_height);
+
 		EndDialog(wnd, 0);
 	}
 }
@@ -587,7 +630,7 @@ static void process_cmds(int id)
 			g_map_path[0] = '\0';
 			reset_edits();
 			clear_chunk_map(g_chunk_map);
-			set_chunk_map_size(g_chunk_map, g_cam.w, g_cam.h);
+			set_chunk_map_size(g_chunk_map, 20, 15);
 			g_cam.x = 0;
 			g_cam.y = 0;
 			update_scrollbars(g_client_width, g_client_height);
@@ -602,6 +645,20 @@ static void process_cmds(int id)
 		break;
 	case IDM_SAVE_AS:
 		save_as();
+		break;
+	case IDM_ZOOM_IN:
+		if (g_cam.w > 2.0F) {
+			g_cam.w /= 2.0F;
+			g_cam.h /= 2.0F;
+			update_scrollbars(g_client_width, g_client_height);
+		}
+		break;
+	case IDM_ZOOM_OUT:
+		if (g_cam.w < 160.0F) {
+			g_cam.w *= 2.0F;
+			g_cam.h *= 2.0F;
+			update_scrollbars(g_client_width, g_client_height);
+		}
 		break;
 	case IDM_UNDO:
 		undo();
@@ -666,11 +723,13 @@ static void place_tile(int x, int y, int tile)
 	tx = g_cam.x + (float) x * g_cam.w / g_client_width;
 	ty = g_cam.y + (float) y * g_cam.h / g_client_height;
 
-	tp = touch_tile(tx, ty);
-	if (*tp != tile) {
-		push_place_tile(tx, ty, *tp);
-		*tp = tile;
-		g_change = true;
+	if (tx >= 0 && tx < g_chunk_map->tw && ty >= 0 && ty < g_chunk_map->th) {
+		tp = touch_tile(tx, ty);
+		if (*tp != tile) {
+			push_place_tile(tx, ty, *tp);
+			*tp = tile;
+			g_change = true;
+		}
 	}
 }
 
@@ -835,21 +894,32 @@ static void create_main_window(void)
 	g_acc = LoadAcceleratorsW(g_ins, MAKEINTRESOURCEW(ID_ACCELERATOR));
 }
 
+int min(int a, int b)
+{
+	return a < b ? a : b;
+}
+
 /**
  * place_chunks() - Update tile map to contain active chunks
  */
 static void place_chunks(void)
 {
+	int max_x;
+	int max_y;
+
 	square *s;
 	int ty;
 
+	max_x = min(g_cam.w + 1, g_chunk_map->tw);
+	max_y = min(g_cam.h + 1, g_chunk_map->th);
+
 	s = g_squares;
-	for (ty = 0; ty < g_cam.h + 1; ty++) {
+	for (ty = 0; ty < max_y; ty++) {
 		int tx;
-		for (tx = 0; tx < g_cam.w + 1; tx++) {
+		for (tx = 0; tx < max_x; tx++) {
 			uint8_t *tp;
 			tp = touch_tile(g_cam.x + tx, g_cam.y + ty);
-
+	
 			s->x = tx - fmodf(g_cam.x, 1.0F);
 			s->y = ty - fmodf(g_cam.y, 1.0F);
 			s->z = 0.0F;
@@ -909,7 +979,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_gl();
-	g_chunk_map = create_chunk_map(g_cam.w, g_cam.h);
+	g_chunk_map = create_chunk_map(20, 15);
 	msg_loop();
 	
 	return 0;

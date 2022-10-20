@@ -27,6 +27,8 @@ bool g_grid_on = true;
 square g_squares[MAX_OBJS];
 size_t g_square_count;
 
+rect g_cam = {0, 0, 20, 15}; 
+
 static HDC g_hdc;
 static HGLRC g_glrc;
 
@@ -40,6 +42,7 @@ static GLuint g_square_prog;
 static GLuint g_square_vao;
 static GLuint g_square_vbo;
 
+static GLint g_square_view_ul;
 static GLint g_square_tex_ul;
 
 /**
@@ -381,41 +384,6 @@ static void create_atlas(void)
 }
 
 /**
- * create_tm_prog() - Creates program to render background map 
- */
-
-/*
-static void create_tm_prog(GLuint gs, GLuint fs)
-{
-	GLuint vs;
-	uint8_t maps[2][32][32];
-
-	vs = compile_shader(GL_VERTEX_SHADER, L"square.vert");
-	g_tm_prog = create_prog(vs, gs, fs);
-	glDeleteShader(vs);
-
-	glGenVertexArrays(1, &g_tm_vao);
-	glGenBuffers(1, &g_tm_vbo);
-	
-	glBindVertexArray(g_tm_vao);
-
-	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
-	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
-	glEnableVertexAttribArray(0);
-	memset(maps[TM_FORE], 0, sizeof(maps[TM_FORE]));
-	memset(maps[TM_GRID], 4, sizeof(maps[TM_GRID]));
-	glBufferData(GL_ARRAY_BUFFER, sizeof(maps), 
-			maps, GL_STATIC_DRAW);
-
-	glUseProgram(g_tm_prog);
-	g_tm_scroll_ul = glGetUniformLocation(g_tm_prog, "scroll");
-	g_tm_tex_ul = glGetUniformLocation(g_tm_prog, "tex");
-
-	glUniform1i(g_tm_tex_ul, 0);
-}
-*/
-
-/**
  * square_vaa_set_up() - Set up vertex attributes for square program
  */
 static void square_vaa_set_up(void)
@@ -455,6 +423,7 @@ static void create_square_prog(GLuint gs, GLuint fs)
 			g_squares, GL_DYNAMIC_DRAW);
 
 	glUseProgram(g_square_prog);
+	g_square_view_ul = glGetUniformLocation(g_square_prog, "view");
 	g_square_tex_ul = glGetUniformLocation(g_square_prog, "tex");
 	glUniform1i(g_square_tex_ul, 0);
 }
@@ -471,7 +440,6 @@ static void init_gl_progs(void)
 	fs = compile_shader(GL_FRAGMENT_SHADER, L"square.frag");
 
 	create_atlas();
-	//create_tm_prog(gs, fs);
 	create_square_prog(gs, fs);
 
 	glDeleteShader(fs);
@@ -541,6 +509,7 @@ void render(void)
 	glBindTexture(GL_TEXTURE_2D, g_tex);
 
 	glUseProgram(g_square_prog);
+	glUniform2f(g_square_view_ul, g_cam.w, g_cam.h);
 	glBindVertexArray(g_square_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
 	square_vaa_set_up();

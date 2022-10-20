@@ -18,10 +18,14 @@
 #define IDM_GRID 0x2002
 #define IDM_RESIZE 0x2003
 
-#define IDM_BLANK 0x3000
-#define IDM_WALL 0x3001
-#define IDM_PLAYER 0x3002 
-#define IDM_DOOR 0x3003 
+#define IDM_ZOOM_IN 0x3000
+#define IDM_ZOOM_OUT 0x3001
+#define IDM_ZOOM_DEF 0x3002
+
+#define IDM_BLANK 0x4000
+#define IDM_WALL 0x4001
+#define IDM_PLAYER 0x4002 
+#define IDM_DOOR 0x4003 
 
 #define IDD_STATIC 0x1000
 #define IDD_WIDTH 0x1001
