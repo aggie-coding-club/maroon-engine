@@ -18,9 +18,6 @@
 
 #define MAX_EDITS 256ULL
 
-#define VIEW_WIDTH 20
-#define VIEW_HEIGHT 15 
-
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
 
@@ -34,6 +31,13 @@ struct edit {
 	int x;
 	int y;
 	int tile;
+};
+
+struct rect {
+	float x;
+	float y;
+	float w;
+	float h;
 };
 
 static HINSTANCE g_ins;
@@ -51,7 +55,7 @@ static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
 
 static int g_place = 1;
-static v2 g_cam; 
+static rect g_cam = {0, 0, 20, 15}; 
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -80,38 +84,36 @@ static void set_default_directory(void)
 	SetCurrentDirectoryW(path);
 }
 
-template<typename lhs, typename rhs>
-auto min(lhs a, rhs b)
-{
-	return a < b ? a : b;
-}
-
 /**
  * update_scrollbars() - Refresh scrollbar 
  * @width: The new width of the window
  * @height: The new height of the window
+ *
+ * Used when the window size changes, the game map sizes,
+ * or when the zoom factor changes.
+ * 
  */
 static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
 
-	g_cam.x = min(g_cam.x, g_chunk_map->tw - 20);
-	g_cam.y = min(g_cam.y, g_chunk_map->th - 15);
+	g_cam.x = fminf(g_cam.x, g_chunk_map->tw - g_cam.w);
+	g_cam.y = fminf(g_cam.y, g_chunk_map->th - g_cam.h);
 
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = g_chunk_map->tw * width / 20;
+	si.nMax = g_chunk_map->tw * width / g_cam.w;
 	si.nPage = width + 1;
-	si.nPos = g_cam.x * width / 20;
+	si.nPos = g_cam.x * width / g_cam.w;
 	SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = g_chunk_map->th * height / 15;
+	si.nMax = g_chunk_map->th * height / g_cam.h;
 	si.nPage = height + 1;
-	si.nPos = g_cam.y * height / 15;
+	si.nPos = g_cam.y * height / g_cam.h;
 	SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 }
 
@@ -585,7 +587,7 @@ static void process_cmds(int id)
 			g_map_path[0] = '\0';
 			reset_edits();
 			clear_chunk_map(g_chunk_map);
-			set_chunk_map_size(g_chunk_map, 20, 15);
+			set_chunk_map_size(g_chunk_map, g_cam.w, g_cam.h);
 			g_cam.x = 0;
 			g_cam.y = 0;
 			update_scrollbars(g_client_width, g_client_height);
@@ -661,8 +663,8 @@ static void place_tile(int x, int y, int tile)
 	int ty;
 	uint8_t *tp;
 
-	tx = g_cam.x + (float) x * VIEW_WIDTH / g_client_width;
-	ty = g_cam.y + (float) y * VIEW_HEIGHT / g_client_height;
+	tx = g_cam.x + (float) x * g_cam.w / g_client_width;
+	ty = g_cam.y + (float) y * g_cam.h / g_client_height;
 
 	tp = touch_tile(tx, ty);
 	if (*tp != tile) {
@@ -719,7 +721,7 @@ static void update_horz_scroll(WPARAM wp)
 		si.nPos = HIWORD(wp); 
 		SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
-		g_cam.x = si.nPos * 20.0F / g_client_width;
+		g_cam.x = si.nPos * g_cam.w / g_client_width;
 	}
 }
 
@@ -838,15 +840,32 @@ static void create_main_window(void)
  */
 static void place_chunks(void)
 {
+	square *s;
 	int ty;
-	for (ty = 0; ty < 16; ty++) {
+
+	s = g_squares;
+	for (ty = 0; ty < g_cam.h + 1; ty++) {
 		int tx;
-		for (tx = 0; tx < 21; tx++) {
+		for (tx = 0; tx < g_cam.w + 1; tx++) {
 			uint8_t *tp;
 			tp = touch_tile(g_cam.x + tx, g_cam.y + ty);
-			g_tile_map[ty][tx] = *tp; 
+
+			s->x = tx - fmodf(g_cam.x, 1.0F);
+			s->y = ty - fmodf(g_cam.y, 1.0F);
+			s->z = 0.0F;
+			s->tile = *tp; 
+			s++;
+			if (g_grid_on) {
+				s->x = tx - fmodf(g_cam.x, 1.0F);
+				s->y = ty - fmodf(g_cam.y, 1.0F);
+				s->z = -1.0F / 1024.0F;
+				s->tile = 4; 
+				s++;
+			}
 		}
 	}
+
+	g_square_count = s - g_squares;
 }
 
 /**
@@ -865,8 +884,6 @@ static void msg_loop(void)
 		}
 		
 		place_chunks();
-		g_scroll.x = -fmodf(g_cam.x, 1.0F);
-		g_scroll.y = -fmodf(g_cam.y, 1.0F);
 		render();
 	}
 }
@@ -892,7 +909,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_gl();
-	g_chunk_map = create_chunk_map(20, 15);
+	g_chunk_map = create_chunk_map(g_cam.w, g_cam.h);
 	msg_loop();
 	
 	return 0;

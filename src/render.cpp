@@ -19,14 +19,8 @@
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
-enum tile_map {
-	TM_FORE,
-	TM_GRID
-};
-
 HWND g_wnd;
 
-uint8_t g_tile_map[32][32];
 v2 g_scroll;
 bool g_grid_on = true;
 
@@ -38,14 +32,6 @@ static HGLRC g_glrc;
 
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
-
-static GLuint g_tm_prog;
-
-static GLuint g_tm_vao;
-static GLuint g_tm_vbo;
-
-static GLint g_tm_scroll_ul; 
-static GLint g_tm_tex_ul; 
 
 static GLuint g_tex;
 
@@ -397,12 +383,14 @@ static void create_atlas(void)
 /**
  * create_tm_prog() - Creates program to render background map 
  */
+
+/*
 static void create_tm_prog(GLuint gs, GLuint fs)
 {
 	GLuint vs;
 	uint8_t maps[2][32][32];
 
-	vs = compile_shader(GL_VERTEX_SHADER, L"tm.vert");
+	vs = compile_shader(GL_VERTEX_SHADER, L"square.vert");
 	g_tm_prog = create_prog(vs, gs, fs);
 	glDeleteShader(vs);
 
@@ -425,6 +413,7 @@ static void create_tm_prog(GLuint gs, GLuint fs)
 
 	glUniform1i(g_tm_tex_ul, 0);
 }
+*/
 
 /**
  * square_vaa_set_up() - Set up vertex attributes for square program
@@ -433,8 +422,8 @@ static void square_vaa_set_up(void)
 {
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 
 			sizeof(square), (void *) 0);
-	glVertexAttribIPointer(1, 1, GL_INT, 
-			sizeof(square), (void *) 4);
+	glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 
+			sizeof(square), (void *) 12);
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
@@ -478,11 +467,11 @@ static void init_gl_progs(void)
 	GLuint gs;
 	GLuint fs;
 
-	gs = compile_shader(GL_GEOMETRY_SHADER, L"tile.geom");
-	fs = compile_shader(GL_FRAGMENT_SHADER, L"tile.frag");
+	gs = compile_shader(GL_GEOMETRY_SHADER, L"square.geom");
+	fs = compile_shader(GL_FRAGMENT_SHADER, L"square.frag");
 
 	create_atlas();
-	create_tm_prog(gs, fs);
+	//create_tm_prog(gs, fs);
 	create_square_prog(gs, fs);
 
 	glDeleteShader(fs);
@@ -550,18 +539,6 @@ void render(void)
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, g_tex);
-
-	glUseProgram(g_tm_prog);
-	glBindVertexArray(g_tm_vao);
-	glUniform2f(g_tm_scroll_ul, g_scroll.x, g_scroll.y);
-
-	/*
-	glBindBuffer(GL_ARRAY_BUFFER, g_tm_vbo);
-	glVertexAttribIPointer(0, 1, GL_UNSIGNED_BYTE, 1, NULL);
-	glEnableVertexAttribArray(0);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_tile_map), g_tile_map);
-        glDrawArrays(GL_POINTS, 0, (g_grid_on ? 2 : 1) * sizeof(g_tile_map));
-	*/
 
 	glUseProgram(g_square_prog);
 	glBindVertexArray(g_square_vao);

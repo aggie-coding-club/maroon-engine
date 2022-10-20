@@ -13,7 +13,7 @@ struct square {
 	float x; 
 	float y; 
 	float z;
-	int tile;
+	uint32_t tile;
 };
 
 /**
@@ -22,14 +22,6 @@ struct square {
  */
 extern HWND g_wnd;
 
-/**
- * Tile Map Globals 
- * @g_tile_map: Tile map shown on screen
- * @g_scroll: Wrapping scroll position, measured in tiles 
- * @g_grid_on: Whether or not to render grip over tile map
- */
-extern uint8_t g_tile_map[32][32];
-extern v2 g_scroll;
 extern bool g_grid_on;
 
 /**
