@@ -856,11 +856,13 @@ static void msg_loop(void)
  * init_freetype() - initializes FreeType library
 */
 
-void init_freetype(){
+static void init_freetype()
+{
 	int error = FT_Init_FreeType(&g_freetype_library);
 
 	if (error) {
-		printf("ERROR: failure initializing FreeTypeLibrary");
+		MessageBoxW(g_wnd, L"Could not Load FreeType Library", 
+				L"Error", error);
 	}
 }
 
