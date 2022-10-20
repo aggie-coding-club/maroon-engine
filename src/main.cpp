@@ -11,6 +11,8 @@
 #include <commdlg.h>
 #include <fileapi.h>
 #include <glad/glad.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 #include "menu.hpp"
 #include "render.hpp"
@@ -51,6 +53,8 @@ struct edit {
 static HINSTANCE g_ins;
 static HMENU g_menu;
 static HACCEL g_acc; 
+
+static FT_Library g_freetype_library;
 
 static int g_client_width = CLIENT_WIDTH;
 static int g_client_height = CLIENT_HEIGHT;
@@ -848,6 +852,14 @@ static void msg_loop(void)
 	}
 }
 
+void init_freetype(){
+	int error = FT_Init_FreeType(&g_freetype_library);
+
+	if(error){
+		printf("ERROR: failure initializing FreeTypeLibrary");
+	}
+}
+
 /**
  * wWinMain() - Entry point of program
  * @ins: Handle used to identify the executable
@@ -869,6 +881,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_gl();
+	init_freetype();
 	init_tm(&g_tm);
 	size_tm(&g_tm, 20, 15);
 	msg_loop();
