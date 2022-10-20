@@ -5,16 +5,16 @@
 
 tile_map g_tm;
 
+static int min(int a, int b)
+{
+	return a < b ? a : b;
+}
+
 void init_tm(tile_map *tm)
 {
 	tm->rows = NULL;
 	tm->w = 0;
 	tm->h = 0;
-}
-
-static int min(int a, int b)
-{
-	return a < b ? a : b;
 }
 
 void size_tm(tile_map *tm, int w, int h)
@@ -24,6 +24,13 @@ void size_tm(tile_map *tm, int w, int h)
 	int dw, dh;
 	uint8_t **row;
 	int n;
+
+	/*clean old rows*/
+	n = tm->h - h;
+	row = tm->rows + h;
+	while (n-- > 0) {
+		free(*row++);
+	}
 
 	/*get new row pointers*/
 	rows = (uint8_t **) xrealloc(tm->rows, h * sizeof(*rows));

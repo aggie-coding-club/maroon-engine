@@ -372,6 +372,10 @@ static void save(void)
 	}
 }
 
+/**
+ * resize_edit() - Use resize edit to resize map
+ * @ed: Edit
+ */
 static void resize_edit(edit *ed)
 {
 	int w, h;
@@ -590,6 +594,11 @@ static void process_cmds(int id)
 			g_cam.h *= 2.0F;
 			update_scrollbars(g_client_width, g_client_height);
 		}
+		break;
+	case IDM_ZOOM_DEF:
+		g_cam.w = 20.0F;
+		g_cam.h = 15.0F;
+		update_scrollbars(g_client_width, g_client_height);
 		break;
 	case IDM_UNDO:
 		undo();
