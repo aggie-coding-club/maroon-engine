@@ -372,6 +372,7 @@ static void open(void)
 	if (GetOpenFileName(&ofn) && read_map(g_map_path) >= 0) {
 		g_change = false;
 		reset_edits();
+		update_scrollbars(g_client_width, g_client_height);
 	} else {
 		wcscpy(g_map_path, path);
 	}
@@ -526,6 +527,7 @@ static void process_cmds(int id)
 	case IDM_RESIZE:
 		set_chunk_map_size(g_chunk_map, 64, 64);
 		update_scrollbars(g_client_width, g_client_height);
+            	//DialogBox(NULL, "ResizeMapDialog", g_wnd, dlg_proc);
 		break;
 	default:
 		if (id & 0x3000) {
@@ -627,7 +629,7 @@ static void update_horz_scroll(WPARAM wp)
 		SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
 
 		g_cam.x = si.nPos * 20.0F / g_client_width;
-		g_scroll.x = fmodf(32.0F - g_cam.x, 32.0F);
+		g_scroll.x = -fmodf(g_cam.x, 1.0F);
 	}
 }
 
@@ -646,7 +648,7 @@ static void update_vert_scroll(WPARAM wp)
 		SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 
 		g_cam.y = si.nPos * 15.0F / g_client_height;
-		g_scroll.y = fmodf(32.0F - g_cam.y, 32.0F);
+		g_scroll.y = -fmodf(g_cam.y, 1.0F);
 	}
 }
 
@@ -743,39 +745,19 @@ static void create_main_window(void)
 }
 
 /**
- * chunk_to_tile_map() - Move chunk to tile map
- * @off_cx: 0/1 indicates left and right quarter respectivily 
- * @off_cy: 0/1 indicates top and bottom quarter respectivily 
- */
-static void chunk_to_tile_map(int off_cx, int off_cy)
-{
-	int stx, sty;
-	int ctx, cty;
-	chunk *c;
-	int ty;
-
-	stx = off_cx << 4; 
-	sty = off_cy << 4; 
-	ctx = (int) g_cam.x / 16 % 2 ? !stx : stx; 
-	cty = (int) g_cam.y / 16 % 2 ? !sty : sty; 
-	c = touch_chunk(g_cam.x + ctx, g_cam.y + cty);
-	for (ty = 0; ty < CHUNK_MAP_LEN; ty++) {
-		uint8_t *dp, *sp;
-		dp = &g_tile_map[ty + sty][stx];
-		sp = c->tiles[ty];
-		memcpy(dp, sp, CHUNK_LEN);
-	}
-}
-
-/**
  * place_chunks() - Update tile map to contain active chunks
  */
 static void place_chunks(void)
 {
-	chunk_to_tile_map(0, 0);
-	chunk_to_tile_map(1, 0);
-	chunk_to_tile_map(0, 1);
-	chunk_to_tile_map(1, 1);
+	int ty;
+	for (ty = 0; ty < 16; ty++) {
+		int tx;
+		for (tx = 0; tx < 21; tx++) {
+			uint8_t *tp;
+			tp = touch_tile(g_cam.x + tx, g_cam.y + ty);
+			g_tile_map[ty][tx] = *tp; 
+		}
+	}
 }
 
 /**

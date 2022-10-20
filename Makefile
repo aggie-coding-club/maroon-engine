@@ -2,7 +2,7 @@ CC = gcc
 CXX = g++
 
 CXXFLAGS = -DUNICODE -Wall -g 
-CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl
+CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl -Ilib/freetype/include
 CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
 DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o lib/freetype_build/libfreetype.a

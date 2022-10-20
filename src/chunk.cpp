@@ -25,14 +25,14 @@ void clear_chunk_map(chunk_map *map)
 	chunk_row *cr;
 	int ny;
 
-	cr = g_chunk_map->chunks;
-	ny = g_chunk_map->ch;
+	cr = map->chunks;
+	ny = map->ch;
 	while (ny-- > 0) {
 		chunk **c;
 		int nx;
 
 		c = *cr;
-		nx = g_chunk_map->cw; 
+		nx = map->cw; 
 		while (nx-- > 0) {
 			destroy_chunk(map, *c);
 			c++;

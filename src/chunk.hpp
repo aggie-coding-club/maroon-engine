@@ -6,8 +6,8 @@
 #include "render.hpp"
 #include "util.hpp"
 
-#define CHUNK_LEN 16
-#define CHUNK_MAP_LEN 16 
+#define CHUNK_LEN 32 
+#define CHUNK_MAP_LEN 8 
 #define MAP_LEN (CHUNK_MAP_LEN * CHUNK_LEN)
 
 struct chunk {
@@ -16,7 +16,7 @@ struct chunk {
 	uint8_t tiles[CHUNK_LEN][CHUNK_LEN];
 };
 
-typedef chunk *chunk_row[CHUNK_LEN];
+typedef chunk *chunk_row[CHUNK_MAP_LEN];
 
 struct chunk_map {
 	int tw;
