@@ -852,6 +852,10 @@ static void msg_loop(void)
 	}
 }
 
+/**
+ * init_freetype() - initializes FreeType library
+*/
+
 void init_freetype(){
 	int error = FT_Init_FreeType(&g_freetype_library);
 
