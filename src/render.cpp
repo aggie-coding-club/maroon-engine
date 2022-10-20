@@ -1,3 +1,5 @@
+#include <math.h>
+
 #define WIN32_LEAN_AND_MEAN
 #define WIN_32_EXTRA_LEAN
 #include <windows.h>
@@ -6,6 +8,7 @@
 #include <stb_image.h>
 #include <wglext.h>
 
+#include "chunk.hpp"
 #include "render.hpp"
 
 #define TILE_STRIDE (TILE_LEN * 4) 
@@ -500,6 +503,63 @@ void init_gl(void)
 	init_gl_progs();
 }
 
+static int min(int a, int b)
+{
+	return a < b ? a : b;
+}
+
+static void render_squares(void)
+{
+	glBindVertexArray(g_square_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
+	square_vaa_set_up();
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_squares), g_squares);
+	glDrawArrays(GL_POINTS, 0, g_square_count);
+}
+
+static square *alloc_square(void)
+{
+	if (g_square_count == MAX_OBJS) {
+		render_squares();
+		g_square_count = 0;
+	}
+	return g_squares + g_square_count++;
+}
+
+static void render_tiles(void)
+{
+	int max_x;
+	int max_y;
+	int ty;
+
+	max_x = min(g_cam.w + 1, g_chunk_map->tw);
+	max_y = min(g_cam.h + 1, g_chunk_map->th);
+
+	for (ty = 0; ty < max_y; ty++) {
+		int tx;
+		for (tx = 0; tx < max_x; tx++) {
+			uint8_t *tp;
+			square *s;
+
+			tp = touch_tile(g_cam.x + tx, g_cam.y + ty);
+	
+			s = alloc_square();
+			s->x = tx - fmodf(g_cam.x, 1.0F);
+			s->y = ty - fmodf(g_cam.y, 1.0F);
+			s->z = 0.0F;
+			s->tile = *tp; 
+			if (g_grid_on) {
+				s = alloc_square();
+				s->x = tx - fmodf(g_cam.x, 1.0F);
+				s->y = ty - fmodf(g_cam.y, 1.0F);
+				s->z = -1.0F / 1024.0F;
+				s->tile = 4; 
+			}
+		}
+	}
+}
+
+
 void render(void)
 {
 	glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
@@ -510,10 +570,8 @@ void render(void)
 
 	glUseProgram(g_square_prog);
 	glUniform2f(g_square_view_ul, g_cam.w, g_cam.h);
-	glBindVertexArray(g_square_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
-	square_vaa_set_up();
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_squares), g_squares);
-	glDrawArrays(GL_POINTS, 0, g_square_count);
+	g_square_count = 0;
+	render_tiles();
+	render_squares();
 	SwapBuffers(g_hdc);
 }

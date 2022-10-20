@@ -23,8 +23,14 @@
 
 enum edit_type {
 	EDIT_NONE,
-	EDIT_PLACE_TILE,
+	EDIT_PLACE,
 	EDIT_RESIZE
+};
+
+struct edit_place {
+	int x;
+	int y;
+	int tile;
 };
 
 struct edit_resize {
@@ -35,11 +41,7 @@ struct edit_resize {
 struct edit {
 	edit_type type;
 	union {
-		struct {
-			int x;
-			int y;
-			int tile;
-		};
+		edit_place place;
 		edit_resize resize;
 	};
 };
@@ -87,7 +89,13 @@ static void set_default_directory(void)
 	SetCurrentDirectoryW(path);
 }
 
-float fclampf(float v, float l, float h)
+/**
+ * fclampf() - Single precision float clamp
+ * @v: Value to clamp
+ * @l: Min value
+ * @h: Max value
+ */
+static float fclampf(float v, float l, float h)
 {
 	return fminf(fmaxf(v, l), h);
 }
@@ -464,11 +472,11 @@ static void undo(void)
 	case EDIT_NONE:
 		g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
 		break;
-	case EDIT_PLACE_TILE:
-		tp = touch_tile(ed->x, ed->y);
+	case EDIT_PLACE:
+		tp = touch_tile(ed->place.x, ed->place.y);
 		tile = *tp;
-		*tp = ed->tile;
-		ed->tile = tile;
+		*tp = ed->place.tile;
+		ed->place.tile = tile;
 		break;
 	case EDIT_RESIZE:
 		resize_edit(ed);
@@ -491,11 +499,11 @@ static void redo(void)
 	case EDIT_NONE:
 		g_edit_next = (g_edit_next - 1ULL) % MAX_EDITS;
 		break;
-	case EDIT_PLACE_TILE:
-		tp = touch_tile(ed->x, ed->y);
+	case EDIT_PLACE:
+		tp = touch_tile(ed->place.x, ed->place.y);
 		tile = *tp;
-		*tp = ed->tile;
-		ed->tile = tile;
+		*tp = ed->place.tile;
+		ed->place.tile = tile;
 		break;
 	case EDIT_RESIZE:
 		resize_edit(ed);
@@ -514,6 +522,10 @@ static void update_place(int id)
 	g_place = id - 0x3000;
 }
 
+/**
+ * push_edit() - Addes new edit
+ * Return: New edit pointer
+ */
 static edit *push_edit(void)
 {
 	edit *ed, *br;
@@ -696,16 +708,11 @@ static void push_place_tile(int x, int y, int tile)
 {
 	edit *ed;
 
-	ed = g_edits + g_edit_next;
-	ed->type = EDIT_PLACE_TILE;
-	ed->x = x;
-	ed->y = y;
-	ed->tile = tile;
-	g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
-		
-	/*needed to establish barrier between undo and redo*/
-	ed = g_edits + g_edit_next;
-	ed->type = EDIT_NONE;
+	ed = push_edit();
+	ed->type = EDIT_PLACE;
+	ed->place.x = x;
+	ed->place.y = y;
+	ed->place.tile = tile;
 }
 
 /**
@@ -894,50 +901,6 @@ static void create_main_window(void)
 	g_acc = LoadAcceleratorsW(g_ins, MAKEINTRESOURCEW(ID_ACCELERATOR));
 }
 
-int min(int a, int b)
-{
-	return a < b ? a : b;
-}
-
-/**
- * place_chunks() - Update tile map to contain active chunks
- */
-static void place_chunks(void)
-{
-	int max_x;
-	int max_y;
-
-	square *s;
-	int ty;
-
-	max_x = min(g_cam.w + 1, g_chunk_map->tw);
-	max_y = min(g_cam.h + 1, g_chunk_map->th);
-
-	s = g_squares;
-	for (ty = 0; ty < max_y; ty++) {
-		int tx;
-		for (tx = 0; tx < max_x; tx++) {
-			uint8_t *tp;
-			tp = touch_tile(g_cam.x + tx, g_cam.y + ty);
-	
-			s->x = tx - fmodf(g_cam.x, 1.0F);
-			s->y = ty - fmodf(g_cam.y, 1.0F);
-			s->z = 0.0F;
-			s->tile = *tp; 
-			s++;
-			if (g_grid_on) {
-				s->x = tx - fmodf(g_cam.x, 1.0F);
-				s->y = ty - fmodf(g_cam.y, 1.0F);
-				s->z = -1.0F / 1024.0F;
-				s->tile = 4; 
-				s++;
-			}
-		}
-	}
-
-	g_square_count = s - g_squares;
-}
-
 /**
  * msg_loop() - Main loop of program
  */
@@ -953,7 +916,6 @@ static void msg_loop(void)
 		    DispatchMessage(&msg);
 		}
 		
-		place_chunks();
 		render();
 	}
 }
