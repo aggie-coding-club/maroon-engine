@@ -39,7 +39,7 @@ Type in "git clone https://github.com/aggie-coding-club/maroon-engine.git --recu
 Type in "cd maroon-engine" and hit enter.  
 Type in "mingw32-make" and hit enter.  
 If successful a bin folder will appear in the directory and within that bin folder will be "engine.exe".  
-Using, git submodule update --init --recursive can be used to retrieve new dependencies.
+Using, "git submodule update --init --recursive" can be used to retrieve new dependencies.
 
 # Style Guide 
 	tabs used for indentation
