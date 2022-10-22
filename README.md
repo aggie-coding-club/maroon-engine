@@ -33,136 +33,142 @@ And hit "ok" for all the windows that were opened.
 
 If you have any problems thus far, contact Lenny or James.  
 
+## CMake
+Install CMAKE, it will be necessary for building the external dependencies of the program.
+You must select either "Add CMake to the system path for all users" or  "Add CMake to the system path for the current user".
+I recommend the former.
+Download Link: https://github.com/Kitware/CMake/releases/download/v3.25.0-rc1/cmake-3.25.0-rc1-windows-x86_64.msi
+
 ## Running
-In order to confirm a successful setup open up CMD.  
+In order to confirm a successful setup open up git-bash. 
 Type in "git clone https://github.com/aggie-coding-club/maroon-engine.git --recurse" and hit enter.  
 Type in "cd maroon-engine" and hit enter.  
 Type in "mingw32-make" and hit enter.  
 If successful a bin folder will appear in the directory and within that bin folder will be "engine.exe".  
-Using, "git submodule update --init --recursive" can be used to retrieve new dependencies.
+Use "git submodule update --init --recursive" to retrieve new dependencies.
 
 # Style Guide 
-	tabs used for indentation
+tabs used for indentation
 
-	line limit of 80 chars
+line limit of 80 chars
 
-	break up lines with double tab
+break up lines with double tab
 
-	lowercase snake_case for naming variables, functions, 
-	iterator macros, primitive macros, and types
+lowercase snake_case for naming variables, functions, 
+iterator macros, primitive macros, and types
 
-	typedef all function pointers 
+typedef all function pointers 
 
-	postfix function pointer with _fn
+postfix function pointer with _fn
 
-	typedef all function pointers to require an "*" when used
-		good: typedef int fun_fn(int a, int b);
-		bad: typedef int (*fun_fn)(int a, int b); 
+typedef all function pointers to require an "*" when used
+	good: typedef int fun_fn(int a, int b);
+	bad: typedef int (*fun_fn)(int a, int b); 
 
-	use capital SNAKE_CASE for all constant macros, 
-	function-like macros, and enumeration constants
+use capital SNAKE_CASE for all constant macros, 
+function-like macros, and enumeration constants
 
-	globals are to be prefixed with g_
-		exception: function pointers loaded using 
-		either GetProcAddress or wglGetProcAddress 
+globals are to be prefixed with g_
+	exception: function pointers loaded using 
+	either GetProcAddress or wglGetProcAddress 
 
-	variables declared at the top of function
-		static variables declared before non-static
+variables declared at the top of function
+	static variables declared before non-static
 
-	K&R style brackets with mandatory brackets on single line:
-		good:
-			static void cd_parent(wchar_t *path)
+K&R style brackets with mandatory brackets on single line:
+	good:
+		static void cd_parent(wchar_t *path)
+		{
+			wchar_t *find;
+
+			find = wcsrchr(path, '\\');
+			if (find) {
+				*find = '\0';
+			}
+		}
+	bad:
+		static void cd_parent(wchar_t *path)
+		{
+			wchar_t *find;
+
+			find = wcsrchr(path, '\\');
+			if (find)
+				*find = '\0';
+		}
+
+		static void cd_parent(wchar_t *path) {
+			wchar_t *find;
+
+			find = wcsrchr(path, '\\');
+			if (find)
+				*find = '\0';
+		}
+
+		static void cd_parent(wchar_t *path) 
+		{
+			wchar_t *find;
+
+			find = wcsrchr(path, '\\');
+			if (find)
 			{
-				wchar_t *find;
-
-				find = wcsrchr(path, '\\');
-				if (find) {
-					*find = '\0';
-				}
+				*find = '\0';
 			}
-		bad:
-			static void cd_parent(wchar_t *path)
-			{
-				wchar_t *find;
+		}
+space should be between control statement and expression 
+	good: while (i)
+	bad: while(1)
 
-				find = wcsrchr(path, '\\');
-				if (find)
-					*find = '\0';
-			}
+spaces between math operators
+	good: 3 + 2
+	bad: 3+2
 
-			static void cd_parent(wchar_t *path) {
-				wchar_t *find;
+paranthesies should always be used for sizeof
 
-				find = wcsrchr(path, '\\');
-				if (find)
-					*find = '\0';
-			}
+paranthesies preferred over memorizing the order of operations 
+	excepiton: PEMDAS is assumed
+	good: (3 + 2 * 4) >> 2 
+	bad: 3 + 2 * 4 >> 2
+	bad: (3 + (2 * 4)) >> 2
 
-			static void cd_parent(wchar_t *path) 
-			{
-				wchar_t *find;
+file structure
+	include guard (if applicable)
+	includes
+	macros
+	type definitions
+	global variables
+	functions
 
-				find = wcsrchr(path, '\\');
-				if (find)
-				{
-					*find = '\0';
-				}
-			}
-	space should be between control statement and expression 
-		good: while (i)
-		bad: while(1)
-	
-	spaces between math operators
-		good: 3 + 2
-		bad: 3+2
+include guard at the top of all headers
+	Include guard macro should be identical to the path
+	relative to src but with underscores instead of
+	slashes
 
-	paranthesies should always be used for sizeof
+	example:
+		obj/tree.h -> OBJ_TREE_H 
 
-	paranthesies preferred over memorizing the order of operations 
-		excepiton: PEMDAS is assumed
-		good: (3 + 2 * 4) >> 2 
-		bad: 3 + 2 * 4 >> 2
-		bad: (3 + (2 * 4)) >> 2
+unicode	
+	use wide version of Win32 function (UTF-16), elsewise use UTF-8
 
-	file structure
-		include guard (if applicable)
-		includes
-		macros
-		type definitions
-		global variables
-		functions
+includes at top file (after include guard, if header)
+	seperate includes into three groups (order is significant):
+		built-in system includes  (ex. #include <stdio.h>)
+		non-built-in system includes (ex. #include <wglext.h>)
+		directory includes (#include "world.h")
+	include groups seperate by new lines
+	include within a group should be in alphabetical order 
 
-	include guard at the top of all headers
-		Include guard macro should be identical to the path
-		relative to src but with underscores instead of
-		slashes
+strict C-subset of C++:
+	exceptions: TBD
 
-		example:
-			obj/tree.h -> OBJ_TREE_H 
+file and folder naming convention:
+	File and folder names should be named using lowercase
+	snakecase. Keep names relativily short. 
 
-	unicode	
-		use wide version of Win32 function (UTF-16), elsewise use UTF-8
-	
-	includes at top file (after include guard, if header)
-		seperate includes into three groups (order is significant):
-			built-in system includes  (ex. #include <stdio.h>)
-			non-built-in system includes (ex. #include <wglext.h>)
-			directory includes (#include "world.h")
-		include groups seperate by new lines
-		include within a group should be in alphabetical order 
+	Header and source files should either come in pairs
+	with the same name except the extension or be just
+	header (a single header should not represent 
+	multiple source files, nor the inverse) 
 
-	strict C-subset of C++:
-		exceptions: TBD
-	
-	file and folder naming convention:
-		File and folder names should be named using lowercase
-		snakecase. Keep names relativily short. 
+	header files named with .hpp
+	source files named with .cpp
 
-		Header and source files should either come in pairs
-		with the same name except the extension or be just
-		header (a single header should not represent 
-		multiple source files, nor the inverse) 
-
-		header files named with .hpp
-		source files named with .cpp
-	

@@ -853,9 +853,8 @@ static void msg_loop(void)
 }
 
 /**
- * init_freetype() - initializes FreeType library
-*/
-
+ * init_freetype() - Initializes FreeType library
+ */
 static void init_freetype()
 {
 	int error = FT_Init_FreeType(&g_freetype_library);
@@ -869,9 +868,9 @@ static void init_freetype()
 /**
  * wWinMain() - Entry point of program
  * @ins: Handle used to identify the executable
- * @prev: always zero, hold over from Win16
- * @cmd: command line arguments as a single string
- * @show: flag that is used to identify the intial state of the main window 
+ * @prev: Always zero, hold over from Win16
+ * @cmd: Command line arguments as a single string
+ * @show: Flag that is used to identify the intial state of the main window 
  *
  * Return: Zero shall be returned on success, and one on faliure
  *

@@ -27,7 +27,7 @@ HWND g_wnd;
 v2 g_scroll;
 bool g_grid_on = true;
 
-square g_squares[MAX_OBJS];
+square g_squares[MAX_SQUARES];
 size_t g_square_count;
 
 rect g_cam = {0, 0, 20, 15}; 
@@ -519,7 +519,7 @@ static void render_squares(void)
 
 static square *alloc_square(void)
 {
-	if (g_square_count == MAX_OBJS) {
+	if (g_square_count == MAX_SQUARES) {
 		render_squares();
 		g_square_count = 0;
 	}
@@ -563,9 +563,10 @@ static void render_tiles(void)
 	}
 }
 
-
 void render(void)
 {
+	square *s;
+
 	glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -575,7 +576,11 @@ void render(void)
 	glUseProgram(g_square_prog);
 	glUniform2f(g_square_view_ul, g_cam.w, g_cam.h);
 	g_square_count = 0;
+
+	/*START*/
 	render_tiles();
+	/*END*/
+
 	render_squares();
 	SwapBuffers(g_hdc);
 }

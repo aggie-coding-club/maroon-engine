@@ -7,7 +7,7 @@
 #include "util.hpp"
 
 #define TILE_LEN 32 
-#define MAX_OBJS 16384 
+#define MAX_SQUARES 1024 
 
 /**
  * square - Render square 
@@ -50,7 +50,7 @@ extern HWND g_wnd;
  * @g_grid_on: Have a grid of tile map
  * @cam: Camera rect
  */
-extern square g_squares[MAX_OBJS];
+extern square g_squares[MAX_SQUARES];
 extern size_t g_square_count;
 extern bool g_grid_on;
 extern rect g_cam;
