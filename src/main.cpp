@@ -23,8 +23,6 @@
 #define CLIENT_WIDTH 640
 #define CLIENT_HEIGHT 480
 
-#define MAX_MAP_LEN 999 
-
 enum edit_type {
 	EDIT_NONE,
 	EDIT_PLACE,
@@ -742,7 +740,7 @@ static void update_vert_scroll(WPARAM wp)
 }
 
 /**
- * wnd_proc() - Callback to prcoess window messages
+ * wnd_proc() - Callback to process window messages
  * @wnd: Handle to window, should be equal to g_wnd
  * @msg: Message to procces
  * @wp: Unsigned system word sized param 
@@ -857,11 +855,13 @@ static void msg_loop(void)
  */
 static void init_freetype()
 {
-	int error = FT_Init_FreeType(&g_freetype_library);
+	int err;
 
-	if (error) {
-		MessageBoxW(g_wnd, L"Could not Load FreeType Library", 
-				L"Error", error);
+	err = FT_Init_FreeType(&g_freetype_library);
+	if (err) {
+		fprintf(stderr, "ft error: Could not load FreeType: %s",
+				FT_Error_String(err));
+		return;
 	}
 }
 

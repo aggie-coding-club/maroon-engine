@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define MAX_MAP_LEN 999 
+
 struct tile_map {
 	uint8_t **rows;
 	int w;
