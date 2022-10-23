@@ -8,10 +8,14 @@
 #include <stb_image.h>
 #include <wglext.h>
 
+#include "menu.hpp"
 #include "render.hpp"
 #include "tile_map.hpp"
+#include "util.hpp"
 
 #define TILE_STRIDE (TILE_LEN * 4) 
+#define TILE_SIZE (TILE_LEN * TILE_LEN)
+#define SIZEOF_TILE (TILE_STRIDE * TILE_LEN)
 
 #define ATLAS_TILE_LEN 16 
 #define ATLAS_TILE_SIZE (ATLAS_TILE_LEN * ATLAS_TILE_LEN)
@@ -22,13 +26,32 @@
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
+#define MAX_SQUARES 1024 
+
+/**
+ * square - Render square 
+ * @x: x-pos relative to left
+ * @y: y-pos relative to top
+ * @z: depth, z goes from -1 to 0, lower means on top 
+ * @tile: the tile to render
+ */
+struct square {
+	float x; 
+	float y; 
+	float z;
+	uint32_t tile;
+};
+
+struct square_buf {
+	int count;
+	square squares[MAX_SQUARES];
+};
+
 HWND g_wnd;
+HMENU g_menu;
 
 v2 g_scroll;
 bool g_grid_on = true;
-
-square g_squares[MAX_SQUARES];
-size_t g_square_count;
 
 rect g_cam = {0, 0, 20, 15}; 
 
@@ -272,6 +295,65 @@ static GLuint create_prog(GLuint vs, GLuint gs, GLuint fs)
 }
 
 /**
+ * avg_qcr() - Average 8-bit channels in a 32-bit color in a tile 
+ * @src: Pointer to top-left channel 
+ *
+ * NOTE: src is expected to have TILE_STRIDE
+ *
+ * Return: The final color
+ */
+static int avg_qcr(const uint8_t *src)
+{
+	int tl, tr;
+	int bl, br;
+
+	tl = src[0] * src[0];
+	tr = src[4] * src[4];
+	bl = src[TILE_STRIDE] * src[TILE_STRIDE];
+	br = src[TILE_STRIDE + 4 ] * src[TILE_STRIDE + 4];
+	return sqrt((tl + tr + bl + br) / 4);
+}
+
+static HBITMAP create_menu_icon(const uint8_t *src)
+{
+	uint8_t *dst;
+
+	const uint8_t *sp;
+	uint8_t *dp;
+	int ny;
+
+	HBITMAP hbm;
+
+	dst = (uint8_t *) malloc(SIZEOF_TILE / 4); 
+	if (!dst) {
+		return NULL;
+	}
+
+	dp = dst;
+	sp = src;
+	ny = TILE_LEN / 2;
+	while (ny-- > 0) {
+		int nx;
+
+		nx = TILE_LEN / 2;
+		while (nx-- > 0) {
+			dp[0] = avg_qcr(sp + 2);
+			dp[1] = avg_qcr(sp + 1);
+			dp[2] = avg_qcr(sp);
+			dp[3] = avg_qcr(sp + 3);
+			dp += 4;
+			sp += 8;
+		}
+		sp += TILE_STRIDE;
+	}
+
+	hbm = CreateBitmap(TILE_LEN / 2, TILE_LEN / 2, 1, 32, dst);
+	free(dst);
+
+	return hbm;
+}
+
+/**
  * load_atlas() - Load images into atlas.
  *
  * Combines a bunch of individual images listed
@@ -299,14 +381,16 @@ static void load_atlas(void)
 		goto err0;
 	}
 	
-	src_n = 256;
 	dp = dst;
+	src_n = 256;
 	while (fscanf(f, "%260s", file) == 1) { 
 		char path[MAX_PATH];
 
 		uint8_t *src;
 		int width;
 		int height;
+
+		HBITMAP hbm;
 
 		uint8_t *sp;
 		int row_n;
@@ -330,6 +414,11 @@ static void load_atlas(void)
 			stbi_image_free(src);
 			goto err1;
 		}	
+
+		/*set tile menu icon*/
+		hbm = create_menu_icon(src); 
+		SetMenuItemBitmaps(g_menu, IDM_BLANK + 256 - src_n, 
+				MF_BYCOMMAND, hbm, NULL);
 
 		/*copy a single image into atlas*/
 		sp = src;
@@ -422,8 +511,8 @@ static void create_square_prog(GLuint gs, GLuint fs)
 	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
 	square_vaa_set_up();
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_squares), 
-			g_squares, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, MAX_SQUARES * sizeof(square), 
+			NULL, GL_DYNAMIC_DRAW);
 
 	glUseProgram(g_square_prog);
 	g_square_view_ul = glGetUniformLocation(g_square_prog, "view");
@@ -508,25 +597,49 @@ static int min(int a, int b)
 	return a < b ? a : b;
 }
 
-static void render_squares(void)
+/**
+ * render_squares() - Submit all squares to GPU
+ * @square_buf: Buffer of squares
+ */
+static void render_squares(square_buf *buf)
 {
 	glBindVertexArray(g_square_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
 	square_vaa_set_up();
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_squares), g_squares);
-	glDrawArrays(GL_POINTS, 0, g_square_count);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, buf->count * sizeof(square), 
+			buf->squares);
+	glDrawArrays(GL_POINTS, 0, buf->count);
 }
 
-static square *alloc_square(void)
+/**
+ * push_square() - Add square to render
+ * @buf: Buffer to add squares to
+ * @x: x-pos in tiles relative to left of screen
+ * @y: y-pos in tiles relative to top of screen
+ * @layer: layer of square from 0 to 255, higher layers on bottom 
+ * 
+ * NOTE: push_square should only be used in update_squares.
+ */
+static void push_square(square_buf *buf, float x, float y, int layer, int tile)
 {
-	if (g_square_count == MAX_SQUARES) {
-		render_squares();
-		g_square_count = 0;
+	square *s;
+	if (buf->count == MAX_SQUARES) {
+		render_squares(buf);
+		buf->count = 0;
 	}
-	return g_squares + g_square_count++;
+	s = buf->squares + buf->count;
+	s->x = x;
+	s->y = y;
+	s->z = layer / 256.0F;
+	s->tile = tile;
+	buf->count++;
 }
 
-static void render_tiles(void)
+/**
+ * render_tiles() - Render tiles and possibly grid
+ * @buf: Square buffer to add to
+ */
+static void render_tiles(square_buf *buf)
 {
 	int max_x;
 	int max_y;
@@ -538,35 +651,68 @@ static void render_tiles(void)
 	for (ty = 0; ty < max_y; ty++) {
 		int tx;
 		for (tx = 0; tx < max_x; tx++) {
-			int atx;
-			int aty;
+			int atx, aty;
 			int tile;
-			square *s;
+			int stx, sty;
 
 			atx = g_cam.x + tx;
 			aty = g_cam.y + ty;
 			tile = g_tm.rows[aty][atx];
 	
-			s = alloc_square();
-			s->x = tx - fmodf(g_cam.x, 1.0F);
-			s->y = ty - fmodf(g_cam.y, 1.0F);
-			s->z = 0.0F;
-			s->tile = tile; 
+			stx = tx - fmodf(g_cam.x, 1.0F);
+			sty = ty - fmodf(g_cam.y, 1.0F);
+			push_square(buf, stx, sty, 1, tile);
 			if (g_grid_on) {
-				s = alloc_square();
-				s->x = tx - fmodf(g_cam.x, 1.0F);
-				s->y = ty - fmodf(g_cam.y, 1.0F);
-				s->z = -1.0F / 1024.0F;
-				s->tile = 4; 
+				push_square(buf, stx, sty, 0, 4);
 			}
 		}
 	}
 }
 
+/**
+ * start_squares() - Creates empty square buffer
+ */
+static square_buf *start_squares(void)
+{
+	square_buf *buf;
+	buf = (square_buf *) malloc(sizeof(*buf));
+	if (buf) {
+		buf->count = 0;
+	}
+	return buf;
+}
+
+/**
+ * end_squares() - Renders all squares and destroys buffer
+ */
+static void end_squares(square_buf *buf) 
+{
+	render_squares(buf);
+	free(buf);
+}
+
+/**
+ * update_squares() - Update squares
+ *
+ * NOTE: This is where rendering code goes, physics team.
+ */
+static void update_squares(void)
+{
+	square_buf *buf;
+
+	buf = start_squares(); 
+	if (!buf) {
+		return;
+	}
+
+	render_tiles(buf);
+	/*TODO: Insert rendering code here*/
+
+	end_squares(buf);
+}
+
 void render(void)
 {
-	square *s;
-
 	glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -575,12 +721,6 @@ void render(void)
 
 	glUseProgram(g_square_prog);
 	glUniform2f(g_square_view_ul, g_cam.w, g_cam.h);
-	g_square_count = 0;
-
-	/*START*/
-	render_tiles();
-	/*END*/
-
-	render_squares();
+	update_squares();
 	SwapBuffers(g_hdc);
 }

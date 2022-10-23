@@ -49,7 +49,6 @@ struct edit {
 };
 
 static HINSTANCE g_ins;
-static HMENU g_menu;
 static HACCEL g_acc; 
 
 static FT_Library g_freetype_library;
@@ -851,16 +850,26 @@ static void msg_loop(void)
 }
 
 /**
+ * print_ft_err() - Print free type error
+ */
+static void print_ft_err(const char *msg, FT_Error err)
+{
+	const char *err_str;
+
+	err_str = FT_Error_String(err);
+	fprintf(stderr, "ft error: %s: %s", msg, err_str);
+}
+
+/**
  * init_freetype() - Initializes FreeType library
  */
 static void init_freetype()
 {
-	int err;
+	FT_Error err;
 
 	err = FT_Init_FreeType(&g_freetype_library);
 	if (err) {
-		fprintf(stderr, "ft error: Could not load FreeType: %s",
-				FT_Error_String(err));
+		print_ft_err("Could not init FreeType", err);
 		return;
 	}
 }
