@@ -23,9 +23,7 @@
 #define IDM_ZOOM_DEF 0x3002
 
 #define IDM_BLANK 0x4000
-#define IDM_WALL 0x4001
-#define IDM_PLAYER 0x4002 
-#define IDM_DOOR 0x4003 
+#define IDM_GRASS 0x4001
 
 #define IDD_STATIC 0x1000
 #define IDD_WIDTH 0x1001

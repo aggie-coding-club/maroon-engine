@@ -63,7 +63,8 @@ static bool g_change;
 static edit g_edits[MAX_EDITS];
 static size_t g_edit_next;
 
-static int g_place = 1;
+static uint16_t g_place_select = IDM_GRASS;
+static uint8_t g_place = TILE_GRASS;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -449,9 +450,10 @@ static void redo(void)
  */
 static void update_place(int id)
 {
-	CheckMenuItem(g_menu, g_place + 0x4000, MF_UNCHECKED);
+	CheckMenuItem(g_menu, g_place_select, MF_UNCHECKED);
 	CheckMenuItem(g_menu, id, MF_CHECKED);
-	g_place = id - 0x4000;
+	g_place_select = id;
+	g_place = g_idm_to_tile[id - IDM_BLANK];
 }
 
 /**
@@ -621,7 +623,7 @@ static void process_cmds(int id)
 				g_wnd, dlg_proc, 0);
 		break;
 	default:
-		if (id & 0x4000) {
+		if (id & IDM_BLANK) {
 			update_place(id);
 		}
 	}

@@ -1,10 +1,15 @@
-#ifndef CHUNK_HPP
-#define CHUNK_HPP
+#ifndef TILE_MAP_HPP 
+#define TILE_MAP_HPP 
 
 #include <stdio.h>
 #include <stdint.h>
 
 #define MAX_MAP_LEN 999 
+
+#define TILE_BLANK 0
+#define TILE_SOLID 1
+#define TILE_GRASS 2 
+#define COUNTOF_TILES 3
 
 struct tile_map {
 	uint8_t **rows;
@@ -13,6 +18,8 @@ struct tile_map {
 };
 
 extern tile_map g_tm;
+extern uint16_t g_tile_to_idm[COUNTOF_TILES];
+extern uint8_t g_idm_to_tile[];
 
 /**
  * init_tm() - Initialize tile map

@@ -1,5 +1,2 @@
-blank.png
-wall.png
-player.png
-door.png
+grass.png
 grid.png

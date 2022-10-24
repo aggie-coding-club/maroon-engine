@@ -33,13 +33,13 @@
  * @x: x-pos relative to left
  * @y: y-pos relative to top
  * @z: depth, z goes from -1 to 0, lower means on top 
- * @tile: the tile to render
+ * @id: the id of the square from 0 to 255 
  */
 struct square {
 	float x; 
 	float y; 
 	float z;
-	uint32_t tile;
+	uint32_t id;
 };
 
 struct square_buf {
@@ -314,7 +314,11 @@ static int avg_qcr(const uint8_t *src)
 	return sqrt((tl + tr + bl + br) / 4);
 }
 
-static HBITMAP create_menu_icon(const uint8_t *src)
+/**
+ * create_menu_bitmap() - Creates menu bitmap from source data
+ * @src: 32-bit RGBA source data
+ */
+static HBITMAP create_menu_bitmap(const uint8_t *src)
 {
 	uint8_t *dst;
 
@@ -354,6 +358,29 @@ static HBITMAP create_menu_icon(const uint8_t *src)
 }
 
 /**
+ * add_menu_bitmap() - Add menu bitmap
+ * @src: 32-bit RGBA source data
+ * @i: ID of square 
+ */
+static void add_menu_bitmap(const uint8_t *src, int id)
+{
+	HBITMAP hbm;
+	int idm;
+
+	id += 2;
+	if (id >= COUNTOF_TILES) {
+		return;
+	}
+	idm = g_tile_to_idm[id];
+	if (idm == 0) {
+		return;
+	}
+	hbm = create_menu_bitmap(src); 
+	SetMenuItemBitmaps(g_menu, idm, 
+			MF_BYCOMMAND, hbm, NULL);
+}
+
+/**
  * load_atlas() - Load images into atlas.
  *
  * Combines a bunch of individual images listed
@@ -366,7 +393,7 @@ static void load_atlas(void)
 	FILE *f;
 	uint8_t *dst;
 	uint8_t *dp;
-	int src_n;
+	int i;
 	char file[MAX_PATH - 32];
 
 	/*list needed to allow for specific order of images*/
@@ -382,7 +409,7 @@ static void load_atlas(void)
 	}
 	
 	dp = dst;
-	src_n = 256;
+	i = 0;
 	while (fscanf(f, "%260s", file) == 1) { 
 		char path[MAX_PATH];
 
@@ -390,13 +417,11 @@ static void load_atlas(void)
 		int width;
 		int height;
 
-		HBITMAP hbm;
-
 		uint8_t *sp;
 		int row_n;
 
 		/*images exceed what can fit in the atlas*/
-		if (src_n <= 0) {
+		if (i >= 256) {
 			fprintf(stderr, "too many images\n"); 
 			goto err1;
 		}
@@ -415,10 +440,8 @@ static void load_atlas(void)
 			goto err1;
 		}	
 
-		/*set tile menu icon*/
-		hbm = create_menu_icon(src); 
-		SetMenuItemBitmaps(g_menu, IDM_BLANK + 256 - src_n, 
-				MF_BYCOMMAND, hbm, NULL);
+		/*set tile menu bitmap*/
+		add_menu_bitmap(src, i);
 
 		/*copy a single image into atlas*/
 		sp = src;
@@ -441,8 +464,8 @@ static void load_atlas(void)
 		 * Elsewise, the next tile, is immediatly to
 		 * the right. 
 		 */
-		src_n--;
-		if (src_n % 16) {
+		i++;
+		if (i % 16) {
 			dp -= ATLAS_STRIDE * 32;
 		} else {
 			dp -= ATLAS_STRIDE;
@@ -592,6 +615,13 @@ void init_gl(void)
 	init_gl_progs();
 }
 
+/**
+ * min() - Minimum of two values
+ * @a: Left value
+ * @b: Right value 
+ * 
+ * Return: Return minimum of two values
+ */
 static int min(int a, int b)
 {
 	return a < b ? a : b;
@@ -617,10 +647,11 @@ static void render_squares(square_buf *buf)
  * @x: x-pos in tiles relative to left of screen
  * @y: y-pos in tiles relative to top of screen
  * @layer: layer of square from 0 to 255, higher layers on bottom 
+ * @id: ID of square
  * 
  * NOTE: push_square should only be used in update_squares.
  */
-static void push_square(square_buf *buf, float x, float y, int layer, int tile)
+static void push_square(square_buf *buf, float x, float y, int layer, int id)
 {
 	square *s;
 	if (buf->count == MAX_SQUARES) {
@@ -631,7 +662,7 @@ static void push_square(square_buf *buf, float x, float y, int layer, int tile)
 	s->x = x;
 	s->y = y;
 	s->z = layer / 256.0F;
-	s->tile = tile;
+	s->id = id;
 	buf->count++;
 }
 
@@ -661,9 +692,11 @@ static void render_tiles(square_buf *buf)
 	
 			stx = tx - fmodf(g_cam.x, 1.0F);
 			sty = ty - fmodf(g_cam.y, 1.0F);
-			push_square(buf, stx, sty, 1, tile);
+			if (tile > 0) { 
+				push_square(buf, stx, sty, 1, tile - 2);
+			}
 			if (g_grid_on) {
-				push_square(buf, stx, sty, 0, 4);
+				push_square(buf, stx, sty, 0, 1);
 			}
 		}
 	}

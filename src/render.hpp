@@ -22,7 +22,7 @@ struct rect {
 
 /**
  * Window Globals
- * @g_wnd: Main window    
+ * @g_wnd: Main window
  * @g_menu: Main menu
  */
 extern HWND g_wnd;
