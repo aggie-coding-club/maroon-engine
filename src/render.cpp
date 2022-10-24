@@ -691,10 +691,10 @@ static void render_tiles(square_buf *buf)
 			stx = tx - fmodf(g_cam.x, 1.0F);
 			sty = ty - fmodf(g_cam.y, 1.0F);
 			if (tile >= 2) { 
-				push_square(buf, stx, sty, 1, tile - 2);
+				push_square(buf, stx, sty, 64, tile - 2);
 			}
 			if (g_grid_on) {
-				push_square(buf, stx, sty, 0, 1);
+				push_square(buf, stx, sty, 32, 1);
 			}
 		}
 	}
