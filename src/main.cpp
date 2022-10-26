@@ -16,7 +16,7 @@
 
 #include "menu.hpp"
 #include "render.hpp"
-#include "tile_map.hpp"
+#include "game_map.hpp"
 
 #define MAX_EDITS 256ULL
 
@@ -117,13 +117,13 @@ static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
 
-	g_cam.x = fclampf(g_cam.x, g_tm.w - g_cam.w, 0);
-	g_cam.y = fclampf(g_cam.y, g_tm.h - g_cam.h, 0);
+	g_cam.x = fclampf(g_cam.x, g_game_map.w - g_cam.w, 0);
+	g_cam.y = fclampf(g_cam.y, g_game_map.h - g_cam.h, 0);
 
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = g_tm.w * width / g_cam.w;
+	si.nMax = g_game_map.w * width / g_cam.w;
 	si.nPage = width + 1;
 	si.nPos = g_cam.x * width / g_cam.w;
 	SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
@@ -131,7 +131,7 @@ static void update_scrollbars(int width, int height)
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = g_tm.h * height / g_cam.h;
+	si.nMax = g_game_map.h * height / g_cam.h;
 	si.nPage = height + 1;
 	si.nPos = g_cam.y * height / g_cam.h;
 	SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
@@ -189,16 +189,16 @@ static int write_map(const wchar_t *path)
 	}
 
 	/*write width and height of map*/
-	v[0] = g_tm.w;
-	v[1] = g_tm.h;
+	v[0] = g_game_map.w;
+	v[1] = g_game_map.h;
 	if (fwrite(v, sizeof(v), 1, f) < 1) {
 		goto err1;
 	}
 
-	row = g_tm.rows;
-	n = g_tm.h;
+	row = g_game_map.rows;
+	n = g_game_map.h;
 	while (n-- > 0) {
-		if (fwrite(*row, g_tm.w, 1, f) < 1) {
+		if (fwrite(*row, g_game_map.w, 1, f) < 1) {
 			goto err1;
 		}
 		row++;
@@ -232,7 +232,7 @@ static int read_map(const wchar_t *path)
 	int err;
 	FILE *f;
 	uint16_t v[2];
-	tile_map tm;
+	game_map game_map;
 	uint8_t **row;
 	int n;
 
@@ -250,20 +250,20 @@ static int read_map(const wchar_t *path)
 	if (v[0] > MAX_MAP_LEN || v[1] > MAX_MAP_LEN) {
 		goto err1;
 	}
-	init_tm(&tm);	
-	size_tm(&tm, v[0], v[1]);
+	init_game_map(&game_map);	
+	size_game_map(&game_map, v[0], v[1]);
 
-	row = tm.rows;
-	n = tm.h;
+	row = game_map.rows;
+	n = game_map.h;
 	while (n-- > 0) {
-		if (fread(*row, tm.w, 1, f) < 1) {
-			reset_tm(&tm);
+		if (fread(*row, game_map.w, 1, f) < 1) {
+			reset_game_map(&game_map);
 			goto err1;
 		}
 		row++;
 	}
-	reset_tm(&g_tm);
-	g_tm = tm;
+	reset_game_map(&g_game_map);
+	g_game_map = game_map;
 	
 	/*error handling and cleanup*/
 	err = 0;
@@ -384,9 +384,9 @@ static void resize_edit(edit *ed)
 
 	w = ed->resize.w;
 	h = ed->resize.h;
-	ed->resize.w = g_tm.w; 
-	ed->resize.h = g_tm.h; 
-	size_tm(&g_tm, w, h);
+	ed->resize.w = g_game_map.w; 
+	ed->resize.h = g_game_map.h; 
+	size_game_map(&g_game_map, w, h);
 	update_scrollbars(g_client_width, g_client_height);
 }
 
@@ -406,7 +406,7 @@ static void undo(void)
 		g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
 		break;
 	case EDIT_PLACE:
-		tp = &g_tm.rows[ed->place.y][ed->place.x];
+		tp = &g_game_map.rows[ed->place.y][ed->place.x];
 		tile = *tp;
 		*tp = ed->place.tile;
 		ed->place.tile = tile;
@@ -433,7 +433,7 @@ static void redo(void)
 		g_edit_next = (g_edit_next - 1ULL) % MAX_EDITS;
 		break;
 	case EDIT_PLACE:
-		tp = &g_tm.rows[ed->place.y][ed->place.x];
+		tp = &g_game_map.rows[ed->place.y][ed->place.x];
 		tile = *tp;
 		*tp = ed->place.tile;
 		ed->place.tile = tile;
@@ -513,10 +513,10 @@ static void attempt_resize(HWND wnd)
 
 		ed = push_edit();
 		ed->type = EDIT_RESIZE;
-		ed->resize.w = g_tm.w;
-		ed->resize.h = g_tm.h;
+		ed->resize.w = g_game_map.w;
+		ed->resize.h = g_game_map.h;
 
-		size_tm(&g_tm, width, height);
+		size_game_map(&g_game_map, width, height);
 		update_scrollbars(g_client_width, g_client_height);
 
 		EndDialog(wnd, 0);
@@ -540,8 +540,8 @@ static __stdcall INT_PTR dlg_proc(HWND wnd, UINT msg,
 		
 	switch (msg) {
 	case WM_INITDIALOG:
-		SetDlgItemInt(wnd, IDD_WIDTH, g_tm.w, FALSE);
-		SetDlgItemInt(wnd, IDD_HEIGHT, g_tm.h, FALSE);
+		SetDlgItemInt(wnd, IDD_WIDTH, g_game_map.w, FALSE);
+		SetDlgItemInt(wnd, IDD_HEIGHT, g_game_map.h, FALSE);
 		return TRUE;
 	case WM_COMMAND:
 		switch (wp) {
@@ -567,8 +567,8 @@ static void process_cmds(int id)
 		if (unsaved_warning()) {
 			g_map_path[0] = '\0';
 			reset_edits();
-			reset_tm(&g_tm);
-			size_tm(&g_tm, 20, 15);
+			reset_game_map(&g_game_map);
+			size_game_map(&g_game_map, 20, 15);
 			g_cam.x = 0;
 			g_cam.y = 0;
 			update_scrollbars(g_client_width, g_client_height);
@@ -661,8 +661,8 @@ static void place_tile(int x, int y, int tile)
 	tx = g_cam.x + (float) x * g_cam.w / g_client_width;
 	ty = g_cam.y + (float) y * g_cam.h / g_client_height;
 
-	if (tx >= 0 && tx < g_tm.w && ty >= 0 && ty < g_tm.h) {
-		tp = &g_tm.rows[ty][tx];
+	if (tx >= 0 && tx < g_game_map.w && ty >= 0 && ty < g_game_map.h) {
+		tp = &g_game_map.rows[ty][tx];
 		if (*tp != tile) {
 			push_place_tile(tx, ty, *tp);
 			*tp = tile;
@@ -898,8 +898,8 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	create_main_window();
 	init_gl();
 	init_freetype();
-	init_tm(&g_tm);
-	size_tm(&g_tm, 20, 15);
+	init_game_map(&g_game_map);
+	size_game_map(&g_game_map, 20, 15);
 	msg_loop();
 	
 	return 0;

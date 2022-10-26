@@ -1,10 +1,10 @@
 #include <string.h>
 
 #include "menu.hpp"
-#include "tile_map.hpp"
+#include "game_map.hpp"
 #include "util.hpp"
 
-tile_map g_tm;
+game_map g_game_map;
 
 uint16_t g_tile_to_idm[COUNTOF_TILES] = {
 	[TILE_BLANK] = IDM_BLANK,
@@ -22,14 +22,14 @@ static int min(int a, int b)
 	return a < b ? a : b;
 }
 
-void init_tm(tile_map *tm)
+void init_game_map(game_map *game_map)
 {
-	tm->rows = NULL;
-	tm->w = 0;
-	tm->h = 0;
+	game_map->rows = NULL;
+	game_map->w = 0;
+	game_map->h = 0;
 }
 
-void size_tm(tile_map *tm, int w, int h)
+void size_game_map(game_map *game_map, int w, int h)
 {
 	uint8_t **rows;
 	int mw, mh;
@@ -38,18 +38,18 @@ void size_tm(tile_map *tm, int w, int h)
 	int n;
 
 	/*clean old rows*/
-	n = tm->h - h;
-	row = tm->rows + h;
+	n = game_map->h - h;
+	row = game_map->rows + h;
 	while (n-- > 0) {
 		free(*row++);
 	}
 
 	/*get new row pointers*/
-	rows = (uint8_t **) xrealloc(tm->rows, h * sizeof(*rows));
+	rows = (uint8_t **) xrealloc(game_map->rows, h * sizeof(*rows));
 
 	/*calc zero padding*/
-	mw = min(w, tm->w);
-	mh = min(h, tm->h);
+	mw = min(w, game_map->w);
+	mh = min(h, game_map->h);
 	
 	dw = w - mw;
 	dh = h - mh;
@@ -59,35 +59,35 @@ void size_tm(tile_map *tm, int w, int h)
 	n = mh;
 	while (n-- > 0) {
 		*row = (uint8_t *) xrealloc(*row, w); 
-		memset(*row + tm->w, 0, dw);
+		memset(*row + game_map->w, 0, dw);
 		row++;
 	}
 
 	/*resize new rows*/
-	row = rows + tm->h;
+	row = rows + game_map->h;
 	n = dh;
 	while (n-- > 0) {
 		*row++ = (uint8_t *) xcalloc(w, 1);
 	}
 
 	/*copy new values*/
-	tm->w = w;
-	tm->h = h;
-	tm->rows = rows;
+	game_map->w = w;
+	game_map->h = h;
+	game_map->rows = rows;
 }
 
-void reset_tm(tile_map *tm)
+void reset_game_map(game_map *game_map)
 {
 	uint8_t **row;
 	int n;
 
-	row = tm->rows;
-	n = tm->h;
+	row = game_map->rows;
+	n = game_map->h;
 	while (n-- > 0) {
 		free(*row);
 		row++;	
 	}
-	free(tm->rows);
+	free(game_map->rows);
 
-	init_tm(tm);
+	init_game_map(game_map);
 }

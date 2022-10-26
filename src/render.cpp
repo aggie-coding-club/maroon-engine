@@ -10,7 +10,7 @@
 
 #include "menu.hpp"
 #include "render.hpp"
-#include "tile_map.hpp"
+#include "game_map.hpp"
 #include "util.hpp"
 
 #define TILE_STRIDE (TILE_LEN * 4) 
@@ -674,8 +674,8 @@ static void render_tiles(square_buf *buf)
 	int max_y;
 	int ty;
 
-	max_x = min(g_cam.w + 1, g_tm.w);
-	max_y = min(g_cam.h + 1, g_tm.h);
+	max_x = min(g_cam.w + 1, g_game_map.w);
+	max_y = min(g_cam.h + 1, g_game_map.h);
 
 	for (ty = 0; ty < max_y; ty++) {
 		int tx;
@@ -686,7 +686,7 @@ static void render_tiles(square_buf *buf)
 
 			atx = g_cam.x + tx;
 			aty = g_cam.y + ty;
-			tile = g_tm.rows[aty][atx];
+			tile = g_game_map.rows[aty][atx];
 	
 			stx = tx - fmodf(g_cam.x, 1.0F);
 			sty = ty - fmodf(g_cam.y, 1.0F);
