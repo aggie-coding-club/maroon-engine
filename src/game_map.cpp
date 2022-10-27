@@ -10,11 +10,13 @@ uint16_t g_tile_to_idm[COUNTOF_TILES] = {
 	[TILE_BLANK] = IDM_BLANK,
 	[TILE_SOLID] = 0, 
 	[TILE_GRASS] = IDM_GRASS, 
+	[TILE_GROUND] = IDM_GROUND, 
 };
 
 uint8_t g_idm_to_tile[] = {
 	[IDM_BLANK - IDM_BLANK] = TILE_BLANK,
-	[IDM_GRASS - IDM_BLANK] = TILE_GRASS
+	[IDM_GRASS - IDM_BLANK] = TILE_GRASS,
+	[IDM_GROUND - IDM_BLANK] = TILE_GROUND
 };
 
 static int min(int a, int b)

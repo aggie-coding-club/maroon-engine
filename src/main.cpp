@@ -20,9 +20,6 @@
 
 #define MAX_EDITS 256ULL
 
-#define CLIENT_WIDTH 640
-#define CLIENT_HEIGHT 480
-
 enum edit_type {
 	EDIT_NONE,
 	EDIT_PLACE,
@@ -53,8 +50,8 @@ static HACCEL g_acc;
 
 static FT_Library g_freetype_library;
 
-static int g_client_width = CLIENT_WIDTH;
-static int g_client_height = CLIENT_HEIGHT;
+static int g_client_width = VIEW_WIDTH;
+static int g_client_height = VIEW_HEIGHT;
 
 static wchar_t g_map_path[MAX_PATH];
 
@@ -568,7 +565,7 @@ static void process_cmds(int id)
 			g_map_path[0] = '\0';
 			reset_edits();
 			reset_game_map(&g_game_map);
-			size_game_map(&g_game_map, 20, 15);
+			size_game_map(&g_game_map, VIEW_TW, VIEW_TH);
 			g_cam.x = 0;
 			g_cam.y = 0;
 			update_scrollbars(g_client_width, g_client_height);
@@ -599,8 +596,8 @@ static void process_cmds(int id)
 		}
 		break;
 	case IDM_ZOOM_DEF:
-		g_cam.w = 20.0F;
-		g_cam.h = 15.0F;
+		g_cam.w = VIEW_TW;
+		g_cam.h = VIEW_TH;
 		update_scrollbars(g_client_width, g_client_height);
 		break;
 	case IDM_UNDO:
@@ -736,7 +733,7 @@ static void update_vert_scroll(WPARAM wp)
 		si.nPos = HIWORD(wp); 
 		SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
 
-		g_cam.y = si.nPos * 15.0F / g_client_height;
+		g_cam.y = si.nPos * g_cam.h / g_client_height;
 	}
 }
 
@@ -812,12 +809,15 @@ static void create_main_window(void)
 	flags = WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL;
 	rect.left = 0;
 	rect.top = 0;
-	rect.right = CLIENT_WIDTH;
-	rect.bottom = CLIENT_HEIGHT;
+	rect.right = VIEW_WIDTH;
+	rect.bottom = VIEW_HEIGHT;
 	AdjustWindowRect(&rect, flags, TRUE);
 
 	width = rect.right - rect.left;
 	height = rect.bottom - rect.top;
+
+	width += GetSystemMetrics(SM_CXVSCROLL); 
+	height += GetSystemMetrics(SM_CXHSCROLL); 
 
 	g_wnd = CreateWindowExW(0, wc.lpszClassName, L"Engine", flags, 
 			CW_USEDEFAULT, CW_USEDEFAULT, width, height, 
@@ -899,7 +899,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	init_gl();
 	init_freetype();
 	init_game_map(&g_game_map);
-	size_game_map(&g_game_map, 20, 15);
+	size_game_map(&g_game_map, VIEW_TW, VIEW_TH);
 	msg_loop();
 	
 	return 0;

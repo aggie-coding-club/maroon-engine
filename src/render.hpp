@@ -6,6 +6,12 @@
 
 #define TILE_LEN 32 
 
+#define VIEW_TW 8
+#define VIEW_TH 6
+
+#define VIEW_WIDTH (VIEW_TW * TILE_LEN) 
+#define VIEW_HEIGHT (VIEW_TH * TILE_LEN) 
+
 /**
  * rect - Rectangle 
  * @x: left-most pos 

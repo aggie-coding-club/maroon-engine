@@ -14,6 +14,7 @@ LDFLAGS += -lopengl32 -lole32 -mwindows -mconsole
 LDFLAGS += $(DEPOBJS)
 
 SRC = $(wildcard src/*.cpp)
+HEADER = $(wildcard src/*.hpp)
 
 OBJ = $(patsubst src/%.cpp,obj/%.o,$(SRC))
 DEP = $(patsubst src/%.cpp,obj/%.d,$(SRC))
@@ -50,7 +51,7 @@ obj/%.o: src/%.o
 obj/%.d: src/%.d
 	mv $< $@
 
-include $(wildcard $DEP)
+$(pathsubst src/%.o,obj/%.o,include $(wildcard $DEP))
 
 engine: $(OBJ) $(DEP) obj/menu.o $(DEPOBJS)
 	$(CXX) -o bin/engine.exe $(OBJ) obj/menu.o $(LDFLAGS)

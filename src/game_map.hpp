@@ -9,7 +9,10 @@
 #define TILE_BLANK 0
 #define TILE_SOLID 1
 #define TILE_GRASS 2 
-#define COUNTOF_TILES 3
+#define TILE_GROUND 3
+#define COUNTOF_TILES 4
+
+#define IMG_GRID (COUNTOF_TILES - 2)
 
 struct game_map {
 	uint8_t **rows;

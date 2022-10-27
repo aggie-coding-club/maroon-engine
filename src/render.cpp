@@ -53,7 +53,7 @@ HMENU g_menu;
 v2 g_scroll;
 bool g_grid_on = true;
 
-rect g_cam = {0, 0, 20, 15}; 
+rect g_cam = {0, 0, VIEW_TW, VIEW_TH}; 
 
 static HDC g_hdc;
 static HGLRC g_glrc;
@@ -405,7 +405,7 @@ static void load_atlas(void)
 
 	dst = (uint8_t *) malloc(SIZEOF_ATLAS);
 	if (!dst) {
-		goto err0;
+		goto close_file;
 	}
 	
 	dp = dst;
@@ -423,21 +423,21 @@ static void load_atlas(void)
 		/*images exceed what can fit in the atlas*/
 		if (i >= 256) {
 			fprintf(stderr, "too many images\n"); 
-			goto err1;
+			break;
 		}
 
 		sprintf(path, "res/images/%s", file); 
 		src = stbi_load(path, &width, &height, NULL, 4);
 		if (!src) {
 			fprintf(stderr, "%s could not find\n", file);
-			goto err1;
+			break;
 		}
 
 		/*images are expected to be tile size*/
 		if (width != TILE_LEN || height != TILE_LEN) {
 			fprintf(stderr, "invalid dimensions\n");
 			stbi_image_free(src);
-			goto err1;
+			break;
 		}	
 
 		/*set tile menu bitmap*/
@@ -474,9 +474,8 @@ static void load_atlas(void)
 	}
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ATLAS_LEN, 
 			ATLAS_LEN, 0, GL_RGBA, GL_UNSIGNED_BYTE, dst); 
-err1:
 	free(dst);
-err0:
+close_file:
 	fclose(f);
 }
 
@@ -694,7 +693,7 @@ static void render_tiles(square_buf *buf)
 				push_square(buf, stx, sty, 1, tile - 2);
 			}
 			if (g_grid_on) {
-				push_square(buf, stx, sty, 0, 1);
+				push_square(buf, stx, sty, 0, IMG_GRID);
 			}
 		}
 	}
