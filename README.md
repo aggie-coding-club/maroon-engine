@@ -2,10 +2,6 @@
 Lenny T. , James F. , Robert S. , Wesley T. , Jonah B. , Rahif M. , Neil K., Wyatt C., Jeremy M., Grace K., Shantanu R., Victor P.,
 # The Project Goal
 
-# Current Features
-
-# Upcoming Features
-
 # Project Setup Instructions
 
 ## System Requirements
