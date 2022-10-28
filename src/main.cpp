@@ -793,7 +793,7 @@ static void create_main_window(void)
 	int height;
 
 	memset(&wc, 0, sizeof(wc));
-	wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC; 
+	wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
 	wc.lpfnWndProc = wnd_proc;
 	wc.hInstance = g_ins;
 	wc.hCursor = LoadCursorW(NULL, IDC_ARROW); 

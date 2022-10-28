@@ -26,25 +26,25 @@
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
-#define MAX_SQUARES 1024 
+#define MAX_SPRITES 1024 
 
 /**
- * square - Render square 
+ * sprite - Render sprite 
  * @x: x-pos in camera pixels relative to left
  * @y: y-pos in camera pixels relative to top
- * @layer: layer of square 
- * @id: the id of the square from 0 to 255 
+ * @layer: layer of sprite 
+ * @id: the id of the sprite from 0 to 255 
  */
-struct square {
-	uint16_t x; 
-	uint16_t y; 
+struct sprite {
+	int16_t x; 
+	int16_t y; 
 	uint8_t layer;
 	uint8_t id;
 };
 
-struct square_buf {
+struct sprite_buf {
 	int count;
-	square squares[MAX_SQUARES];
+	sprite sprites[MAX_SPRITES];
 };
 
 HWND g_wnd;
@@ -55,6 +55,16 @@ bool g_grid_on = true;
 
 rect g_cam = {0, 0, VIEW_TW, VIEW_TH}; 
 
+static const char *const g_sprite_files[COUNTOF_SPR] = {
+	[SPR_GRASS] = "grass.png",
+	[SPR_GROUND] = "ground.png",
+	[SPR_SKY] = "sky.png",
+	[SPR_WATER] = "water.png",
+	[SPR_HORIZON_WATER] = "horizon-water.png",
+	[SPR_SKY_HORIZON] = "sky-horizon.png",
+	[SPR_GRID] = "grid.png"
+};
+
 static HDC g_hdc;
 static HGLRC g_glrc;
 
@@ -63,13 +73,13 @@ static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
 
 static GLuint g_tex;
 
-static GLuint g_square_prog;
+static GLuint g_sprite_prog;
 
-static GLuint g_square_vao;
-static GLuint g_square_vbo;
+static GLuint g_sprite_vao;
+static GLuint g_sprite_vbo;
 
-static GLint g_square_view_ul;
-static GLint g_square_tex_ul;
+static GLint g_sprite_view_ul;
+static GLint g_sprite_tex_ul;
 
 /**
  * wgl_load() - load WGL extension function 
@@ -158,6 +168,7 @@ static char *read_all_str(const wchar_t *path)
 	fh = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, 
 			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL); 
 	if (fh == INVALID_HANDLE_VALUE) {
+		wprintf(L"%s", path);
 		fatal_win32_err();
 	}
 
@@ -360,7 +371,7 @@ static HBITMAP create_menu_bitmap(const uint8_t *src)
 /**
  * add_menu_bitmap() - Add menu bitmap
  * @src: 32-bit RGBA source data
- * @i: ID of square 
+ * @i: ID of sprite 
  */
 static void add_menu_bitmap(const uint8_t *src, int id)
 {
@@ -384,33 +395,31 @@ static void add_menu_bitmap(const uint8_t *src, int id)
  * load_atlas() - Load images into atlas.
  *
  * Combines a bunch of individual images listed
- * in res/images/list.h into a singel atlas,
+ * in g_sprite_files into a single atlas,
  * start from the top left and going right
  * than down. 
  */
 static void load_atlas(void)
 {
-	FILE *f;
+	const char *const *file;
+	size_t n;
+
 	uint8_t *dst;
 	uint8_t *dp;
-	int i;
-	char file[MAX_PATH - 32];
 
-	/*list needed to allow for specific order of images*/
-	f = _wfopen(L"res/images/list.txt", L"r");
-	if (!f) {
-		fprintf(stderr, "Cannot load image list\n");
-		return;
-	}
+	int i;
 
 	dst = (uint8_t *) malloc(SIZEOF_ATLAS);
 	if (!dst) {
-		goto close_file;
+		return;
 	}
 	
 	dp = dst;
 	i = 0;
-	while (fscanf(f, "%260s", file) == 1) { 
+
+	file = g_sprite_files; 
+	n = COUNTOF_SPR; 
+	while (n-- > 0) { 
 		char path[MAX_PATH];
 
 		uint8_t *src;
@@ -420,20 +429,20 @@ static void load_atlas(void)
 		uint8_t *sp;
 		int row_n;
 
-		/*images exceed what can fit in the atlas*/
+		/*sprites exceed what can fit in the atlas*/
 		if (i >= 256) {
-			fprintf(stderr, "too many images\n"); 
+			fprintf(stderr, "too many sprites\n"); 
 			break;
 		}
 
-		sprintf(path, "res/images/%s", file); 
+		sprintf(path, "res/sprites/%s", *file); 
 		src = stbi_load(path, &width, &height, NULL, 4);
 		if (!src) {
-			fprintf(stderr, "%s could not find\n", file);
+			fprintf(stderr, "%s could not find\n", *file);
 			break;
 		}
 
-		/*images are expected to be tile size*/
+		/*sprites are expected to be tile size*/
 		if (width != TILE_LEN || height != TILE_LEN) {
 			fprintf(stderr, "invalid dimensions\n");
 			stbi_image_free(src);
@@ -464,6 +473,7 @@ static void load_atlas(void)
 		 * Elsewise, the next tile, is immediatly to
 		 * the right. 
 		 */
+		file++;
 		i++;
 		if (i % 16) {
 			dp -= ATLAS_STRIDE * 32;
@@ -475,8 +485,6 @@ static void load_atlas(void)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ATLAS_LEN, 
 			ATLAS_LEN, 0, GL_RGBA, GL_UNSIGNED_BYTE, dst); 
 	free(dst);
-close_file:
-	fclose(f);
 }
 
 /**
@@ -498,16 +506,16 @@ static void create_atlas(void)
 }
 
 /**
- * square_vaa_set_up() - Set up vertex attributes for square program
+ * sprite_vaa_set_up() - Set up vertex attributes for sprite program
  */
-static void square_vaa_set_up(void)
+static void sprite_vaa_set_up(void)
 {
-	glVertexAttribIPointer(0, 2, GL_UNSIGNED_SHORT, 
-			sizeof(square), (void *) 0);
+	glVertexAttribIPointer(0, 2, GL_SHORT, 
+			sizeof(sprite), (void *) 0);
 	glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, 
-			sizeof(square), (void *) 4);
+			sizeof(sprite), (void *) 4);
 	glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 
-			sizeof(square), (void *) 5);
+			sizeof(sprite), (void *) 5);
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
@@ -515,34 +523,40 @@ static void square_vaa_set_up(void)
 }
 
 /**
- * create_square_prog() - Create square program
- * @gs: Geometry shader
- * @fs: Fragment shader
+ * create_sprite_prog() - Create sprite program
  *
  * Vertex shader is created on the spot.
  */
-static void create_square_prog(GLuint gs, GLuint fs)
+static void create_sprite_prog(void)
 {
 	GLuint vs;
+	GLuint gs;
+	GLuint fs;
 
-	vs = compile_shader(GL_VERTEX_SHADER, L"square.vert");
-	g_square_prog = create_prog(vs, gs, fs); 
+	vs = compile_shader(GL_VERTEX_SHADER, L"sprite.vert");
+	gs = compile_shader(GL_GEOMETRY_SHADER, L"sprite.geom");
+	fs = compile_shader(GL_FRAGMENT_SHADER, L"sprite.frag");
+
+	g_sprite_prog = create_prog(vs, gs, fs); 
+	glDeleteShader(fs);
+	glDeleteShader(gs);
 	glDeleteShader(vs);
 
-	glGenVertexArrays(1, &g_square_vao);
-	glGenBuffers(1, &g_square_vbo);
 
-	glBindVertexArray(g_square_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
-	square_vaa_set_up();
+	glGenVertexArrays(1, &g_sprite_vao);
+	glGenBuffers(1, &g_sprite_vbo);
 
-	glBufferData(GL_ARRAY_BUFFER, MAX_SQUARES * sizeof(square), 
+	glBindVertexArray(g_sprite_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_sprite_vbo);
+	sprite_vaa_set_up();
+
+	glBufferData(GL_ARRAY_BUFFER, MAX_SPRITES * sizeof(sprite), 
 			NULL, GL_DYNAMIC_DRAW);
 
-	glUseProgram(g_square_prog);
-	g_square_view_ul = glGetUniformLocation(g_square_prog, "view");
-	g_square_tex_ul = glGetUniformLocation(g_square_prog, "tex");
-	glUniform1i(g_square_tex_ul, 0);
+	glUseProgram(g_sprite_prog);
+	g_sprite_view_ul = glGetUniformLocation(g_sprite_prog, "view");
+	g_sprite_tex_ul = glGetUniformLocation(g_sprite_prog, "tex");
+	glUniform1i(g_sprite_tex_ul, 0);
 }
 
 /**
@@ -550,17 +564,8 @@ static void create_square_prog(GLuint gs, GLuint fs)
  */
 static void init_gl_progs(void)
 {
-	GLuint gs;
-	GLuint fs;
-
-	gs = compile_shader(GL_GEOMETRY_SHADER, L"square.geom");
-	fs = compile_shader(GL_FRAGMENT_SHADER, L"square.frag");
-
 	create_atlas();
-	create_square_prog(gs, fs);
-
-	glDeleteShader(fs);
-	glDeleteShader(gs);
+	create_sprite_prog();
 }
 
 void init_gl(void)
@@ -628,50 +633,54 @@ static int min(int a, int b)
 }
 
 /**
- * render_squares() - Submit all squares to GPU
- * @square_buf: Buffer of squares
+ * render_sprites() - Submit all sprites to GPU
+ * @sprite_buf: Buffer of sprites
  */
-static void render_squares(square_buf *buf)
+static void render_sprites(sprite_buf *buf)
 {
-	glBindVertexArray(g_square_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_square_vbo);
-	square_vaa_set_up();
-	glBufferSubData(GL_ARRAY_BUFFER, 0, buf->count * sizeof(square), 
-			buf->squares);
+	glBindVertexArray(g_sprite_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_sprite_vbo);
+	sprite_vaa_set_up();
+	glBufferSubData(GL_ARRAY_BUFFER, 0, buf->count * sizeof(sprite), 
+			buf->sprites);
 	glDrawArrays(GL_POINTS, 0, buf->count);
 }
 
 /**
- * push_square() - Add square to render
- * @buf: Buffer to add squares to
+ * push_sprite() - Add sprite to render
+ * @buf: Buffer to add sprites to
  * @x: x-pos in tiles relative to left of screen
  * @y: y-pos in tiles relative to top of screen
- * @layer: layer of square from 0 to 255, higher layers on bottom 
- * @id: ID of square
+ * @layer: layer of sprite from 0 to 255, higher layers on bottom 
+ * @id: ID of sprite
  * 
- * NOTE: push_square should only be used in update_squares.
+ * NOTE: push_sprite should only be used in update_sprites.
  */
-static void push_square(square_buf *buf, float x, float y, int layer, int id)
+static void push_sprite(sprite_buf *buf, float x, float y, int layer, int id)
 {
-	square *s;
-	if (buf->count == MAX_SQUARES) {
-		render_squares(buf);
-		buf->count = 0;
+	if (x > -1.0F && x < g_cam.w + 1.0F 
+			&& y > -1.0F && y < g_cam.h + 1.0F) {
+		sprite *s;
+
+		s = buf->sprites + buf->count;
+		s->x = x * 32;
+		s->y = y * 32;
+		s->layer = layer;
+		s->id = id;
+		buf->count++;
+		if (buf->count == MAX_SPRITES) {
+			render_sprites(buf);
+			buf->count = 0;
+		}
 	}
 
-	s = buf->squares + buf->count;
-	s->x = x * 32;
-	s->y = y * 32;
-	s->layer = layer;
-	s->id = id;
-	buf->count++;
 }
 
 /**
  * render_tiles() - Render tiles and possibly grid
- * @buf: Square buffer to add to
+ * @buf: Sprite buffer to add to
  */
-static void render_tiles(square_buf *buf)
+static void render_tiles(sprite_buf *buf)
 {
 	int max_x;
 	int max_y;
@@ -694,22 +703,22 @@ static void render_tiles(square_buf *buf)
 			stx = tx - fmodf(g_cam.x, 1.0F);
 			sty = ty - fmodf(g_cam.y, 1.0F);
 			if (tile >= 2) { 
-				push_square(buf, stx, sty, 1, tile - 2);
+				push_sprite(buf, stx, sty, 1, tile - 2);
 			}
 			if (g_grid_on) {
-				push_square(buf, stx, sty, 0, IMG_GRID);
+				push_sprite(buf, stx, sty, 0, SPR_GRID);
 			}
 		}
 	}
 }
 
 /**
- * start_squares() - Creates empty square buffer
+ * start_sprites() - Creates empty sprite buffer
  */
-static square_buf *start_squares(void)
+static sprite_buf *start_sprites(void)
 {
-	square_buf *buf;
-	buf = (square_buf *) malloc(sizeof(*buf));
+	sprite_buf *buf;
+	buf = (sprite_buf *) malloc(sizeof(*buf));
 	if (buf) {
 		buf->count = 0;
 	}
@@ -717,24 +726,24 @@ static square_buf *start_squares(void)
 }
 
 /**
- * end_squares() - Renders all squares and destroys buffer
+ * end_sprites() - Renders all sprites and destroys buffer
  */
-static void end_squares(square_buf *buf) 
+static void end_sprites(sprite_buf *buf) 
 {
-	render_squares(buf);
+	render_sprites(buf);
 	free(buf);
 }
 
 /**
- * update_squares() - Update squares
+ * update_sprites() - Update sprites
  *
  * NOTE: This is where rendering code goes, physics team.
  */
-static void update_squares(void)
+static void update_sprites(void)
 {
-	square_buf *buf;
+	sprite_buf *buf;
 
-	buf = start_squares(); 
+	buf = start_sprites(); 
 	if (!buf) {
 		return;
 	}
@@ -742,7 +751,7 @@ static void update_squares(void)
 	render_tiles(buf);
 	/*TODO: Insert rendering code here*/
 
-	end_squares(buf);
+	end_sprites(buf);
 }
 
 void render(void)
@@ -753,8 +762,8 @@ void render(void)
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, g_tex);
 
-	glUseProgram(g_square_prog);
-	glUniform2f(g_square_view_ul, g_cam.w, g_cam.h);
-	update_squares();
+	glUseProgram(g_sprite_prog);
+	glUniform2f(g_sprite_view_ul, g_cam.w, g_cam.h);
+	update_sprites();
 	SwapBuffers(g_hdc);
 }

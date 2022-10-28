@@ -12,6 +12,15 @@
 #define VIEW_WIDTH (VIEW_TW * TILE_LEN) 
 #define VIEW_HEIGHT (VIEW_TH * TILE_LEN) 
 
+#define SPR_GRASS 0
+#define SPR_GROUND 1
+#define SPR_SKY 2
+#define SPR_WATER 3
+#define SPR_HORIZON_WATER 4
+#define SPR_SKY_HORIZON 5
+#define SPR_GRID 6
+#define COUNTOF_SPR 7
+
 /**
  * rect - Rectangle 
  * @x: left-most pos 
@@ -35,7 +44,7 @@ extern HWND g_wnd;
 extern HMENU g_menu; 
 
 /**
- * Square Globals
+ * Sprite Globals
  * @g_grid_on: Have a grid of tile map
  * @g_cam: Camera rect
  */

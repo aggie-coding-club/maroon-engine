@@ -12,8 +12,6 @@
 #define TILE_GROUND 3
 #define COUNTOF_TILES 4
 
-#define IMG_GRID (COUNTOF_TILES - 2)
-
 struct game_map {
 	uint8_t **rows;
 	int w;
