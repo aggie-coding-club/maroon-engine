@@ -30,16 +30,16 @@
 
 /**
  * square - Render square 
- * @x: x-pos relative to left
- * @y: y-pos relative to top
- * @z: depth, z goes from -1 to 0, lower means on top 
+ * @x: x-pos in camera pixels relative to left
+ * @y: y-pos in camera pixels relative to top
+ * @layer: layer of square 
  * @id: the id of the square from 0 to 255 
  */
 struct square {
-	float x; 
-	float y; 
-	float z;
-	uint32_t id;
+	uint16_t x; 
+	uint16_t y; 
+	uint8_t layer;
+	uint8_t id;
 };
 
 struct square_buf {
@@ -502,13 +502,16 @@ static void create_atlas(void)
  */
 static void square_vaa_set_up(void)
 {
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 
+	glVertexAttribIPointer(0, 2, GL_UNSIGNED_SHORT, 
 			sizeof(square), (void *) 0);
-	glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 
-			sizeof(square), (void *) 12);
+	glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, 
+			sizeof(square), (void *) 4);
+	glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 
+			sizeof(square), (void *) 5);
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
 }
 
 /**
@@ -655,10 +658,11 @@ static void push_square(square_buf *buf, float x, float y, int layer, int id)
 		render_squares(buf);
 		buf->count = 0;
 	}
+
 	s = buf->squares + buf->count;
-	s->x = x;
-	s->y = y;
-	s->z = layer / 256.0F;
+	s->x = x * 32;
+	s->y = y * 32;
+	s->layer = layer;
 	s->id = id;
 	buf->count++;
 }
