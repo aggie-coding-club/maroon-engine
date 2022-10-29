@@ -14,6 +14,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#include "entity.hpp"
 #include "menu.hpp"
 #include "render.hpp"
 #include "game_map.hpp"
@@ -62,6 +63,8 @@ static size_t g_edit_next;
 
 static uint16_t g_place_select = IDM_GRASS;
 static uint8_t g_place = TILE_GRASS;
+
+static int64_t g_perf_freq;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -114,13 +117,13 @@ static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
 
-	g_cam.x = fclampf(g_cam.x, g_game_map.w - g_cam.w, 0);
-	g_cam.y = fclampf(g_cam.y, g_game_map.h - g_cam.h, 0);
+	g_cam.x = fclampf(g_cam.x, g_gm->w - g_cam.w, 0);
+	g_cam.y = fclampf(g_cam.y, g_gm->h - g_cam.h, 0);
 
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = g_game_map.w * width / g_cam.w;
+	si.nMax = g_gm->w * width / g_cam.w;
 	si.nPage = width + 1;
 	si.nPos = g_cam.x * width / g_cam.w;
 	SetScrollInfo(g_wnd, SB_HORZ, &si, TRUE);
@@ -128,7 +131,7 @@ static void update_scrollbars(int width, int height)
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
-	si.nMax = g_game_map.h * height / g_cam.h;
+	si.nMax = g_gm->h * height / g_cam.h;
 	si.nPage = height + 1;
 	si.nPos = g_cam.y * height / g_cam.h;
 	SetScrollInfo(g_wnd, SB_VERT, &si, TRUE);
@@ -186,16 +189,16 @@ static int write_map(const wchar_t *path)
 	}
 
 	/*write width and height of map*/
-	v[0] = g_game_map.w;
-	v[1] = g_game_map.h;
+	v[0] = g_gm->w;
+	v[1] = g_gm->h;
 	if (fwrite(v, sizeof(v), 1, f) < 1) {
 		goto err1;
 	}
 
-	row = g_game_map.rows;
-	n = g_game_map.h;
+	row = g_gm->rows;
+	n = g_gm->h;
 	while (n-- > 0) {
-		if (fwrite(*row, g_game_map.w, 1, f) < 1) {
+		if (fwrite(*row, g_gm->w, 1, f) < 1) {
 			goto err1;
 		}
 		row++;
@@ -229,7 +232,7 @@ static int read_map(const wchar_t *path)
 	int err;
 	FILE *f;
 	uint16_t v[2];
-	game_map game_map;
+	game_map *gm;
 	uint8_t **row;
 	int n;
 
@@ -247,20 +250,20 @@ static int read_map(const wchar_t *path)
 	if (v[0] > MAX_MAP_LEN || v[1] > MAX_MAP_LEN) {
 		goto err1;
 	}
-	init_game_map(&game_map);	
-	size_game_map(&game_map, v[0], v[1]);
+	gm = create_game_map();	
+	size_game_map(gm, v[0], v[1]);
 
-	row = game_map.rows;
-	n = game_map.h;
+	row = gm->rows;
+	n = gm->h;
 	while (n-- > 0) {
-		if (fread(*row, game_map.w, 1, f) < 1) {
-			reset_game_map(&game_map);
+		if (fread(*row, gm->w, 1, f) < 1) {
+			destroy_game_map(gm);
 			goto err1;
 		}
 		row++;
 	}
-	reset_game_map(&g_game_map);
-	g_game_map = game_map;
+	destroy_game_map(g_gm);
+	g_gm = gm;
 	
 	/*error handling and cleanup*/
 	err = 0;
@@ -381,9 +384,9 @@ static void resize_edit(edit *ed)
 
 	w = ed->resize.w;
 	h = ed->resize.h;
-	ed->resize.w = g_game_map.w; 
-	ed->resize.h = g_game_map.h; 
-	size_game_map(&g_game_map, w, h);
+	ed->resize.w = g_gm->w; 
+	ed->resize.h = g_gm->h; 
+	size_game_map(g_gm, w, h);
 	update_scrollbars(g_client_width, g_client_height);
 }
 
@@ -403,7 +406,7 @@ static void undo(void)
 		g_edit_next = (g_edit_next + 1ULL) % MAX_EDITS; 
 		break;
 	case EDIT_PLACE:
-		tp = &g_game_map.rows[ed->place.y][ed->place.x];
+		tp = &g_gm->rows[ed->place.y][ed->place.x];
 		tile = *tp;
 		*tp = ed->place.tile;
 		ed->place.tile = tile;
@@ -430,7 +433,7 @@ static void redo(void)
 		g_edit_next = (g_edit_next - 1ULL) % MAX_EDITS;
 		break;
 	case EDIT_PLACE:
-		tp = &g_game_map.rows[ed->place.y][ed->place.x];
+		tp = &g_gm->rows[ed->place.y][ed->place.x];
 		tile = *tp;
 		*tp = ed->place.tile;
 		ed->place.tile = tile;
@@ -510,10 +513,10 @@ static void attempt_resize(HWND wnd)
 
 		ed = push_edit();
 		ed->type = EDIT_RESIZE;
-		ed->resize.w = g_game_map.w;
-		ed->resize.h = g_game_map.h;
+		ed->resize.w = g_gm->w;
+		ed->resize.h = g_gm->h;
 
-		size_game_map(&g_game_map, width, height);
+		size_game_map(g_gm, width, height);
 		update_scrollbars(g_client_width, g_client_height);
 
 		EndDialog(wnd, 0);
@@ -537,8 +540,8 @@ static __stdcall INT_PTR dlg_proc(HWND wnd, UINT msg,
 		
 	switch (msg) {
 	case WM_INITDIALOG:
-		SetDlgItemInt(wnd, IDD_WIDTH, g_game_map.w, FALSE);
-		SetDlgItemInt(wnd, IDD_HEIGHT, g_game_map.h, FALSE);
+		SetDlgItemInt(wnd, IDD_WIDTH, g_gm->w, FALSE);
+		SetDlgItemInt(wnd, IDD_HEIGHT, g_gm->h, FALSE);
 		return TRUE;
 	case WM_COMMAND:
 		switch (wp) {
@@ -555,17 +558,41 @@ static __stdcall INT_PTR dlg_proc(HWND wnd, UINT msg,
 }
 
 /**
- * process_cmds() - Process menu commands
+ * start_game() - Start running game
  */
-static void process_cmds(int id)
+static void start_game(void)
+{
+	int i;
+
+	g_running = true;
+	for (i = 0; i < 4; i++) {
+		MENUITEMINFOW info;
+
+		memset(&info, 0, sizeof(info));	
+		info.cbSize = sizeof(info);
+		info.fMask = MIIM_STATE;
+		info.fState = MFS_GRAYED;
+		SetMenuItemInfoW(g_menu, i, MF_BYPOSITION, &info);
+	}
+	CheckMenuItem(g_menu, IDM_RUN, MF_CHECKED);
+	DrawMenuBar(g_wnd);
+
+	/*TODO: put start code here*/ 
+}
+
+/**
+ * process_editor_cmds() - Process editor menu commands
+ */
+static void process_editor_cmds(int id)
 {
 	switch (id) {
 	case IDM_NEW:
 		if (unsaved_warning()) {
 			g_map_path[0] = '\0';
 			reset_edits();
-			reset_game_map(&g_game_map);
-			size_game_map(&g_game_map, VIEW_TW, VIEW_TH);
+			destroy_game_map(g_gm);
+			g_gm = create_game_map();
+			size_game_map(g_gm, VIEW_TW, VIEW_TH);
 			g_cam.x = 0;
 			g_cam.y = 0;
 			update_scrollbars(g_client_width, g_client_height);
@@ -619,6 +646,9 @@ static void process_cmds(int id)
             	DialogBoxParamW(NULL, MAKEINTRESOURCEW(ID_RESIZE), 
 				g_wnd, dlg_proc, 0);
 		break;
+	case IDM_RUN:
+		start_game();
+		break;
 	default:
 		if (id & IDM_BLANK) {
 			update_place(id);
@@ -658,8 +688,8 @@ static void place_tile(int x, int y, int tile)
 	tx = g_cam.x + (float) x * g_cam.w / g_client_width;
 	ty = g_cam.y + (float) y * g_cam.h / g_client_height;
 
-	if (tx >= 0 && tx < g_game_map.w && ty >= 0 && ty < g_game_map.h) {
-		tp = &g_game_map.rows[ty][tx];
+	if (tx >= 0 && tx < g_gm->w && ty >= 0 && ty < g_gm->h) {
+		tp = &g_gm->rows[ty][tx];
 		if (*tp != tile) {
 			push_place_tile(tx, ty, *tp);
 			*tp = tile;
@@ -738,6 +768,97 @@ static void update_vert_scroll(WPARAM wp)
 }
 
 /**
+ * editor_proc() - Callback to process editor-exclsuive window messages 
+ * @wnd: Handle to window, should be equal to g_wnd
+ * @msg: Message to procces
+ * @wp: Unsigned system word sized param 
+ * @lp: Signed system word sized param 
+ *
+ * The meaning of wp and lp are message specific.
+ *
+ * Return: Result of message processing, usually zero if message was processed 
+ */
+static LRESULT editor_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	switch (msg) {
+	case WM_COMMAND:
+		process_editor_cmds(LOWORD(wp));
+		return 0;
+	case WM_HSCROLL:
+		update_horz_scroll(wp);
+		return 0;
+	case WM_VSCROLL:
+		update_vert_scroll(wp);
+		return 0;
+	case WM_LBUTTONDOWN:
+		button_down(wp, lp, g_place);
+		return 0;
+	case WM_RBUTTONDOWN:
+		button_down(wp, lp, 0);
+		return 0;
+	case WM_MOUSEMOVE:
+		mouse_move(wp, lp);
+		return 0;
+	}
+	return DefWindowProcW(wnd, msg, wp, lp);
+}
+		
+/**
+ * end_game() - Stop running game
+ */
+static void end_game(void)
+{
+	int i;
+
+	g_running = false;
+	for (i = 0; i < 4; i++) {
+		MENUITEMINFOW info;
+
+		memset(&info, 0, sizeof(info));	
+		info.cbSize = sizeof(info);
+		info.fMask = MIIM_STATE;
+		info.fState = MFS_ENABLED;
+		SetMenuItemInfoW(g_menu, i, MF_BYPOSITION, &info);
+	}
+	clear_entities();
+	CheckMenuItem(g_menu, IDM_RUN, MF_UNCHECKED);
+	DrawMenuBar(g_wnd);
+}
+
+/**
+ * process_game_cmds() - Process game menu commands
+ */
+static void process_game_cmds(int id)
+{
+	switch(id) {
+	case IDM_RUN:
+		end_game();
+		break;
+	}
+}
+
+/**
+ * game_proc() - Callback to process game-exclsuive window messages 
+ * @wnd: Handle to window, should be equal to g_wnd
+ * @msg: Message to procces
+ * @wp: Unsigned system word sized param 
+ * @lp: Signed system word sized param 
+ *
+ * The meaning of wp and lp are message specific.
+ *
+ * Return: Result of message processing, usually zero if message was processed 
+ */
+static LRESULT game_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	switch(msg) {
+	case WM_COMMAND:
+		process_game_cmds(LOWORD(wp));
+		return 0;
+	}
+	return DefWindowProcW(wnd, msg, wp, lp);
+}
+
+/**
  * wnd_proc() - Callback to process window messages
  * @wnd: Handle to window, should be equal to g_wnd
  * @msg: Message to procces
@@ -759,26 +880,8 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 	case WM_SIZE:
 		update_size(LOWORD(lp), HIWORD(lp));
 		return 0;
-	case WM_COMMAND:
-		process_cmds(LOWORD(wp));
-		return 0;
-	case WM_HSCROLL:
-		update_horz_scroll(wp);
-		return 0;
-	case WM_VSCROLL:
-		update_vert_scroll(wp);
-		return 0;
-	case WM_LBUTTONDOWN:
-		button_down(wp, lp, g_place);
-		return 0;
-	case WM_RBUTTONDOWN:
-		button_down(wp, lp, 0);
-		return 0;
-	case WM_MOUSEMOVE:
-		mouse_move(wp, lp);
-		return 0;
 	}
-	return DefWindowProcW(wnd, msg, wp, lp);
+	return (g_running ? game_proc : editor_proc)(wnd, msg, wp, lp);
 }
 
 /**
@@ -787,7 +890,6 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 static void create_main_window(void)
 {
 	WNDCLASS wc;
-	DWORD flags;
 	RECT rect;
 	int width;
 	int height;
@@ -806,12 +908,11 @@ static void create_main_window(void)
 		ExitProcess(1);
 	}
 
-	flags = WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL;
 	rect.left = 0;
 	rect.top = 0;
 	rect.right = VIEW_WIDTH;
 	rect.bottom = VIEW_HEIGHT;
-	AdjustWindowRect(&rect, flags, TRUE);
+	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, TRUE);
 
 	width = rect.right - rect.left;
 	height = rect.bottom - rect.top;
@@ -819,7 +920,8 @@ static void create_main_window(void)
 	width += GetSystemMetrics(SM_CXVSCROLL); 
 	height += GetSystemMetrics(SM_CXHSCROLL); 
 
-	g_wnd = CreateWindowExW(0, wc.lpszClassName, L"Engine", flags, 
+	g_wnd = CreateWindowExW(0, wc.lpszClassName, L"Engine", 
+			WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL, 
 			CW_USEDEFAULT, CW_USEDEFAULT, width, height, 
 			NULL, NULL, g_ins, NULL);
 	if (!g_wnd) {
@@ -833,21 +935,79 @@ static void create_main_window(void)
 }
 
 /**
- * msg_loop() - Main loop of program
+ * editor_loop() - Editor loop of program
  */
-static void msg_loop(void)
+static void editor_loop(void)
 {
 	MSG msg; 
-
-	ShowWindow(g_wnd, SW_SHOW);
-
-	while (GetMessageW(&msg, NULL, 0, 0)) {
+	if (g_cam.w < g_gm->w) {
+		EnableScrollBar(g_wnd, SB_HORZ, ESB_ENABLE_BOTH); 
+ 	} 
+	if (g_cam.h < g_gm->h) {
+		EnableScrollBar(g_wnd, SB_VERT, ESB_ENABLE_BOTH); 
+	}
+	while (!g_running && GetMessageW(&msg, NULL, 0, 0)) {
 		if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
 		    TranslateMessage(&msg);
 		    DispatchMessage(&msg);
 		}
 		
 		render();
+	}
+}
+
+/**
+ * query_perf_counter - Wrapper around QueryPerformanceConter
+ */
+static int64_t query_perf_counter(void)
+{
+	LARGE_INTEGER counter;
+	QueryPerformanceCounter(&counter);
+	return counter.QuadPart;
+}
+
+/**
+ * game_loop() - Game loop of program
+ */
+static void game_loop(void)
+{
+	MSG msg; 
+	int64_t begin;
+
+	EnableScrollBar(g_wnd, SB_BOTH, ESB_DISABLE_BOTH);
+	begin = query_perf_counter(); 
+	g_dt = 0.0F;
+	while (g_running) {
+		int64_t end; 
+		int64_t dpc;
+
+		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+			if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
+			    TranslateMessage(&msg);
+			    DispatchMessage(&msg);
+			}
+		}
+
+		update_entities();
+		render();
+
+		end = query_perf_counter(); 
+		dpc = end - begin;
+		g_dt = fminf(dpc / (float) g_perf_freq, 0.1F);
+		begin = end;
+
+	}
+}
+
+/**
+ * msg_loop() - Main loop of program
+ */
+static void msg_loop(void)
+{
+	ShowWindow(g_wnd, SW_SHOW);
+	while (1) {
+		editor_loop();
+		game_loop();
 	}
 }
 
@@ -894,12 +1054,13 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	UNREFERENCED_PARAMETER(show);
 	
 	g_ins = ins;
+	QueryPerformanceFrequency((LARGE_INTEGER *) &g_perf_freq);
 	set_default_directory();
 	create_main_window();
 	init_gl();
 	init_freetype();
-	init_game_map(&g_game_map);
-	size_game_map(&g_game_map, VIEW_TW, VIEW_TH);
+	g_gm = create_game_map();
+	size_game_map(g_gm, VIEW_TW, VIEW_TH);
 	msg_loop();
 	
 	return 0;

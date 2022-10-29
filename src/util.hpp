@@ -2,12 +2,18 @@
 #define UTIL_HPP
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #define endof(ary) (ary + _countof(ary))
 
 struct v2 {
 	float x;
 	float y;
+};
+
+struct v2i {
+	int16_t tx;
+	int16_t ty;
 };
 
 /**

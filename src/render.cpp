@@ -8,10 +8,9 @@
 #include <stb_image.h>
 #include <wglext.h>
 
-#include "menu.hpp"
+#include "entity.hpp"
 #include "render.hpp"
 #include "game_map.hpp"
-#include "util.hpp"
 
 #define TILE_STRIDE (TILE_LEN * 4) 
 #define TILE_SIZE (TILE_LEN * TILE_LEN)
@@ -23,6 +22,11 @@
 #define ATLAS_LEN (ATLAS_TILE_LEN * TILE_LEN) 
 #define ATLAS_STRIDE (ATLAS_TILE_LEN * TILE_STRIDE) 
 #define SIZEOF_ATLAS (ATLAS_STRIDE * ATLAS_LEN) 
+
+#define LAYER_GRID 0
+#define LAYER_ENTITY 1
+#define LAYER_FORE 2
+#define LAYER_BACK 3 
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
@@ -52,6 +56,7 @@ HMENU g_menu;
 
 v2 g_scroll;
 bool g_grid_on = true;
+bool g_running;
 
 rect g_cam = {0, 0, VIEW_TW, VIEW_TH}; 
 
@@ -686,29 +691,62 @@ static void render_tiles(sprite_buf *buf)
 	int max_y;
 	int ty;
 
-	max_x = min(g_cam.w + 1, g_game_map.w);
-	max_y = min(g_cam.h + 1, g_game_map.h);
+	max_x = min(g_cam.w + 1, g_gm->w);
+	max_y = min(g_cam.h + 1, g_gm->h);
 
 	for (ty = 0; ty < max_y; ty++) {
 		int tx;
 		for (tx = 0; tx < max_x; tx++) {
+			static const uint8_t cols[] = {
+				SPR_SKY,
+				SPR_SKY,
+				SPR_SKY,
+				SPR_SKY_HORIZON,
+				SPR_HORIZON_WATER,
+				SPR_WATER
+			};
+
+			int sprite;
 			int atx, aty;
 			int tile;
 			int stx, sty;
 
 			atx = g_cam.x + tx;
 			aty = g_cam.y + ty;
-			tile = g_game_map.rows[aty][atx];
+			tile = g_gm->rows[aty][atx];
 	
 			stx = tx - fmodf(g_cam.x, 1.0F);
 			sty = ty - fmodf(g_cam.y, 1.0F);
 			if (tile >= 2) { 
-				push_sprite(buf, stx, sty, 1, tile - 2);
-			}
-			if (g_grid_on) {
-				push_sprite(buf, stx, sty, 0, SPR_GRID);
+				push_sprite(buf, stx, sty, LAYER_FORE, tile - 2);
+			} 
+
+			sprite = cols[sty % _countof(cols)];
+			push_sprite(buf, stx, sty - 0.25F, LAYER_BACK, sprite);
+			if (!g_running && g_grid_on) {
+				push_sprite(buf, stx, sty, LAYER_GRID, 
+						SPR_GRID);
 			}
 		}
+	}
+}
+
+/**
+ * render_entites() - Renders entities 
+ * @buf: Sprite buf to push entities to
+ */
+static void render_entities(sprite_buf *buf)
+{
+	entity *e;
+
+	dl_for_each_entry(e, &g_entities, node) {
+		float tx, ty;
+		int sprite;
+
+		tx = e->pos.x - g_cam.x;
+		ty = e->pos.y - g_cam.y;
+		sprite = e->meta->sprite;
+		push_sprite(buf, tx, ty, LAYER_ENTITY, sprite);
 	}
 }
 
@@ -749,7 +787,7 @@ static void update_sprites(void)
 	}
 
 	render_tiles(buf);
-	/*TODO: Insert rendering code here*/
+	render_entities(buf);
 
 	end_sprites(buf);
 }

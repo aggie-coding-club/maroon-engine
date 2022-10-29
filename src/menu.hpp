@@ -26,6 +26,8 @@
 #define IDM_GRASS 0x4001
 #define IDM_GROUND 0x4002
 
+#define IDM_RUN 0x5000
+
 #define IDD_STATIC 0x1000
 #define IDD_WIDTH 0x1001
 #define IDD_HEIGHT 0x1002

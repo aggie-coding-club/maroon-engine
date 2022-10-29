@@ -18,19 +18,15 @@ struct game_map {
 	int h;
 };
 
-extern game_map g_game_map;
+extern game_map *g_gm;
 extern uint16_t g_tile_to_idm[COUNTOF_TILES];
 extern uint8_t g_idm_to_tile[];
 
 /**
- * init_game_map() - Initialize game map
- * @game_map: Tile map to initialize 
- *
- * NOTE: If no operations are done
- * to the game map, no memory is
- * needed to clean the game map 
+ * init_game_map() - Create game map
+ * Return value: new game map 
  */
-void init_game_map(game_map *game_map);
+game_map *create_game_map(void);
 
 /**
  * size_game_map() - Change size of game map
@@ -38,12 +34,12 @@ void init_game_map(game_map *game_map);
  * @w: New width
  * @h: New height
  */
-void size_game_map(game_map *game_map, int w, int h);
+void size_game_map(game_map *gm, int w, int h);
 
 /**
- * reset_game_map() - Resets game map to default state
- * @game_map: Tile map to reset
+ * destroy_game_map() - Resets game map to default state
+ * @game_map: Game map to destroy 
  */
-void reset_game_map(game_map *game_map);
+void destroy_game_map(game_map *gm);
 
 #endif
