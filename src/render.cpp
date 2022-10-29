@@ -26,7 +26,8 @@
 #define LAYER_GRID 0
 #define LAYER_ENTITY 1
 #define LAYER_FORE 2
-#define LAYER_BACK 3 
+#define LAYER_CLOUD 3
+#define LAYER_BACK 4 
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
@@ -67,7 +68,11 @@ static const char *const g_sprite_files[COUNTOF_SPR] = {
 	[SPR_WATER] = "water.png",
 	[SPR_HORIZON_WATER] = "horizon-water.png",
 	[SPR_SKY_HORIZON] = "sky-horizon.png",
-	[SPR_GRID] = "grid.png"
+	[SPR_BIG_CLOUD_0_9750] = "big-cloud-0-9.750.png",
+	[SPR_BIG_CLOUD_1_2875] = "big-cloud-1-2.875.png",
+	[SPR_BIG_CLOUD_1_3875] = "big-cloud-1-3.875.png",
+	[SPR_BIG_CLOUD_1_8750] = "big-cloud-1-8.750.png",
+	[SPR_GRID] = "grid.png",
 };
 
 static HDC g_hdc;
@@ -772,6 +777,14 @@ static void end_sprites(sprite_buf *buf)
 	free(buf);
 }
 
+static void render_clouds(sprite_buf *buf)
+{
+	push_sprite(buf, 9.750F, 0.0F, LAYER_CLOUD, SPR_BIG_CLOUD_0_9750);
+	push_sprite(buf, 2.875F, 1.0F, LAYER_CLOUD, SPR_BIG_CLOUD_1_2875);
+	push_sprite(buf, 3.875F, 1.0F, LAYER_CLOUD, SPR_BIG_CLOUD_1_3875);
+	push_sprite(buf, 8.750F, 1.0F, LAYER_CLOUD, SPR_BIG_CLOUD_1_8750);
+}
+
 /**
  * update_sprites() - Update sprites
  *
@@ -787,6 +800,7 @@ static void update_sprites(void)
 	}
 
 	render_tiles(buf);
+	render_clouds(buf);
 	render_entities(buf);
 
 	end_sprites(buf);

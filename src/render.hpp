@@ -18,8 +18,12 @@
 #define SPR_WATER 3
 #define SPR_HORIZON_WATER 4
 #define SPR_SKY_HORIZON 5
-#define SPR_GRID 6
-#define COUNTOF_SPR 7
+#define SPR_BIG_CLOUD_0_9750 6
+#define SPR_BIG_CLOUD_1_2875 7
+#define SPR_BIG_CLOUD_1_3875 8
+#define SPR_BIG_CLOUD_1_8750 9
+#define SPR_GRID 10 
+#define COUNTOF_SPR 11 
 
 /**
  * rect - Rectangle 
