@@ -830,6 +830,7 @@ static void end_game(void)
 	clear_entities();
 	CheckMenuItem(g_menu, IDM_RUN, MF_UNCHECKED);
 	DrawMenuBar(g_wnd);
+	g_player = NULL;
 }
 
 /**
@@ -842,27 +843,6 @@ static void process_game_cmds(int id)
 		end_game();
 		break;
 	}
-}
-
-/**
- * game_proc() - Callback to process game-exclsuive window messages 
- * @wnd: Handle to window, should be equal to g_wnd
- * @msg: Message to procces
- * @wp: Unsigned system word sized param 
- * @lp: Signed system word sized param 
- *
- * The meaning of wp and lp are message specific.
- *
- * Return: Result of message processing, usually zero if message was processed 
- */
-static LRESULT game_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
-{
-	switch(msg) {
-	case WM_COMMAND:
-		process_game_cmds(LOWORD(wp));
-		return 0;
-	}
-	return DefWindowProcW(wnd, msg, wp, lp);
 }
 
 /**
@@ -911,6 +891,34 @@ static void game_update_keys(WPARAM wp, LPARAM lp)
 }
 
 /**
+ * game_proc() - Callback to process game-exclsuive window messages 
+ * @wnd: Handle to window, should be equal to g_wnd
+ * @msg: Message to procces
+ * @wp: Unsigned system word sized param 
+ * @lp: Signed system word sized param 
+ *
+ * The meaning of wp and lp are message specific.
+ *
+ * Return: Result of message processing, usually zero if message was processed 
+ */
+static LRESULT game_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	switch(msg) {
+	case WM_KILLFOCUS:
+		memset(g_key_down, 0, sizeof(g_key_down));
+		return 0;
+	case WM_KEYDOWN:
+	case WM_KEYUP:
+		game_update_keys(wp, lp);
+		return 0;
+	case WM_COMMAND:
+		process_game_cmds(LOWORD(wp));
+		return 0;
+	}
+	return DefWindowProcW(wnd, msg, wp, lp);
+}
+
+/**
  * wnd_proc() - Callback to process window messages
  * @wnd: Handle to window, should be equal to g_wnd
  * @msg: Message to procces
@@ -931,12 +939,6 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		return 0;
 	case WM_SIZE:
 		update_size(LOWORD(lp), HIWORD(lp));
-		return 0;
-	case WM_SYSKEYDOWN:
-	case WM_SYSKEYUP:
-	case WM_KEYDOWN:
-	case WM_KEYUP:
-		game_update_keys(wp, lp);
 		return 0;
 	}
 	return (g_running ? game_proc : editor_proc)(wnd, msg, wp, lp);
