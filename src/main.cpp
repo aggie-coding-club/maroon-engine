@@ -21,6 +21,8 @@
 
 #define MAX_EDITS 256ULL
 
+#define KEY_IS_UP 0x80000000
+
 enum edit_type {
 	EDIT_NONE,
 	EDIT_PLACE,
@@ -864,6 +866,51 @@ static LRESULT game_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 }
 
 /**
+ * game_update_keys() - Update g_key_down 
+ * @wp: WPARAM from wnd_proc
+ * @lp: LPARAM from wnd_proc
+ */
+static void game_update_keys(WPARAM wp, LPARAM lp)
+{
+	int vk;
+	int key_input;
+	bool is_down;
+
+	vk = wp;
+	is_down = !(lp & KEY_IS_UP);
+	key_input = 0;
+	if ((vk >= '0' && vk <= '9') || (vk >= 'A' && vk <= 'Z')) {
+		if (vk >= '0' && vk <= '9'){
+			key_input = KEY_0 + (vk - '0');
+		} else {
+			key_input = KEY_A + (vk - 'A');
+		}
+
+		if (is_down) {
+			g_key_down[key_input]++;
+		} else {
+			g_key_down[key_input] = 0;
+		}
+	} else {
+		if (vk == VK_UP) {
+			key_input = KEY_up;
+		} else if (vk == VK_RIGHT) {
+			key_input = KEY_right;
+		} else if (vk == VK_DOWN) {
+			key_input = KEY_down;
+		} else if (vk == VK_LEFT) {
+			key_input = KEY_left;
+		}
+		
+		if (is_down) {
+			g_key_down[key_input]++;
+		} else {
+			g_key_down[key_input] = 0;
+		}
+	}
+}
+
+/**
  * wnd_proc() - Callback to process window messages
  * @wnd: Handle to window, should be equal to g_wnd
  * @msg: Message to procces
@@ -885,54 +932,12 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 	case WM_SIZE:
 		update_size(LOWORD(lp), HIWORD(lp));
 		return 0;
-		
 	case WM_SYSKEYDOWN:
 	case WM_SYSKEYUP:
 	case WM_KEYDOWN:
 	case WM_KEYUP:
-	{
-		unsigned int vkcode = (unsigned int)wp; 
-		int is_down = (lp & (1 << 31)) == 0;
-
-		unsigned int key_input = 0;
-
-		if((vkcode >= '0' && vkcode <= '9') || (vkcode >= 'A' && vkcode <= 'Z')){
-			if(vkcode >= '0' && vkcode <= '9'){
-				key_input = KEY_0 + (vkcode - '0');
-			}else{
-				key_input = KEY_A + (vkcode - 'A');
-			}
-		
-			if(is_down){
-				++g_key_down[key_input];
-			}else{
-				g_key_down[key_input] = 0;
-			}
-		}else{
-			if(vkcode == VK_UP){
-				key_input = KEY_up;
-			}
-			else if(vkcode == VK_RIGHT){
-				key_input = KEY_right;
-			}
-			else if(vkcode == VK_DOWN){
-				key_input = KEY_down;
-			}
-			else if(vkcode == VK_LEFT){
-				key_input = KEY_left;
-			}
-			
-			if(is_down){
-				++g_key_down[key_input];
-			}else{
-				g_key_down[key_input] = 0;
-			}
-		}
-
-		if(key_input){
-			return 0;
-		}
-	}
+		game_update_keys(wp, lp);
+		return 0;
 	}
 	return (g_running ? game_proc : editor_proc)(wnd, msg, wp, lp);
 }

@@ -11,14 +11,15 @@ struct v2 {
 	float y;
 };
 
-inline v2 operator*(v2 a, float b){
-	return {a.x * b, a.y * b};
-}
-
 struct v2i {
 	int16_t tx;
 	int16_t ty;
 };
+
+inline v2 operator*(v2 a, float b)
+{
+	return (v2) {a.x * b, a.y * b};
+}
 
 /**
  * fatal_crt_error() - Display message box with CRT error and exit 
@@ -60,63 +61,62 @@ void *xcalloc(size_t count, size_t size);
  */
 void *xrealloc(void *ptr, size_t size);
 
-enum
-{
-    #define _Key(name, string) KEY_##name,
-    _Key(null, "Invalid Key")
+enum {
+    #define DECLARE_KEY(name, string) KEY_##name,
+    DECLARE_KEY(null, "Invalid Key")
 
-    _Key(A, "a")
-    _Key(B, "b")
-    _Key(C, "c")
-    _Key(D, "d")
-    _Key(E, "e")
-    _Key(F, "f")
-    _Key(G, "g")
-    _Key(H, "h")
-    _Key(I, "i")
-    _Key(J, "j")
-    _Key(K, "k")
-    _Key(L, "l")
-    _Key(M, "m")
-    _Key(N, "n")
-    _Key(O, "o")
-    _Key(P, "p")
-    _Key(Q, "q")
-    _Key(R, "r")
-    _Key(S, "s")
-    _Key(T, "t")
-    _Key(U, "u")
-    _Key(V, "v")
-    _Key(W, "w")
-    _Key(X, "x")
-    _Key(Y, "y")
-    _Key(Z, "z")
+    DECLARE_KEY(A, "a")
+    DECLARE_KEY(B, "b")
+    DECLARE_KEY(C, "c")
+    DECLARE_KEY(D, "d")
+    DECLARE_KEY(E, "e")
+    DECLARE_KEY(F, "f")
+    DECLARE_KEY(G, "g")
+    DECLARE_KEY(H, "h")
+    DECLARE_KEY(I, "i")
+    DECLARE_KEY(J, "j")
+    DECLARE_KEY(K, "k")
+    DECLARE_KEY(L, "l")
+    DECLARE_KEY(M, "m")
+    DECLARE_KEY(N, "n")
+    DECLARE_KEY(O, "o")
+    DECLARE_KEY(P, "p")
+    DECLARE_KEY(Q, "q")
+    DECLARE_KEY(R, "r")
+    DECLARE_KEY(S, "s")
+    DECLARE_KEY(T, "t")
+    DECLARE_KEY(U, "u")
+    DECLARE_KEY(V, "v")
+    DECLARE_KEY(W, "w")
+    DECLARE_KEY(X, "x")
+    DECLARE_KEY(Y, "y")
+    DECLARE_KEY(Z, "z")
 
-    _Key(0, "0")
-    _Key(1, "1")
-    _Key(2, "2")
-    _Key(3, "3")
-    _Key(4, "4")
-    _Key(5, "5")
-    _Key(6, "6")
-    _Key(7, "7")
-    _Key(8, "8")
-    _Key(9, "9")
+    DECLARE_KEY(0, "0")
+    DECLARE_KEY(1, "1")
+    DECLARE_KEY(2, "2")
+    DECLARE_KEY(3, "3")
+    DECLARE_KEY(4, "4")
+    DECLARE_KEY(5, "5")
+    DECLARE_KEY(6, "6")
+    DECLARE_KEY(7, "7")
+    DECLARE_KEY(8, "8")
+    DECLARE_KEY(9, "9")
 
-    _Key(up, "Arrow Up")
-    _Key(right, "Arrow Down")
-    _Key(down, "Arrow Left")
-    _Key(left, "Arrow Right")
+    DECLARE_KEY(up, "Arrow Up")
+    DECLARE_KEY(right, "Arrow Down")
+    DECLARE_KEY(down, "Arrow Left")
+    DECLARE_KEY(left, "Arrow Right")
 
-    _Key(space, "backspace")
-    _Key(enter, "enter")
-    _Key(escape, "escape")
-    _Key(backspace, "backspace")
-    _Key(period, "period")
+    DECLARE_KEY(space, "backspace")
+    DECLARE_KEY(enter, "enter")
+    DECLARE_KEY(escape, "escape")
+    DECLARE_KEY(backspace, "backspace")
+    DECLARE_KEY(period, "period")
 
-    _Key(shift, "shift")
+    DECLARE_KEY(shift, "shift")
     
-    #undef _Key
+    #undef DECLARE_KEY
     KEY_MAX
 };
 
