@@ -11,6 +11,10 @@ struct v2 {
 	float y;
 };
 
+inline v2 operator*(v2 a, float b){
+	return {a.x * b, a.y * b};
+}
+
 struct v2i {
 	int16_t tx;
 	int16_t ty;
@@ -55,6 +59,66 @@ void *xcalloc(size_t count, size_t size);
  * Pass to "free" to deallocate.
  */
 void *xrealloc(void *ptr, size_t size);
+
+enum
+{
+    #define _Key(name, string) KEY_##name,
+    _Key(null, "Invalid Key")
+
+    _Key(A, "a")
+    _Key(B, "b")
+    _Key(C, "c")
+    _Key(D, "d")
+    _Key(E, "e")
+    _Key(F, "f")
+    _Key(G, "g")
+    _Key(H, "h")
+    _Key(I, "i")
+    _Key(J, "j")
+    _Key(K, "k")
+    _Key(L, "l")
+    _Key(M, "m")
+    _Key(N, "n")
+    _Key(O, "o")
+    _Key(P, "p")
+    _Key(Q, "q")
+    _Key(R, "r")
+    _Key(S, "s")
+    _Key(T, "t")
+    _Key(U, "u")
+    _Key(V, "v")
+    _Key(W, "w")
+    _Key(X, "x")
+    _Key(Y, "y")
+    _Key(Z, "z")
+
+    _Key(0, "0")
+    _Key(1, "1")
+    _Key(2, "2")
+    _Key(3, "3")
+    _Key(4, "4")
+    _Key(5, "5")
+    _Key(6, "6")
+    _Key(7, "7")
+    _Key(8, "8")
+    _Key(9, "9")
+
+    _Key(up, "Arrow Up")
+    _Key(right, "Arrow Down")
+    _Key(down, "Arrow Left")
+    _Key(left, "Arrow Right")
+
+    _Key(space, "backspace")
+    _Key(enter, "enter")
+    _Key(escape, "escape")
+    _Key(backspace, "backspace")
+    _Key(period, "period")
+
+    _Key(shift, "shift")
+    
+    #undef _Key
+    KEY_MAX
+};
 
 #endif
 

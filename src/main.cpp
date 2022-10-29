@@ -45,6 +45,9 @@ struct edit {
 		edit_resize resize;
 	};
 };
+static entity *g_player;
+
+static int g_key_down[KEY_MAX];
 
 static HINSTANCE g_ins;
 static HACCEL g_acc; 
@@ -578,6 +581,8 @@ static void start_game(void)
 	DrawMenuBar(g_wnd);
 
 	/*TODO: put start code here*/ 
+	g_player = create_entity(3, 3);
+	g_player->meta->sprite = 1;
 }
 
 /**
@@ -880,6 +885,54 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 	case WM_SIZE:
 		update_size(LOWORD(lp), HIWORD(lp));
 		return 0;
+		
+	case WM_SYSKEYDOWN:
+	case WM_SYSKEYUP:
+	case WM_KEYDOWN:
+	case WM_KEYUP:
+	{
+		unsigned int vkcode = (unsigned int)wp; 
+		int is_down = (lp & (1 << 31)) == 0;
+
+		unsigned int key_input = 0;
+
+		if((vkcode >= '0' && vkcode <= '9') || (vkcode >= 'A' && vkcode <= 'Z')){
+			if(vkcode >= '0' && vkcode <= '9'){
+				key_input = KEY_0 + (vkcode - '0');
+			}else{
+				key_input = KEY_A + (vkcode - 'A');
+			}
+		
+			if(is_down){
+				++g_key_down[key_input];
+			}else{
+				g_key_down[key_input] = 0;
+			}
+		}else{
+			if(vkcode == VK_UP){
+				key_input = KEY_up;
+			}
+			else if(vkcode == VK_RIGHT){
+				key_input = KEY_right;
+			}
+			else if(vkcode == VK_DOWN){
+				key_input = KEY_down;
+			}
+			else if(vkcode == VK_LEFT){
+				key_input = KEY_left;
+			}
+			
+			if(is_down){
+				++g_key_down[key_input];
+			}else{
+				g_key_down[key_input] = 0;
+			}
+		}
+
+		if(key_input){
+			return 0;
+		}
+	}
 	}
 	return (g_running ? game_proc : editor_proc)(wnd, msg, wp, lp);
 }
@@ -977,6 +1030,8 @@ static void game_loop(void)
 	EnableScrollBar(g_wnd, SB_BOTH, ESB_DISABLE_BOTH);
 	begin = query_perf_counter(); 
 	g_dt = 0.0F;
+	
+	float gravity = 2.0f;
 	while (g_running) {
 		int64_t end; 
 		int64_t dpc;
@@ -987,6 +1042,21 @@ static void game_loop(void)
 			    DispatchMessage(&msg);
 			}
 		}
+		
+		// simple left and right player movement
+		v2 player_vel;
+		float player_speed = 4;
+		player_vel = {0, 0};
+
+		if(g_key_down[KEY_D] || g_key_down[KEY_A]){
+			player_vel.x = 1.0f;
+		}
+		
+		if(g_key_down[KEY_A] || g_key_down[KEY_A]){
+			player_vel.x = -1.0f;
+		}
+		g_player->vel = player_vel * player_speed;
+		g_player->vel.y += gravity;
 
 		update_entities();
 		render();
@@ -995,7 +1065,6 @@ static void game_loop(void)
 		dpc = end - begin;
 		g_dt = fminf(dpc / (float) g_perf_freq, 0.1F);
 		begin = end;
-
 	}
 }
 
