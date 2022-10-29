@@ -31,7 +31,7 @@ struct entity {
 	v2 vel;
 };
 
-/**
+/** 
  * g_dt - Frame delta in seconds
  * g_entites - Linked list of entities
  * g_entity_metas - Metadata of all entity
