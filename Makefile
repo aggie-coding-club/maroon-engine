@@ -3,8 +3,7 @@ CXX = g++
 
 CXXFLAGS = -DUNICODE -Wall -g 
 CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl -Ilib/freetype/include
-CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
-
+CXXFLAGS += -MT $@ -MMD -MP -MF $(@:.o=.d)
 DEPOBJS = lib/glad/src/glad.o lib/freetype_build/libfreetype.a
 DEPOBJS += lib/stb/stb_image.o lib/stb/stb_image_write.o
 
@@ -15,12 +14,11 @@ LDFLAGS += -lopengl32 -lole32 -mwindows -mconsole
 LDFLAGS += $(DEPOBJS)
 
 SRC = $(wildcard src/*.cpp)
-HEADER = $(wildcard src/*.hpp)
 
 OBJ = $(patsubst src/%.cpp,obj/%.o,$(SRC))
 DEP = $(patsubst src/%.cpp,obj/%.d,$(SRC))
 
-all: dirs obj/menu.o engine
+all: dir obj/menu.o engine
 
 lib/freetype_build/libfreetype.a:
 	mkdir -p lib\freetype_build
@@ -40,29 +38,22 @@ lib/glad/src/glad.o:
 	cd lib/glad && \
 	$(CC) -o src/glad.o -Iinclude -c src/glad.c
 
-dirs:
+dir:
 	mkdir -p ./bin 
 	mkdir -p ./obj 
 
 obj/menu.o: src/menu.hpp src/menu.rc
 	windres src/menu.rc -o obj/menu.o
 
-include $(wildcard $DEP)
+-include $(DEP)
 
-%.o: src/%.cpp %.d
+obj/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
-obj/%.o: src/%.o
-	mv $< $@
-
-obj/%.d: src/%.d
-	mv $< $@
-
-engine: $(OBJ) $(DEP) obj/menu.o $(DEPOBJS)
-	$(CXX) -o bin/engine.exe $(OBJ) obj/menu.o $(LDFLAGS)
+engine: $(OBJ) obj/menu.o $(DEPOBJS)
+	$(CXX) $(OBJ) obj/menu.o $(LDFLAGS) -o bin/engine.exe
 
 clean:
-	rm $(OBJ) $(DEP) $(DEPOBJS) obj/menu.o -f
-	rm -f -r bin
-	rm -f -r obj 
-	rm -f -r lib/freetype_build 
+	rm bin -rf
+	rm obj -rf 
+	rm lib/freetype_build -rf 
