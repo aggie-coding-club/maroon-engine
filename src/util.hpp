@@ -30,7 +30,7 @@ inline v2 operator*(v2 a, float b)
  *
  * Return: Return minimum of two integers 
  */
-static int min(int a, int b)
+inline int min(int a, int b)
 {
 	return a < b ? a : b;
 }

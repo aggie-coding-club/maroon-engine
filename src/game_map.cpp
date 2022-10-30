@@ -19,11 +19,6 @@ uint8_t g_idm_to_tile[] = {
 	[IDM_GROUND - IDM_BLANK] = TILE_GROUND
 };
 
-static int min(int a, int b)
-{
-	return a < b ? a : b;
-}
-
 game_map *create_game_map(void)
 {
 	game_map *gm;
