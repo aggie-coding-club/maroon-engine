@@ -20,8 +20,24 @@
 #define SPR_SKY_HORIZON 5
 #define SPR_BIG_CLOUDS 6
 #define SPR_GRID 7
-#define SPR_CRABBY_RUN_1 8
-#define COUNTOF_SPR 9 
+
+#define SPR_CRABBY_IDLE_1 8
+#define SPR_CRABBY_IDLE_2 9
+#define SPR_CRABBY_IDLE_3 10
+#define SPR_CRABBY_IDLE_4 11
+#define SPR_CRABBY_IDLE_5 12
+#define SPR_CRABBY_IDLE_6 13
+#define SPR_CRABBY_IDLE_7 14
+#define SPR_CRABBY_IDLE_8 15
+#define SPR_CRABBY_IDLE_9 16
+
+#define SPR_CRABBY_RUN_1 17
+#define SPR_CRABBY_RUN_2 18
+#define SPR_CRABBY_RUN_3 19
+#define SPR_CRABBY_RUN_4 20
+#define SPR_CRABBY_RUN_5 21
+#define SPR_CRABBY_RUN_6 22
+#define COUNTOF_SPR 23
 
 /**
  * rect - Rectangle 
