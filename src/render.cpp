@@ -778,8 +778,8 @@ static void push_sprite(square_buf *buf, float x, float y, int layer, int id)
 	v2i *pt;
 	int i;
 
-	px0 = x * 32;
-	py0 = y * 32;
+	px0 = x * TILE_LEN;
+	py0 = y * TILE_LEN;
 
 	spr = g_sprites[id];
 	if (!spr) {
@@ -921,7 +921,16 @@ static void update_sprites(void)
 	}
 
 	render_tiles(buf);
-	push_sprite(buf, 0, 0, LAYER_CLOUD, SPR_BIG_CLOUDS);
+	if (g_running) {
+		static float w;
+
+		push_sprite(buf, w, 0, LAYER_CLOUD, SPR_BIG_CLOUDS);
+		push_sprite(buf, w + 14.0F, 0, LAYER_CLOUD, SPR_BIG_CLOUDS);
+		w -= 1.0F * g_dt;
+		if (w < -14.0F) {
+			w += 14.0F;
+		}
+	}
 	render_entities(buf);
 
 	end_sprites(buf);

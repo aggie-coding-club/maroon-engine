@@ -1044,13 +1044,6 @@ static void game_loop(void)
 		int64_t end; 
 		int64_t dpc;
 
-		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
-			if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
-			    TranslateMessage(&msg);
-			    DispatchMessage(&msg);
-			}
-		}
-		
 		/*simple left and right player movement*/
 		v2 player_vel;
 		float player_speed = 4;
@@ -1069,6 +1062,14 @@ static void game_loop(void)
 		update_entities();
 		render();
 
+		/*needed to make sure dead entities accessed*/
+		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+			if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
+			    TranslateMessage(&msg);
+			    DispatchMessage(&msg);
+			}
+		}
+		
 		end = query_perf_counter(); 
 		dpc = end - begin;
 		g_dt = fminf(dpc / (float) g_perf_freq, 0.1F);
