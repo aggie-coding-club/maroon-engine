@@ -20,7 +20,8 @@
 #define SPR_SKY_HORIZON 5
 #define SPR_BIG_CLOUDS 6
 #define SPR_GRID 7
-#define COUNTOF_SPR 8 
+#define SPR_CRABBY_RUN_1 8
+#define COUNTOF_SPR 9 
 
 /**
  * rect - Rectangle 

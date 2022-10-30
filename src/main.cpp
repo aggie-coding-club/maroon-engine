@@ -48,12 +48,10 @@ struct edit {
 	};
 };
 
-static entity *g_player;
-
-static int g_key_down[KEY_MAX];
-
 static HINSTANCE g_ins;
 static HACCEL g_acc; 
+
+int g_key_down[KEY_MAX];
 
 static FT_Library g_freetype_library;
 
@@ -583,9 +581,8 @@ static void start_game(void)
 	CheckMenuItem(g_menu, IDM_RUN, MF_CHECKED);
 	DrawMenuBar(g_wnd);
 
-	/*TODO: put start code here*/ 
-	g_player = create_entity(3, 3);
-	g_player->meta->sprite = 1;
+	/*TODO: put start code here*/
+	start_entities();
 }
 
 /**
@@ -831,7 +828,7 @@ static void end_game(void)
 	clear_entities();
 	CheckMenuItem(g_menu, IDM_RUN, MF_UNCHECKED);
 	DrawMenuBar(g_wnd);
-	g_player = NULL;
+	end_entities();
 }
 
 /**
@@ -1039,26 +1036,11 @@ static void game_loop(void)
 	begin = query_perf_counter(); 
 	g_dt = 0.0F;
 	
-	float gravity = 2.0f;
 	while (g_running) {
 		int64_t end; 
 		int64_t dpc;
 
-		/*simple left and right player movement*/
-		v2 player_vel;
-		float player_speed = 4;
-		player_vel = {0, 0};
-
-		if(g_key_down[KEY_D] || g_key_down[KEY_A]){
-			player_vel.x = 1.0f;
-		}
 		
-		if(g_key_down[KEY_A] || g_key_down[KEY_A]){
-			player_vel.x = -1.0f;
-		}
-		g_player->vel = player_vel * player_speed;
-		g_player->vel.y += gravity;
-
 		update_entities();
 		render();
 

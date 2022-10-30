@@ -83,6 +83,7 @@ static const char *const g_sprite_files[COUNTOF_SPR] = {
 	[SPR_SKY_HORIZON] = "sky-horizon.png",
 	[SPR_BIG_CLOUDS] = "big-clouds.png",
 	[SPR_GRID] = "grid.png",
+	[SPR_CRABBY_RUN_1] = "crabby-run-3.png"
 };
 
 static sprite *g_sprites[COUNTOF_SPR];

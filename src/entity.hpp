@@ -29,16 +29,20 @@ struct entity {
 	entity_meta *meta;
 	v2 pos;
 	v2 vel;
+	bool is_ground;
 };
 
 /** 
  * g_dt - Frame delta in seconds
  * g_entites - Linked list of entities
  * g_entity_metas - Metadata of all entity
+ * g_key_down - states for key down presses
  */
 extern float g_dt;
 extern dl_head g_entities;
 extern entity_meta g_entity_metas[COUNTOF_EM];
+extern int g_key_down[KEY_MAX];
+
 
 /**
  * create_entity() - Creates an entity
@@ -50,9 +54,21 @@ extern entity_meta g_entity_metas[COUNTOF_EM];
 entity *create_entity(int tx, int ty);
 
 /**
+ * start_entities() - setup for entity related data
+ * this is a temporary function that will be deleted once we are able
+ * to create entities throught the editor.
+*/
+void start_entities(void);
+
+/**
  * update_entities - Updates entities 
  */
 void update_entities(void);
+
+/**
+ * end_entities - clean up for any data initialized in start_entities
+*/
+void end_entities(void);
 
 /**
  * destroy_entity() - Destroys an entity
