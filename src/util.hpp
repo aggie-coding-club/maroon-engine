@@ -12,13 +12,27 @@ struct v2 {
 };
 
 struct v2i {
-	int16_t tx;
-	int16_t ty;
+	int16_t x;
+	int16_t y;
 };
 
 inline v2 operator*(v2 a, float b)
 {
 	return (v2) {a.x * b, a.y * b};
+}
+
+/**
+ * min() - Minimum of two integers 
+ * @a: Left value
+ * @b: Right value 
+ * 
+ * NOTE: Use fmin and fminf for doubles/floats respectivly 
+ *
+ * Return: Return minimum of two integers 
+ */
+static int min(int a, int b)
+{
+	return a < b ? a : b;
 }
 
 /**
@@ -103,18 +117,18 @@ enum {
     DECLARE_KEY(8, "8")
     DECLARE_KEY(9, "9")
 
-    DECLARE_KEY(up, "Arrow Up")
-    DECLARE_KEY(right, "Arrow Down")
-    DECLARE_KEY(down, "Arrow Left")
-    DECLARE_KEY(left, "Arrow Right")
+    DECLARE_KEY(UP, "Arrow Up")
+    DECLARE_KEY(RIGHT, "Arrow Down")
+    DECLARE_KEY(DOWN, "Arrow Left")
+    DECLARE_KEY(LEFT, "Arrow Right")
 
-    DECLARE_KEY(space, "backspace")
-    DECLARE_KEY(enter, "enter")
-    DECLARE_KEY(escape, "escape")
-    DECLARE_KEY(backspace, "backspace")
-    DECLARE_KEY(period, "period")
+    DECLARE_KEY(SPACE, "backspace")
+    DECLARE_KEY(ENTER, "enter")
+    DECLARE_KEY(ESCAPE, "escape")
+    DECLARE_KEY(BACKSPACE, "backspace")
+    DECLARE_KEY(PERIOD, "period")
 
-    DECLARE_KEY(shift, "shift")
+    DECLARE_KEY(SHIFT , "shift")
     
     #undef DECLARE_KEY
     KEY_MAX

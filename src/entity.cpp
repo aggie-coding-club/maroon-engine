@@ -15,8 +15,8 @@ entity *create_entity(int tx, int ty)
 
 	dl_push_back(&g_entities, &e->node);
 	e->meta = &g_entity_metas[EM_PLAYER];
-	e->spawn.tx = tx;
-	e->spawn.ty = ty;
+	e->spawn.x = tx;
+	e->spawn.y = ty;
 	e->vel.y = 0.0F;
 	e->pos.x = tx;
 	e->pos.y = ty;

@@ -47,6 +47,7 @@ struct edit {
 		edit_resize resize;
 	};
 };
+
 static entity *g_player;
 
 static int g_key_down[KEY_MAX];
@@ -873,13 +874,13 @@ static void game_update_keys(WPARAM wp, LPARAM lp)
 		}
 	} else {
 		if (vk == VK_UP) {
-			key_input = KEY_up;
+			key_input = KEY_UP;
 		} else if (vk == VK_RIGHT) {
-			key_input = KEY_right;
+			key_input = KEY_RIGHT;
 		} else if (vk == VK_DOWN) {
-			key_input = KEY_down;
+			key_input = KEY_DOWN;
 		} else if (vk == VK_LEFT) {
-			key_input = KEY_left;
+			key_input = KEY_LEFT;
 		}
 		
 		if (is_down) {
@@ -1050,7 +1051,7 @@ static void game_loop(void)
 			}
 		}
 		
-		// simple left and right player movement
+		/*simple left and right player movement*/
 		v2 player_vel;
 		float player_speed = 4;
 		player_vel = {0, 0};

@@ -6,6 +6,7 @@
 
 #include <glad/glad.h>
 #include <stb_image.h>
+#include <stb_image_write.h>
 #include <wglext.h>
 
 #include "entity.hpp"
@@ -31,25 +32,37 @@
 
 #define WGL_LOAD(func) func = (typeof(func)) wgl_load(#func)
 
-#define MAX_SPRITES 1024 
+#define MAX_SQUARES 1024 
 
 /**
- * sprite - Render sprite 
+ * square - Render square 
  * @x: x-pos in camera pixels relative to left
  * @y: y-pos in camera pixels relative to top
- * @layer: layer of sprite 
- * @id: the id of the sprite from 0 to 255 
+ * @layer: layer of square 
+ * @id: the id of the square from 0 to 255 
  */
-struct sprite {
+struct square {
 	int16_t x; 
 	int16_t y; 
 	uint8_t layer;
 	uint8_t id;
 };
 
-struct sprite_buf {
+/**
+ * sprite - Set of squares corresponding to a single image
+ * @base: Base square id
+ * @count: Count of unique positions
+ * @pts: Position of each square
+ */
+struct sprite {
+	uint8_t base;
+	uint8_t count;
+	v2i pts[];
+};
+
+struct square_buf {
 	int count;
-	sprite sprites[MAX_SPRITES];
+	square squares[MAX_SQUARES];
 };
 
 HWND g_wnd;
@@ -68,34 +81,11 @@ static const char *const g_sprite_files[COUNTOF_SPR] = {
 	[SPR_WATER] = "water.png",
 	[SPR_HORIZON_WATER] = "horizon-water.png",
 	[SPR_SKY_HORIZON] = "sky-horizon.png",
-	[SPR_BIG_CLOUD_0_314] = "big-cloud-0-314.png",
-	[SPR_BIG_CLOUD_1_327] = "big-cloud-1-327.png",
-	[SPR_BIG_CLOUD_1_95] = "big-cloud-1-95.png",
-	[SPR_BIG_CLOUD_2_160] = "big-cloud-2-160.png",
-	[SPR_BIG_CLOUD_2_279] = "big-cloud-2-279.png",
-	[SPR_BIG_CLOUD_2_375] = "big-cloud-2-375.png",
-	[SPR_BIG_CLOUD_2_64] = "big-cloud-2-64.png",
-	[SPR_BIG_CLOUD_3_160] = "big-cloud-3-160.png",
-	[SPR_BIG_CLOUD_3_384] = "big-cloud-3-384.png",
-	[SPR_BIG_CLOUD_1_263] = "big-cloud-1-263.png",
-	[SPR_BIG_CLOUD_1_359] = "big-cloud-1-359.png",
-	[SPR_BIG_CLOUD_2_0] = "big-cloud-2-0.png",
-	[SPR_BIG_CLOUD_2_215] = "big-cloud-2-215.png",
-	[SPR_BIG_CLOUD_2_32] = "big-cloud-2-32.png",
-	[SPR_BIG_CLOUD_2_407] = "big-cloud-2-407.png",
-	[SPR_BIG_CLOUD_2_96] = "big-cloud-2-96.png",
-	[SPR_BIG_CLOUD_3_192] = "big-cloud-3-192.png",
-	[SPR_BIG_CLOUD_3_416] = "big-cloud-3-416.png",
-	[SPR_BIG_CLOUD_1_295] = "big-cloud-1-295.png",
-	[SPR_BIG_CLOUD_1_63] = "big-cloud-1-63.png",
-	[SPR_BIG_CLOUD_2_128] = "big-cloud-2-128.png",
-	[SPR_BIG_CLOUD_2_247] = "big-cloud-2-247.png",
-	[SPR_BIG_CLOUD_2_343] = "big-cloud-2-343.png",
-	[SPR_BIG_CLOUD_2_439] = "big-cloud-2-439.png",
-	[SPR_BIG_CLOUD_3_128] = "big-cloud-3-128.png",
-	[SPR_BIG_CLOUD_3_224] = "big-cloud-3-224.png", 
+	[SPR_BIG_CLOUDS] = "big-clouds.png",
 	[SPR_GRID] = "grid.png",
 };
+
+static sprite *g_sprites[COUNTOF_SPR];
 
 static HDC g_hdc;
 static HGLRC g_glrc;
@@ -424,9 +414,145 @@ static void add_menu_bitmap(const uint8_t *src, int id)
 }
 
 /**
- * load_atlas() - Load images into atlas.
+ * load_square() - Load rectangle
+ * @dst: pointer to topleft of destination pixels 
+ * @src: pointer to topleft of entire source (not offest by x and y)
+ * @x: x-pos of src
+ * @y: y-pos of src
+ * @w: width of src
+ * @h: height of src
+ */
+static void load_square(uint8_t *dst, const uint8_t *src, int x, int y, int w, int h)
+{
+	int nx0, ny0;
+	int xzero, yzero;
+	int dskip, sskip;
+
+	uint8_t *dp;
+	const uint8_t *sp;
+	int ny;
+
+	/*don't grab more than present*/
+	nx0 = min(w - x, TILE_LEN);
+	ny0 = min(h - y, TILE_LEN);
+
+	/*zero out of bounds*/
+	xzero = TILE_STRIDE - nx0 * 4;
+	yzero = TILE_STRIDE - ny0 * 4; 
+
+	/*skip needed to get to next row*/
+	dskip = ATLAS_STRIDE - nx0 * 4; 
+	sskip = (w - nx0) * 4;
+
+	/*copying begins, along with clear out of bounds columns*/
+	dp = dst;
+	sp = src;
+	ny = ny0;
+	while (ny-- > 0) {
+		int nx;
+
+		nx = nx0;
+		while (nx-- > 0) {
+			memcpy(dp, sp, 4);
+			dp += 4;
+			sp += 4;
+		}
+		memset(dp, 0, xzero);
+		dp += dskip;
+		sp += sskip; 
+	}
+
+	/*zero out out of bound rows*/
+	ny = yzero; 
+	while (ny-- > 0) {
+		memset(dp, 0, TILE_STRIDE);
+		dp += ATLAS_STRIDE;
+	}
+}
+
+/**
+ * load_sprite() - Load sprite
+ * @dst: Destination to write sqaure
+ * @src: Source of squares
+ * @w: Width of source
+ * @h: Height of soruce
+ * @pspr: Pointer to sprite slot
+ * @square: Next square to be used
  *
- * Combines a bunch of individual images listed
+ * Return: Zero on succcess, negative on failure
+ */
+static int load_sprite(uint8_t **dst, const uint8_t *src, int w, int h, 
+		sprite **pspr, int *square)
+{
+	int max;
+	sprite *spr;
+
+	const uint8_t *sp;
+	int y;
+
+	/*sprite preparation*/
+	max = (w / TILE_LEN) * (h / TILE_LEN);
+	spr = (sprite *) malloc(sizeof(*spr) + max * sizeof(*spr->pts));
+	if (!spr) {
+		return -1;
+	}
+	spr->base = *square;
+	spr->count = 0;
+	*pspr = spr;
+
+	/*find the active squares*/
+	sp = src;
+	for (y = 0; y < h; y += TILE_LEN) {
+		int x;
+		const uint8_t *c;
+
+		/*search for opaque column*/
+		c = sp;
+		for (x = 0; x < w; x++) {
+			const uint8_t *r;
+			int ny;
+
+			r = c;
+			ny = TILE_LEN;
+			while (ny-- > 0) {
+				/*check to see if pixel is opaque*/
+				if (r[3] == 0xFF) {
+					v2i *pos;
+
+					load_square(*dst, c, x, y, w, h);
+
+					pos = spr->pts + spr->count++; 
+					pos->x = x;
+					pos->y = y;
+					x += TILE_LEN - 1;
+					c += TILE_STRIDE - 4; 
+					(*square)++;
+					if (*square % 16 == 0) {
+						*dst += ATLAS_STRIDE * (TILE_LEN - 1);
+					}
+					*dst += TILE_STRIDE;
+					break;
+				}
+				r += w * 4;
+			}
+			c += 4;
+		}
+		sp += 4 * TILE_LEN * w;
+	}
+	/*shrink to fit*/
+	spr = (sprite *) realloc(spr, sizeof(*spr) + 
+			spr->count * sizeof(*spr->pts));
+	if (spr) {
+		*pspr = spr;
+	}
+
+	return 0;
+}
+
+/**
+ * load_atlas() - Load sprites into atlas.
+ *
+ * Combines a bunch of individual sprites listed
  * in g_sprite_files into a single atlas,
  * start from the top left and going right
  * than down. 
@@ -439,7 +565,9 @@ static void load_atlas(void)
 	uint8_t *dst;
 	uint8_t *dp;
 
-	int i;
+	int spr_i;
+	int sqr_i;
+	sprite **spr;
 
 	dst = (uint8_t *) malloc(SIZEOF_ATLAS);
 	if (!dst) {
@@ -447,7 +575,9 @@ static void load_atlas(void)
 	}
 	
 	dp = dst;
-	i = 0;
+	spr = g_sprites;
+	spr_i = 0;
+	sqr_i = 0;
 
 	file = g_sprite_files; 
 	n = COUNTOF_SPR; 
@@ -458,15 +588,6 @@ static void load_atlas(void)
 		int width;
 		int height;
 
-		uint8_t *sp;
-		int row_n;
-
-		/*sprites exceed what can fit in the atlas*/
-		if (i >= 256) {
-			fprintf(stderr, "too many sprites\n"); 
-			break;
-		}
-
 		sprintf(path, "res/sprites/%s", *file); 
 		src = stbi_load(path, &width, &height, NULL, 4);
 		if (!src) {
@@ -474,46 +595,20 @@ static void load_atlas(void)
 			break;
 		}
 
-		/*sprites are expected to be tile size*/
-		if (width != TILE_LEN || height != TILE_LEN) {
-			fprintf(stderr, "invalid dimensions\n");
-			stbi_image_free(src);
+		/*TODO: Make this work with sprites not 32x32*/
+		add_menu_bitmap(src, spr_i);
+
+		if (load_sprite(&dp, src, width, height, spr, &sqr_i) < 0) {
+			fprintf(stderr, "could not load sprite %s\n", *file);
 			break;
-		}	
-
-		/*set tile menu bitmap*/
-		add_menu_bitmap(src, i);
-
-		/*copy a single image into atlas*/
-		sp = src;
-		row_n = 32;
-		while (row_n-- > 0) {
-			memcpy(dp, sp, TILE_STRIDE); 
-			dp += ATLAS_STRIDE;
-			sp += TILE_STRIDE;
 		}
 		stbi_image_free(src);
 
-		/**
-		 * At this point "dp" points to first pixel
-		 * of a tile a row after the one copied. 
-		 *
-		 * If the last tile was at the end of the tile row, 
-		 * than the next tile is on this same row,
-		 * but all the way to the left.
-		 *
-		 * Elsewise, the next tile, is immediatly to
-		 * the right. 
-		 */
 		file++;
-		i++;
-		if (i % 16) {
-			dp -= ATLAS_STRIDE * 32;
-		} else {
-			dp -= ATLAS_STRIDE;
-		}
-		dp += TILE_STRIDE;
+		spr_i++;
+		spr++;
 	}
+	stbi_write_png("res/tex/tex.png", ATLAS_LEN, ATLAS_LEN, 4, dst, ATLAS_STRIDE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ATLAS_LEN, 
 			ATLAS_LEN, 0, GL_RGBA, GL_UNSIGNED_BYTE, dst); 
 	free(dst);
@@ -543,11 +638,11 @@ static void create_atlas(void)
 static void sprite_vaa_set_up(void)
 {
 	glVertexAttribIPointer(0, 2, GL_SHORT, 
-			sizeof(sprite), (void *) 0);
+			sizeof(square), (void *) 0);
 	glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, 
-			sizeof(sprite), (void *) 4);
+			sizeof(square), (void *) 4);
 	glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 
-			sizeof(sprite), (void *) 5);
+			sizeof(square), (void *) 5);
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
@@ -582,7 +677,7 @@ static void create_sprite_prog(void)
 	glBindBuffer(GL_ARRAY_BUFFER, g_sprite_vbo);
 	sprite_vaa_set_up();
 
-	glBufferData(GL_ARRAY_BUFFER, MAX_SPRITES * sizeof(sprite), 
+	glBufferData(GL_ARRAY_BUFFER, MAX_SQUARES * sizeof(square), 
 			NULL, GL_DYNAMIC_DRAW);
 
 	glUseProgram(g_sprite_prog);
@@ -653,28 +748,16 @@ void init_gl(void)
 }
 
 /**
- * min() - Minimum of two values
- * @a: Left value
- * @b: Right value 
- * 
- * Return: Return minimum of two values
- */
-static int min(int a, int b)
-{
-	return a < b ? a : b;
-}
-
-/**
  * render_sprites() - Submit all sprites to GPU
- * @sprite_buf: Buffer of sprites
+ * @square_buf: Buffer of sprites
  */
-static void render_sprites(sprite_buf *buf)
+static void render_sprites(square_buf *buf)
 {
 	glBindVertexArray(g_sprite_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_sprite_vbo);
 	sprite_vaa_set_up();
-	glBufferSubData(GL_ARRAY_BUFFER, 0, buf->count * sizeof(sprite), 
-			buf->sprites);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, buf->count * sizeof(square), 
+			buf->squares);
 	glDrawArrays(GL_POINTS, 0, buf->count);
 }
 
@@ -688,31 +771,55 @@ static void render_sprites(sprite_buf *buf)
  * 
  * NOTE: push_sprite should only be used in update_sprites.
  */
-static void push_sprite(sprite_buf *buf, float x, float y, int layer, int id)
+static void push_sprite(square_buf *buf, float x, float y, int layer, int id)
 {
-	if (x > -1.0F && x < g_cam.w + 1.0F 
-			&& y > -1.0F && y < g_cam.h + 1.0F) {
-		sprite *s;
+	int px0, py0;
+	sprite *spr;
+	v2i *pt;
+	int i;
 
-		s = buf->sprites + buf->count;
-		s->x = x * 32;
-		s->y = y * 32;
-		s->layer = layer;
-		s->id = id;
-		buf->count++;
-		if (buf->count == MAX_SPRITES) {
-			render_sprites(buf);
-			buf->count = 0;
-		}
+	px0 = x * 32;
+	py0 = y * 32;
+
+	spr = g_sprites[id];
+	if (!spr) {
+		return;
 	}
 
+	pt = spr->pts;
+	for (i = 0; i < spr->count; i++) {
+		int px;
+		int py;
+		bool xbound;
+		bool ybound;
+
+		px = px0 + pt->x;
+		py = py0 + pt->y; 
+		xbound = px > -TILE_LEN && px < g_cam.w * TILE_LEN + TILE_LEN;
+		ybound = py > -TILE_LEN && py < g_cam.h * TILE_LEN + TILE_LEN;
+		if (xbound && ybound) {
+			square *s;
+
+			s = buf->squares + buf->count;
+			s->x = px;
+			s->y = py;
+			s->layer = layer;
+			s->id = spr->base + i;
+			buf->count++;
+			if (buf->count == MAX_SQUARES) {
+				render_sprites(buf);
+				buf->count = 0;
+			}
+		}
+		pt++;
+	}
 }
 
 /**
  * render_tiles() - Render tiles and possibly grid
  * @buf: Sprite buffer to add to
  */
-static void render_tiles(sprite_buf *buf)
+static void render_tiles(square_buf *buf)
 {
 	int max_x;
 	int max_y;
@@ -762,7 +869,7 @@ static void render_tiles(sprite_buf *buf)
  * render_entites() - Renders entities 
  * @buf: Sprite buf to push entities to
  */
-static void render_entities(sprite_buf *buf)
+static void render_entities(square_buf *buf)
 {
 	entity *e;
 
@@ -780,10 +887,10 @@ static void render_entities(sprite_buf *buf)
 /**
  * start_sprites() - Creates empty sprite buffer
  */
-static sprite_buf *start_sprites(void)
+static square_buf *start_sprites(void)
 {
-	sprite_buf *buf;
-	buf = (sprite_buf *) malloc(sizeof(*buf));
+	square_buf *buf;
+	buf = (square_buf *) malloc(sizeof(*buf));
 	if (buf) {
 		buf->count = 0;
 	}
@@ -793,59 +900,10 @@ static sprite_buf *start_sprites(void)
 /**
  * end_sprites() - Renders all sprites and destroys buffer
  */
-static void end_sprites(sprite_buf *buf) 
+static void end_sprites(square_buf *buf) 
 {
 	render_sprites(buf);
 	free(buf);
-}
-
-static void render_clouds(sprite_buf *buf)
-{
-	struct cloud {
-		uint8_t tile;
-		uint8_t y;
-		uint16_t x;
-	};
-
-	static cloud clouds[] = {
-		{SPR_BIG_CLOUD_0_314, 0, 314},
-		{SPR_BIG_CLOUD_1_327, 1, 327},
-		{SPR_BIG_CLOUD_1_95, 1, 95},
-		{SPR_BIG_CLOUD_2_160, 2, 160},
-		{SPR_BIG_CLOUD_2_279, 2, 279},
-		{SPR_BIG_CLOUD_2_375, 2, 375},
-		{SPR_BIG_CLOUD_2_64, 2, 64},
-		{SPR_BIG_CLOUD_3_160, 3, 160},
-		{SPR_BIG_CLOUD_3_384, 3, 384},
-		{SPR_BIG_CLOUD_1_263, 1, 263},
-		{SPR_BIG_CLOUD_1_359, 1, 359},
-		{SPR_BIG_CLOUD_2_0, 2, 0},
-		{SPR_BIG_CLOUD_2_215, 2, 215},
-		{SPR_BIG_CLOUD_2_32, 2, 32},
-		{SPR_BIG_CLOUD_2_407, 2, 407},
-		{SPR_BIG_CLOUD_2_96, 2, 96},
-		{SPR_BIG_CLOUD_3_192, 3, 192},
-		{SPR_BIG_CLOUD_3_416, 3, 416},
-		{SPR_BIG_CLOUD_1_295, 1, 295},
-		{SPR_BIG_CLOUD_1_63, 1, 63},
-		{SPR_BIG_CLOUD_2_128, 2, 128},
-		{SPR_BIG_CLOUD_2_247, 2, 247},
-		{SPR_BIG_CLOUD_2_343, 2, 343},
-		{SPR_BIG_CLOUD_2_439, 2, 439},
-		{SPR_BIG_CLOUD_3_128, 3, 128},
-		{SPR_BIG_CLOUD_3_224, 3, 224}
-	};
-
-	int n;
-	cloud *c;
-
-	c = clouds;
-	n = _countof(clouds);
-
-	while (n-- > 0) {
-		push_sprite(buf, c->x / 32.0F, c->y, LAYER_CLOUD, c->tile);
-		c++;
-	}
 }
 
 /**
@@ -855,7 +913,7 @@ static void render_clouds(sprite_buf *buf)
  */
 static void update_sprites(void)
 {
-	sprite_buf *buf;
+	square_buf *buf;
 
 	buf = start_sprites(); 
 	if (!buf) {
@@ -863,7 +921,7 @@ static void update_sprites(void)
 	}
 
 	render_tiles(buf);
-	render_clouds(buf);
+	push_sprite(buf, 0, 0, LAYER_CLOUD, SPR_BIG_CLOUDS);
 	render_entities(buf);
 
 	end_sprites(buf);

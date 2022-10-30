@@ -5,7 +5,8 @@ CXXFLAGS = -DUNICODE -Wall -g
 CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl -Ilib/freetype/include
 CXXFLAGS += -MT $@ -MMD -MP -MF $*.d
 
-DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o lib/freetype_build/libfreetype.a
+DEPOBJS = lib/glad/src/glad.o lib/freetype_build/libfreetype.a
+DEPOBJS += lib/stb/stb_image.o lib/stb/stb_image_write.o
 
 GEN = -G "MinGW Makefiles"
 
@@ -30,6 +31,10 @@ lib/freetype_build/libfreetype.a:
 lib/stb/stb_image.o:
 	cd lib/stb && \
 	$(CC) -x c -c stb_image.h -DSTB_IMAGE_IMPLEMENTATION
+
+lib/stb/stb_image_write.o:
+	cd lib/stb && \
+	$(CC) -x c -c stb_image_write.h -DSTB_IMAGE_WRITE_IMPLEMENTATION
 
 lib/glad/src/glad.o:
 	cd lib/glad && \
