@@ -42,6 +42,8 @@ dirs:
 obj/menu.o: src/menu.hpp src/menu.rc
 	windres src/menu.rc -o obj/menu.o
 
+include $(wildcard $DEP)
+
 %.o: src/%.cpp %.d
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
@@ -50,8 +52,6 @@ obj/%.o: src/%.o
 
 obj/%.d: src/%.d
 	mv $< $@
-
-$(pathsubst src/%.o,obj/%.o,include $(wildcard $DEP))
 
 engine: $(OBJ) $(DEP) obj/menu.o $(DEPOBJS)
 	$(CXX) -o bin/engine.exe $(OBJ) obj/menu.o $(LDFLAGS)

@@ -68,10 +68,32 @@ static const char *const g_sprite_files[COUNTOF_SPR] = {
 	[SPR_WATER] = "water.png",
 	[SPR_HORIZON_WATER] = "horizon-water.png",
 	[SPR_SKY_HORIZON] = "sky-horizon.png",
-	[SPR_BIG_CLOUD_0_9750] = "big-cloud-0-9.750.png",
-	[SPR_BIG_CLOUD_1_2875] = "big-cloud-1-2.875.png",
-	[SPR_BIG_CLOUD_1_3875] = "big-cloud-1-3.875.png",
-	[SPR_BIG_CLOUD_1_8750] = "big-cloud-1-8.750.png",
+	[SPR_BIG_CLOUD_0_314] = "big-cloud-0-314.png",
+	[SPR_BIG_CLOUD_1_327] = "big-cloud-1-327.png",
+	[SPR_BIG_CLOUD_1_95] = "big-cloud-1-95.png",
+	[SPR_BIG_CLOUD_2_160] = "big-cloud-2-160.png",
+	[SPR_BIG_CLOUD_2_279] = "big-cloud-2-279.png",
+	[SPR_BIG_CLOUD_2_375] = "big-cloud-2-375.png",
+	[SPR_BIG_CLOUD_2_64] = "big-cloud-2-64.png",
+	[SPR_BIG_CLOUD_3_160] = "big-cloud-3-160.png",
+	[SPR_BIG_CLOUD_3_384] = "big-cloud-3-384.png",
+	[SPR_BIG_CLOUD_1_263] = "big-cloud-1-263.png",
+	[SPR_BIG_CLOUD_1_359] = "big-cloud-1-359.png",
+	[SPR_BIG_CLOUD_2_0] = "big-cloud-2-0.png",
+	[SPR_BIG_CLOUD_2_215] = "big-cloud-2-215.png",
+	[SPR_BIG_CLOUD_2_32] = "big-cloud-2-32.png",
+	[SPR_BIG_CLOUD_2_407] = "big-cloud-2-407.png",
+	[SPR_BIG_CLOUD_2_96] = "big-cloud-2-96.png",
+	[SPR_BIG_CLOUD_3_192] = "big-cloud-3-192.png",
+	[SPR_BIG_CLOUD_3_416] = "big-cloud-3-416.png",
+	[SPR_BIG_CLOUD_1_295] = "big-cloud-1-295.png",
+	[SPR_BIG_CLOUD_1_63] = "big-cloud-1-63.png",
+	[SPR_BIG_CLOUD_2_128] = "big-cloud-2-128.png",
+	[SPR_BIG_CLOUD_2_247] = "big-cloud-2-247.png",
+	[SPR_BIG_CLOUD_2_343] = "big-cloud-2-343.png",
+	[SPR_BIG_CLOUD_2_439] = "big-cloud-2-439.png",
+	[SPR_BIG_CLOUD_3_128] = "big-cloud-3-128.png",
+	[SPR_BIG_CLOUD_3_224] = "big-cloud-3-224.png", 
 	[SPR_GRID] = "grid.png",
 };
 
@@ -779,10 +801,51 @@ static void end_sprites(sprite_buf *buf)
 
 static void render_clouds(sprite_buf *buf)
 {
-	push_sprite(buf, 9.750F, 0.0F, LAYER_CLOUD, SPR_BIG_CLOUD_0_9750);
-	push_sprite(buf, 2.875F, 1.0F, LAYER_CLOUD, SPR_BIG_CLOUD_1_2875);
-	push_sprite(buf, 3.875F, 1.0F, LAYER_CLOUD, SPR_BIG_CLOUD_1_3875);
-	push_sprite(buf, 8.750F, 1.0F, LAYER_CLOUD, SPR_BIG_CLOUD_1_8750);
+	struct cloud {
+		uint8_t tile;
+		uint8_t y;
+		uint16_t x;
+	};
+
+	static cloud clouds[] = {
+		{SPR_BIG_CLOUD_0_314, 0, 314},
+		{SPR_BIG_CLOUD_1_327, 1, 327},
+		{SPR_BIG_CLOUD_1_95, 1, 95},
+		{SPR_BIG_CLOUD_2_160, 2, 160},
+		{SPR_BIG_CLOUD_2_279, 2, 279},
+		{SPR_BIG_CLOUD_2_375, 2, 375},
+		{SPR_BIG_CLOUD_2_64, 2, 64},
+		{SPR_BIG_CLOUD_3_160, 3, 160},
+		{SPR_BIG_CLOUD_3_384, 3, 384},
+		{SPR_BIG_CLOUD_1_263, 1, 263},
+		{SPR_BIG_CLOUD_1_359, 1, 359},
+		{SPR_BIG_CLOUD_2_0, 2, 0},
+		{SPR_BIG_CLOUD_2_215, 2, 215},
+		{SPR_BIG_CLOUD_2_32, 2, 32},
+		{SPR_BIG_CLOUD_2_407, 2, 407},
+		{SPR_BIG_CLOUD_2_96, 2, 96},
+		{SPR_BIG_CLOUD_3_192, 3, 192},
+		{SPR_BIG_CLOUD_3_416, 3, 416},
+		{SPR_BIG_CLOUD_1_295, 1, 295},
+		{SPR_BIG_CLOUD_1_63, 1, 63},
+		{SPR_BIG_CLOUD_2_128, 2, 128},
+		{SPR_BIG_CLOUD_2_247, 2, 247},
+		{SPR_BIG_CLOUD_2_343, 2, 343},
+		{SPR_BIG_CLOUD_2_439, 2, 439},
+		{SPR_BIG_CLOUD_3_128, 3, 128},
+		{SPR_BIG_CLOUD_3_224, 3, 224}
+	};
+
+	int n;
+	cloud *c;
+
+	c = clouds;
+	n = _countof(clouds);
+
+	while (n-- > 0) {
+		push_sprite(buf, c->x / 32.0F, c->y, LAYER_CLOUD, c->tile);
+		c++;
+	}
 }
 
 /**
