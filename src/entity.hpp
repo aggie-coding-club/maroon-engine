@@ -22,6 +22,7 @@ struct entity_meta {
  * @v2i: Spawn position
  * @pos: Current position in tiles
  * @vel: Current velocity in tiles per second
+ * @size: width and height in tiles
  */
 struct entity {
 	dl_head node;
@@ -29,6 +30,7 @@ struct entity {
 	entity_meta *meta;
 	v2 pos;
 	v2 vel;
+	v2 size;
 	bool is_ground;
 };
 
