@@ -42,4 +42,11 @@ void size_game_map(game_map *gm, int w, int h);
  */
 void destroy_game_map(game_map *gm);
 
+/**
+ * get_tile() - get a tile at a given coordninate
+ * @x: x coordinate in tiles
+ * @y: y coordinate in tiles
+*/
+uint8_t get_tile(float x, float y);
+
 #endif
