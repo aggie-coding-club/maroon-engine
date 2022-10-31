@@ -19,12 +19,14 @@ struct entity_meta {
 /**
  * @collision_box: collisions box of an entity
  * [0] is the top left coordinate and [1] is the bottom rogjt coordinate
+ * @vel: Current velocity in tiles per second
  * @offset: offset the bounding box from the entity sprite position
  * offset position is essentially the top left of the collision_box
 */
 struct entity_physics_properties{
 	v2 collision_box[2];
 	v2 offset;
+	v2 vel;
 };
 
 /**
@@ -32,15 +34,13 @@ struct entity_physics_properties{
  * @meta: Pointer to common entites of this type
  * @v2i: Spawn position
  * @pos: Current position in tiles
- * @vel: Current velocity in tiles per second
- * @size: width and height in tiles
+ * @physics: contains all the physics data
  */
 struct entity {
 	dl_head node;
 	v2i spawn;
 	entity_meta *meta;
 	v2 pos;
-	v2 vel;
 	entity_physics_properties physics;
 };
 
