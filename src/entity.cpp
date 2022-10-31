@@ -84,11 +84,13 @@ void update_entities(void)
 	/**
 	 * Note(Lenny) - collision detection and resolution code should go here
 	*/
+	
 	if(get_tile(g_player->physics.offset.x, g_player->physics.offset.y + g_player->physics.collision_box[1].y)) {
 
+		/* the position of the collided tile */
 		v2 collided_tile_pos = {
-			g_player->physics.collision_box[0].x, 
-			g_player->physics.collision_box[1].y
+			(float)(int)g_player->physics.collision_box[0].x, 
+			(float)(int)g_player->physics.collision_box[1].y
 		};
 
 		g_player->physics.vel.y -= g_gravity;
