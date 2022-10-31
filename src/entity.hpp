@@ -17,6 +17,17 @@ struct entity_meta {
 };
 
 /**
+ * @collision_box: collisions box of an entity
+ * [0] is the top left coordinate and [1] is the bottom rogjt coordinate
+ * @offset: offset the bounding box from the entity sprite position
+ * offset position is essentially the top left of the collision_box
+*/
+struct entity_physics_properties{
+	v2 collision_box[2];
+	v2 offset;
+};
+
+/**
  * @node: Used to point to next entity
  * @meta: Pointer to common entites of this type
  * @v2i: Spawn position
@@ -30,9 +41,9 @@ struct entity {
 	entity_meta *meta;
 	v2 pos;
 	v2 vel;
-	v2 size;
-	bool is_ground;
+	entity_physics_properties physics;
 };
+
 
 /** 
  * g_dt - Frame delta in seconds
@@ -44,7 +55,6 @@ extern float g_dt;
 extern dl_head g_entities;
 extern entity_meta g_entity_metas[COUNTOF_EM];
 extern int g_key_down[KEY_MAX];
-
 
 /**
  * create_entity() - Creates an entity

@@ -21,6 +21,15 @@ inline v2 operator*(v2 a, float b)
 	return (v2) {a.x * b, a.y * b};
 }
 
+inline v2 operator+(v2 a, v2 b)
+{
+	return (v2) {a.x + b.x, a.y + b.y};
+}
+
+inline v2 operator+=(v2 a, v2 b)
+{
+	return (v2) {a.x + b.x, a.y + b.y};
+}
 /**
  * min() - Minimum of two integers 
  * @a: Left value
