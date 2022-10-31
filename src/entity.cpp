@@ -23,11 +23,10 @@ entity *create_entity(int tx, int ty)
 	e->meta = &g_entity_metas[EM_PLAYER];
 	e->spawn.x = tx;
 	e->spawn.y = ty;
-	e->vel.y = 0.0F;
 	e->pos.x = tx;
 	e->pos.y = ty;
-	e->vel.x = 0.0F;
-	e->vel.y = 0.0F;
+	e->physics.vel.x = 0.0F;
+	e->physics.vel.y = 0.0F;
 	return e;
 }
 
@@ -79,8 +78,8 @@ void update_entities(void)
 		player_vel.x = -1.0f;
 	}
 
-	g_player->vel = player_vel * player_speed;
-	g_player->vel.y += g_gravity;
+	g_player->physics.vel = player_vel * player_speed;
+	g_player->physics.vel.y += g_gravity;
 
 	/**
 	 * Note(Lenny) - collision detection and resolution code should go here
@@ -92,13 +91,13 @@ void update_entities(void)
 			g_player->physics.collision_box[1].y
 		};
 
-		g_player->vel.y -= g_gravity;
+		g_player->physics.vel.y -= g_gravity;
 	}
 
 	entity *e, *n;
 	dl_for_each_entry_s (e, n, &g_entities, node) {
-		e->pos.x += e->vel.x * g_dt;
-		e->pos.y += e->vel.y * g_dt;
+		e->pos.x += e->physics.vel.x * g_dt;
+		e->pos.y += e->physics.vel.y * g_dt;
 		/*updating the physics offset to reflect the change in sprite position*/
 		e->physics.offset.x = e->pos.x + e->physics.collision_box[0].x;
 		e->physics.offset.y = e->pos.y + e->physics.collision_box[0].y;
