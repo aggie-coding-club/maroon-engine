@@ -49,9 +49,20 @@ void start_entities(void)
 	/*bottom right*/
 	g_player->physics.collision_box[1] = {
 		20.0f / TILE_LEN + 1, 
-		28.0f / TILE_LEN
+		30.0f / TILE_LEN
 	};
 
+	g_player->animation_m.active = true;
+	g_player->animation_m.animations[0] = {
+		0.1f,
+		SPR_CAPTAIN_SWORD_RUN_1,
+		SPR_CAPTAIN_SWORD_RUN_6,
+	};
+	g_player->animation_m.animations[1] = {
+		0.2f,
+		SPR_CAPTAIN_SWORD_IDLE_1,
+		SPR_CAPTAIN_SWORD_IDLE_5,
+	};
 	g_gravity = 2.0f;
 }
 
@@ -83,9 +94,10 @@ void update_entities(void)
 
 	/**
 	 * Note(Lenny) - collision detection and resolution code should go here
+	 * the current method is not ideal
 	*/
-	
-	if(get_tile(g_player->physics.offset.x, g_player->physics.offset.y + g_player->physics.collision_box[1].y)) {
+	if(get_tile(g_player->physics.offset.x, 
+		g_player->physics.offset.y + g_player->physics.collision_box[1].y)) {
 
 		/* the position of the collided tile */
 		v2 collided_tile_pos = {
@@ -96,8 +108,45 @@ void update_entities(void)
 		g_player->physics.vel.y -= g_gravity;
 	}
 
+	/* figuring out which animation to use*/
+	bool animation_changed = false;
+	if (g_player->physics.vel.x > 0.05f || g_player->physics.vel.x < -0.05f) {
+		if (g_player->animation_m.current_animation_type != 0) {
+			animation_changed = true;
+		}
+		g_player->animation_m.current_animation_type = 0;
+	}else{
+		if (g_player->animation_m.current_animation_type != 1) {
+			animation_changed = true;
+		}
+		g_player->animation_m.current_animation_type = 1;
+	}
+
 	entity *e, *n;
 	dl_for_each_entry_s (e, n, &g_entities, node) {
+		if (e->animation_m.active) {
+			/* change animation state based on the animation current animation type */
+			animation_manager *am = &e->animation_m;
+			animation *current = &am->animations[am->current_animation_type]; 
+
+			am->current_frame_time -= g_dt;
+			
+			if (animation_changed) {
+				am->current_frame_time = current->timeBtwFrames;
+				e->meta->sprite = current->sprite_start;
+			}
+
+			if (am->current_frame_time <= 0) {
+				if (e->meta->sprite < current->sprite_end) {
+					e->meta->sprite += 1;
+				} else {
+					e->meta->sprite = current->sprite_start;
+				}
+
+				am->current_frame_time = current->timeBtwFrames;
+			}
+		}
+
 		e->pos.x += e->physics.vel.x * g_dt;
 		e->pos.y += e->physics.vel.y * g_dt;
 		/*updating the physics offset to reflect the change in sprite position*/
