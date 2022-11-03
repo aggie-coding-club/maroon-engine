@@ -826,10 +826,9 @@ static void end_game(void)
 		info.fState = MFS_ENABLED;
 		SetMenuItemInfoW(g_menu, i, MF_BYPOSITION, &info);
 	}
-	clear_entities();
+	end_entities();
 	CheckMenuItem(g_menu, IDM_RUN, MF_UNCHECKED);
 	DrawMenuBar(g_wnd);
-	end_entities();
 }
 
 /**

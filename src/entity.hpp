@@ -19,36 +19,28 @@ struct box {
 };
 
 /**
- * struct entity_meta - Includes common information for entity 
- * @sprite: The sprite of the entity
- * @mask: Mask for data 
+ * struct anim - An animation 
+ * @dt: The time between sprites 
+ * @start: First sprite in animation 
+ * @end: Last sprite in animation 
+ * 
+ * Animation iterates through each sprite.
+ * The sprites in animation will be consecutive.
  */
-struct entity_meta {
-	uint8_t sprite;	
-	const box mask;
-};
-
-/**
- * struct anim - Animation list
- * @dt: the time between the anim frame change
- * @sprite_start: first anim frame sprite id
- * @sprite_end: last anim frame sprite id
- * anim system assumes the sprites ids are next together
-*/
-#define ANIM_TYPE_COUNT 6
 struct anim {
 	float dt;
-	uint8_t sprite_start;
-	uint8_t sprite_end;
+	uint8_t start;
+	uint8_t end;
 };
 
 /**
- * @active: for determing sprite manager is active
- * @current_anim_type: idle, run, attack, etc.
- * @current_frame_time: the time until the current frame switches
- * @cur_anim: Current animation
-*/
-struct anim_manager {
+ * struct entity_meta - Includes constant info for entity 
+ * @mask: Collision mask
+ * @def_anim: Default animation 
+ */
+struct entity_meta {
+	box mask;
+	const anim *def_anim;
 };
 
 /**
@@ -61,12 +53,13 @@ struct anim_manager {
  * @offset: cached absolute position of collision mask 
  * @mask: collison mask 
  *
- * @
+ * @anim_time: Time till next animation frame
+ * @cur_anim: Animation
  */
 struct entity {
 	/*misc*/
 	dl_head node;
-	entity_meta *meta;
+	const entity_meta *meta;
 	v2i spawn;
 
 	/*physics*/
@@ -75,10 +68,9 @@ struct entity {
 	v2 offset;
 
 	/*animation*/
-	bool active;
-	uint8_t current_anim_frame;
-	float current_frame_time;
 	const anim *cur_anim;
+	float anim_time;
+	uint8_t sprite;	
 };
 
 
@@ -90,7 +82,7 @@ struct entity {
  */
 extern float g_dt;
 extern dl_head g_entities;
-extern entity_meta g_entity_metas[COUNTOF_EM];
+extern const entity_meta g_entity_metas[COUNTOF_EM];
 extern int g_key_down[KEY_MAX];
 
 /**

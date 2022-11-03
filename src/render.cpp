@@ -149,7 +149,7 @@ static DWORD get_error_text(wchar_t *buf, DWORD size)
 }
 
 /**
- * fatal_win32_error() - Display message box with Win32 error and exit.
+ * fatal_win32_err() - Display message box with Win32 error and exit.
  *
  * This function is used if a Win32 function fails with
  * a unrecoverable error.
@@ -865,12 +865,10 @@ static void render_entities(square_buf *buf)
 
 	dl_for_each_entry(e, &g_entities, node) {
 		float tx, ty;
-		int sprite;
 
 		tx = e->pos.x - g_cam.x;
 		ty = e->pos.y - g_cam.y;
-		sprite = e->meta->sprite;
-		push_sprite(buf, tx, ty, LAYER_ENTITY, sprite);
+		push_sprite(buf, tx, ty, LAYER_ENTITY, e->sprite);
 	}
 }
 
