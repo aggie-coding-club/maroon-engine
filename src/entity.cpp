@@ -11,7 +11,7 @@ static float g_gravity;
 static entity *g_player;
 
 static const anim g_captain_idle_anim = {
-	0.2F,
+	0.1F,
 	SPR_CAPTAIN_SWORD_IDLE_1,
 	SPR_CAPTAIN_SWORD_IDLE_5
 };
@@ -31,7 +31,7 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 			},
 			{
 				52.0F / TILE_LEN,
-				30.0F / TILE_LEN
+				32.0F / TILE_LEN
 			}
 		},
 		.def_anim = &g_captain_idle_anim

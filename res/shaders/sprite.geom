@@ -26,7 +26,7 @@ void main()
 	tile.x = float(id & 15u) / 16.0F;
 	tile.y = float((id >> 4u) & 15u) / 16.0F;
 
-	b = 1.0F / 4096.0F;
+	b = 1.0F / 8192.0F;
 	s = 1.0F / 16.0F - b; /*number of tiles in row/col*/
 
 	/*transform position into screen coords*/ 

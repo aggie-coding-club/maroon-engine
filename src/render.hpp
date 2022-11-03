@@ -43,6 +43,7 @@ extern HMENU g_menu;
 extern bool g_grid_on;
 extern rect g_cam;
 extern bool g_running;
+extern float g_cloud_x;
 
 /**
  * init_gl() - initialize OpenGL context and load necessary extensions 

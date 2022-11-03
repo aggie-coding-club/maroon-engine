@@ -71,6 +71,7 @@ HMENU g_menu;
 v2 g_scroll;
 bool g_grid_on = true;
 bool g_running;
+float g_cloud_x;
 
 rect g_cam = {0, 0, VIEW_TW, VIEW_TH}; 
 
@@ -846,7 +847,7 @@ static void render_tiles(square_buf *buf)
 			} 
 
 			sprite = cols[sty % _countof(cols)];
-			push_sprite(buf, stx, sty - 0.25F, LAYER_BACK, sprite);
+			push_sprite(buf, stx, sty - 0.3125F, LAYER_BACK, sprite);
 			if (!g_running && g_grid_on) {
 				push_sprite(buf, stx, sty, LAYER_GRID, 
 						SPR_GRID);
@@ -908,13 +909,13 @@ static void update_sprites(void)
 
 	render_tiles(buf);
 	if (g_running) {
-		static float w;
-
-		push_sprite(buf, w, 0, LAYER_CLOUD, SPR_BIG_CLOUDS);
-		push_sprite(buf, w + 14.0F, 0, LAYER_CLOUD, SPR_BIG_CLOUDS);
-		w -= 1.0F * g_dt;
-		if (w < -14.0F) {
-			w += 14.0F;
+		push_sprite(buf, g_cloud_x, 0.375F, 
+				LAYER_CLOUD, SPR_BIG_CLOUDS);
+		push_sprite(buf, g_cloud_x + 14.0F, 0.375F, 
+				LAYER_CLOUD, SPR_BIG_CLOUDS);
+		g_cloud_x -= g_dt;
+		if (g_cloud_x < -14.0F) {
+			g_cloud_x += 14.0F;
 		}
 	}
 	render_entities(buf);
