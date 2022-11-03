@@ -1,6 +1,5 @@
 #include "entity.hpp"
 #include <stdio.h>
-#include "sprites_files_list.hpp"
 #include "game_map.hpp"
 #include "render.hpp"
 

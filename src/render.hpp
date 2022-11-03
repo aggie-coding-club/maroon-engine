@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <windows.h>
-#include "sprites_files_list.hpp"
+#include "sprites.hpp"
 
 #define TILE_LEN 32 
 
