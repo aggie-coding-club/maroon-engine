@@ -92,15 +92,15 @@ void destroy_game_map(game_map *gm)
 	free(gm);
 }
 
+static bool in_game_map(float x, float y)
+{
+	return x >= 0.0F && x < g_gm->w && y >= 0.0F && y < g_gm->h;
+}
+
 uint8_t get_tile(float x, float y)
 {
-	/*TODO(Lenny): take into account the camera position */
-	if(x < 0 || x > g_gm->w || y < 0 || y > g_gm->h) {
-		return TILE_BLANK;
+	if (!in_game_map(x, y)) {
+		return TILE_SOLID;
 	}
-
-	uint8_t tile;
-	tile = g_gm->rows[(int)y][(int)x];
-
-	return tile;
+	return g_gm->rows[(int) y][(int) x];
 }

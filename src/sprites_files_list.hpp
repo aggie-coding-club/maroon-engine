@@ -1,7 +1,7 @@
 #ifndef SPRITES
 #define SPRITES
 
-enum{
+enum {
 	SPR_GRASS,
 	SPR_GROUND,
 	SPR_SKY,

@@ -7,6 +7,7 @@
 #define WIN_32_EXTRA_LEAN
 #include <windows.h>
 #include <windowsx.h>
+#include <dbghelp.h>
 
 #include <commdlg.h>
 #include <fileapi.h>

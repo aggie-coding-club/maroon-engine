@@ -30,6 +30,12 @@ inline v2 operator+=(v2 a, v2 b)
 {
 	return (v2) {a.x + b.x, a.y + b.y};
 }
+
+inline int div_up(int val, int div)
+{
+	return (val + div - 1) / div;
+}
+
 /**
  * min() - Minimum of two integers 
  * @a: Left value

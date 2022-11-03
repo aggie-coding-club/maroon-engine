@@ -74,6 +74,7 @@ bool g_running;
 
 rect g_cam = {0, 0, VIEW_TW, VIEW_TH}; 
 
+static int g_square_next;
 static sprite *g_sprites[COUNTOF_SPR];
 
 static HDC g_hdc;
@@ -412,7 +413,8 @@ static void add_menu_bitmap(const uint8_t *src, int id)
  * @w: width of src
  * @h: height of src
  */
-static void load_square(uint8_t *dst, const uint8_t *src, int x, int y, int w, int h)
+static void load_square(uint8_t *dst, const uint8_t *src, 
+		int x, int y, int w, int h)
 {
 	int nx0, ny0;
 	int xzero, yzero;
@@ -467,12 +469,11 @@ static void load_square(uint8_t *dst, const uint8_t *src, int x, int y, int w, i
  * @w: Width of source
  * @h: Height of soruce
  * @pspr: Pointer to sprite slot
- * @square: Next square to be used
  *
  * Return: Zero on succcess, negative on failure
  */
 static int load_sprite(uint8_t **dst, const uint8_t *src, int w, int h, 
-		sprite **pspr, int *square)
+		sprite **pspr)
 {
 	int max;
 	sprite *spr;
@@ -481,12 +482,12 @@ static int load_sprite(uint8_t **dst, const uint8_t *src, int w, int h,
 	int y;
 
 	/*sprite preparation*/
-	max = (w / TILE_LEN) * (h / TILE_LEN);
+	max = div_up(w, TILE_LEN) * div_up(h, TILE_LEN);
 	spr = (sprite *) malloc(sizeof(*spr) + max * sizeof(*spr->pts));
 	if (!spr) {
 		return -1;
 	}
-	spr->base = *square;
+	spr->base = g_square_next;
 	spr->count = 0;
 	*pspr = spr;
 
@@ -503,7 +504,7 @@ static int load_sprite(uint8_t **dst, const uint8_t *src, int w, int h,
 			int ny;
 
 			r = c;
-			ny = TILE_LEN;
+			ny = min(h - y, TILE_LEN);
 			while (ny-- > 0) {
 				/*check to see if pixel is opaque*/
 				if (r[3] == 0xFF) {
@@ -514,11 +515,13 @@ static int load_sprite(uint8_t **dst, const uint8_t *src, int w, int h,
 					pos = spr->pts + spr->count++; 
 					pos->x = x;
 					pos->y = y;
+
 					x += TILE_LEN - 1;
 					c += TILE_STRIDE - 4; 
-					(*square)++;
-					if (*square % 16 == 0) {
-						*dst += ATLAS_STRIDE * (TILE_LEN - 1);
+					g_square_next++;
+					if (g_square_next % 16 == 0) {
+						*dst += ATLAS_STRIDE * 
+								(TILE_LEN - 1);
 					}
 					*dst += TILE_STRIDE;
 					break;
@@ -556,7 +559,6 @@ static void load_atlas(void)
 	uint8_t *dp;
 
 	int spr_i;
-	int sqr_i;
 	sprite **spr;
 
 	dst = (uint8_t *) malloc(SIZEOF_ATLAS);
@@ -566,8 +568,6 @@ static void load_atlas(void)
 	
 	dp = dst;
 	spr = g_sprites;
-	spr_i = 0;
-	sqr_i = 0;
 
 	file = g_sprite_files; 
 	n = COUNTOF_SPR; 
@@ -588,7 +588,7 @@ static void load_atlas(void)
 		/*TODO: Make this work with sprites not 32x32*/
 		add_menu_bitmap(src, spr_i);
 
-		if (load_sprite(&dp, src, width, height, spr, &sqr_i) < 0) {
+		if (load_sprite(&dp, src, width, height, spr) < 0) {
 			fprintf(stderr, "could not load sprite %s\n", *file);
 			break;
 		}
@@ -598,7 +598,8 @@ static void load_atlas(void)
 		spr_i++;
 		spr++;
 	}
-	stbi_write_png("res/tex/tex.png", ATLAS_LEN, ATLAS_LEN, 4, dst, ATLAS_STRIDE);
+	stbi_write_png("res/tex/tex.png", ATLAS_LEN, 
+			ATLAS_LEN, 4, dst, ATLAS_STRIDE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ATLAS_LEN, 
 			ATLAS_LEN, 0, GL_RGBA, GL_UNSIGNED_BYTE, dst); 
 	free(dst);
@@ -758,8 +759,6 @@ static void render_sprites(square_buf *buf)
  * @y: y-pos in tiles relative to top of screen
  * @layer: layer of sprite from 0 to 255, higher layers on bottom 
  * @id: ID of sprite
- * 
- * NOTE: push_sprite should only be used in update_sprites.
  */
 static void push_sprite(square_buf *buf, float x, float y, int layer, int id)
 {
@@ -842,7 +841,8 @@ static void render_tiles(square_buf *buf)
 			stx = tx - fmodf(g_cam.x, 1.0F);
 			sty = ty - fmodf(g_cam.y, 1.0F);
 			if (tile >= 2) { 
-				push_sprite(buf, stx, sty, LAYER_FORE, tile - 2);
+				push_sprite(buf, stx, sty, 
+						LAYER_FORE, tile - 2);
 			} 
 
 			sprite = cols[sty % _countof(cols)];
@@ -898,8 +898,6 @@ static void end_sprites(square_buf *buf)
 
 /**
  * update_sprites() - Update sprites
- *
- * NOTE: This is where rendering code goes, physics team.
  */
 static void update_sprites(void)
 {

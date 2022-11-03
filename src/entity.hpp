@@ -9,68 +9,76 @@
 #define COUNTOF_EM 1
 
 /**
+ * struct box - Box
+ * @tl: Top-left of box
+ * @br: Bottom-right of box
+ */
+struct box {
+	v2 tl;
+	v2 br;
+};
+
+/**
  * struct entity_meta - Includes common information for entity 
  * @sprite: The sprite of the entity
+ * @mask: Mask for data 
  */
 struct entity_meta {
 	uint8_t sprite;	
+	const box mask;
 };
 
 /**
- * @collision_box: collisions box of an entity
- * [0] is the top left coordinate and [1] is the bottom rogjt coordinate
- * @vel: Current velocity in tiles per second
- * @offset: offset the bounding box from the entity sprite position
- * offset position is essentially the top left of the collision_box
+ * struct anim - Animation list
+ * @dt: the time between the anim frame change
+ * @sprite_start: first anim frame sprite id
+ * @sprite_end: last anim frame sprite id
+ * anim system assumes the sprites ids are next together
 */
-struct entity_physics_properties{
-	v2 collision_box[2];
-	v2 offset;
-	v2 vel;
-};
-
-/**
- * @time_btw_frames: the time between the animation frame change
- * @sprite_start: first animation frame sprite id
- * @sprite_end: last animation frame sprite id
- * animation system assumes the sprites ids are next together
-*/
-#define ANIMATION_TYPE_COUNT 6
-struct animation{
-	float timeBtwFrames;
+#define ANIM_TYPE_COUNT 6
+struct anim {
+	float dt;
 	uint8_t sprite_start;
-	uint8_t sprite_end;	
+	uint8_t sprite_end;
 };
 
 /**
  * @active: for determing sprite manager is active
+ * @current_anim_type: idle, run, attack, etc.
  * @current_frame_time: the time until the current frame switches
- * @current_animation_type: idle, run, attack, etc.
- * @animations: list of the different animations
+ * @cur_anim: Current animation
 */
-struct animation_manager{
-	bool active;
-	float current_frame_time;
-	uint8_t current_animation_type;
-	uint8_t current_animation_frame;
-	animation animations[ANIMATION_TYPE_COUNT];
+struct anim_manager {
 };
 
 /**
  * @node: Used to point to next entity
  * @meta: Pointer to common entites of this type
  * @v2i: Spawn position
+ *
  * @pos: Current position in tiles
- * @physics: contains all the physics data
- * @animation_m: animation manager
+ * @vel: Current velocity in tiles per second
+ * @offset: cached absolute position of collision mask 
+ * @mask: collison mask 
+ *
+ * @
  */
 struct entity {
+	/*misc*/
 	dl_head node;
-	v2i spawn;
 	entity_meta *meta;
+	v2i spawn;
+
+	/*physics*/
 	v2 pos;
-	entity_physics_properties physics;
-	animation_manager animation_m;
+	v2 vel;
+	v2 offset;
+
+	/*animation*/
+	bool active;
+	uint8_t current_anim_frame;
+	float current_frame_time;
+	const anim *cur_anim;
 };
 
 
@@ -95,8 +103,8 @@ extern int g_key_down[KEY_MAX];
 entity *create_entity(int tx, int ty);
 
 /**
- * start_entities() - setup for entity related data
- * this is a temporary function that will be deleted once we are able
+ * start_entities() - Setup entity system
+ * This is a temporary function that will be deleted once we are able
  * to create entities throught the editor.
 */
 void start_entities(void);
@@ -107,7 +115,7 @@ void start_entities(void);
 void update_entities(void);
 
 /**
- * end_entities - clean up for any data initialized in start_entities
+ * end_entities - End entity system 
 */
 void end_entities(void);
 

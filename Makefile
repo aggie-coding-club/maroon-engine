@@ -1,7 +1,7 @@
 CC = gcc
 CXX = g++
 
-CXXFLAGS = -DUNICODE -Wall -g 
+CXXFLAGS = -DUNICODE -Wall 
 CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl -Ilib/freetype/include
 CXXFLAGS += -MT $@ -MMD -MP -MF $(@:.o=.d)
 DEPOBJS = lib/glad/src/glad.o lib/freetype_build/libfreetype.a
@@ -10,7 +10,7 @@ DEPOBJS += lib/stb/stb_image.o lib/stb/stb_image_write.o
 GEN = -G "MinGW Makefiles"
 
 LDFLAGS = -municode -fno-exceptions -fno-rtti
-LDFLAGS += -lopengl32 -lole32 -mwindows -mconsole
+LDFLAGS += -lopengl32 -lole32 -ldbghelp -mwindows -mconsole
 LDFLAGS += $(DEPOBJS)
 
 SRC = $(wildcard src/*.cpp)
