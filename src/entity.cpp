@@ -141,24 +141,44 @@ void update_entities(void)
 	v2 player_vel;
 	float player_speed;
 	entity *e, *n;
+	/*check for tiles colliding with player on all four sides*/
+	bool touch_below = get_tile(g_player->offset.x, 
+		g_player->offset.y + g_player->meta->mask.br.y) ||
+		get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
+		g_player->offset.y + g_player->meta->mask.br.y);
+	bool touch_above = get_tile(g_player->offset.x, 
+		g_player->offset.y + g_player->meta->mask.tl.y) ||
+		get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
+		g_player->offset.y + g_player->meta->mask.tl.y);
+	bool touch_left = get_tile(g_player->offset.x - 
+		g_player->meta->mask.tl.x / 5, g_player->offset.y + 
+		g_player->meta->mask.tl.y) || get_tile(g_player->offset.x - 
+		g_player->meta->mask.tl.x / 5, g_player->offset.y + 
+		g_player->meta->mask.br.y * 0.75);
+	bool touch_right = get_tile(g_player->offset.x + 
+		g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
+		g_player->meta->mask.tl.y) || get_tile(g_player->offset.x + 
+		g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
+		g_player->meta->mask.br.y * 0.75);
 	
 	player_vel.x = 0.0F;
 	player_vel.y = 0.0F;
 	player_speed = 4.0F;
 
-	if (g_key_down[KEY_W] || g_key_down[KEY_UP]) {
+	/*key inputs only accepted if there are no tiles in the indicated direction*/
+	if ((g_key_down[KEY_W] || g_key_down[KEY_UP]) && !touch_above) {
 		player_vel.y = -1.0F;
 	}
 
-	if (g_key_down[KEY_S] || g_key_down[KEY_DOWN]) {
+	if ((g_key_down[KEY_S] || g_key_down[KEY_DOWN]) && !touch_below) {
 		player_vel.y = 1.0F;
 	}
 
-	if (g_key_down[KEY_D] || g_key_down[KEY_LEFT]) {
+	if ((g_key_down[KEY_A] || g_key_down[KEY_LEFT]) && !touch_left) {
 		player_vel.x = -1.0F;
 	}
 	
-	if (g_key_down[KEY_A] || g_key_down[KEY_RIGHT]) {
+	if ((g_key_down[KEY_D] || g_key_down[KEY_RIGHT]) && !touch_right) {
 		player_vel.x = 1.0F;
 	}
 
@@ -170,8 +190,7 @@ void update_entities(void)
 	 * resolution code should go here
 	 * the current method is not ideal
 	 */
-	if (get_tile(g_player->offset.x, 
-		g_player->offset.y + g_player->meta->mask.br.y)) {
+	if (touch_below) {
 
 		v2 collided_tile_pos = {
 			(float) (int) g_player->meta->mask.tl.x, 
