@@ -142,24 +142,46 @@ void update_entities(void)
 	v2 player_vel;
 	float player_speed;
 	entity *e, *n;
+	bool touch_below, touch_above;
+	bool touch_left, touch_right;
+
+	/*check for tiles colliding with player on all four sides*/
+	touch_below = get_tile(g_player->offset.x, 
+			g_player->offset.y + g_player->meta->mask.br.y) ||
+			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
+			g_player->offset.y + g_player->meta->mask.br.y);
+	touch_above = get_tile(g_player->offset.x, 
+			g_player->offset.y + g_player->meta->mask.tl.y) ||
+			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
+			g_player->offset.y + g_player->meta->mask.tl.y);
+	touch_left = get_tile(g_player->offset.x - 
+			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
+			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x - 
+			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
+			g_player->meta->mask.br.y * 0.75);
+	touch_right = get_tile(g_player->offset.x + 
+			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
+			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x + 
+			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
+			g_player->meta->mask.br.y * 0.75);
 	
 	player_vel.x = 0.0F;
 	player_vel.y = 0.0F;
 	player_speed = 4.0F;
 
-	if (g_key_down['W']) {
+	if (g_key_down['W'] && !touch_above) {
 		player_vel.y = -1.0F;
 	}
 
-	if (g_key_down['S']) {
+	if (g_key_down['S'] && !touch_below) {
 		player_vel.y = 1.0F;
 	}
 
-	if (g_key_down['A']) {
+	if (g_key_down['A'] && !touch_left) {
 		player_vel.x = -1.0F;
 	}
 	
-	if (g_key_down['D']) {
+	if (g_key_down['D'] && !touch_right) {
 		player_vel.x = 1.0F;
 	}
 
@@ -171,8 +193,7 @@ void update_entities(void)
 	 * resolution code should go here
 	 * the current method is not ideal
 	 */
-	if (get_tile(g_player->offset.x, 
-		g_player->offset.y + g_player->meta->mask.br.y)) {
+	if (touch_below) {
 
 		v2 collided_tile_pos = {
 			(float) (int) g_player->meta->mask.tl.x, 
@@ -209,3 +230,4 @@ void clear_entities(void)
 		destroy_entity(e);
 	}
 }
+
