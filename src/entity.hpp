@@ -73,7 +73,6 @@ struct entity {
 	uint8_t sprite;	
 };
 
-
 /** 
  * g_dt - Frame delta in seconds
  * g_entites - Linked list of entities
@@ -83,7 +82,7 @@ struct entity {
 extern float g_dt;
 extern dl_head g_entities;
 extern const entity_meta g_entity_metas[COUNTOF_EM];
-extern int g_key_down[KEY_MAX];
+extern int g_key_down[256];
 
 /**
  * create_entity() - Creates an entity

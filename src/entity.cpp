@@ -6,6 +6,7 @@
 
 float g_dt;
 DL_HEAD(g_entities);
+int g_key_down[256];
 
 static float g_gravity;
 static entity *g_player;
@@ -146,19 +147,19 @@ void update_entities(void)
 	player_vel.y = 0.0F;
 	player_speed = 4.0F;
 
-	if (g_key_down[KEY_W] || g_key_down[KEY_UP]) {
+	if (g_key_down['W']) {
 		player_vel.y = -1.0F;
 	}
 
-	if (g_key_down[KEY_S] || g_key_down[KEY_DOWN]) {
+	if (g_key_down['S']) {
 		player_vel.y = 1.0F;
 	}
 
-	if (g_key_down[KEY_A] || g_key_down[KEY_LEFT]) {
+	if (g_key_down['A']) {
 		player_vel.x = -1.0F;
 	}
 	
-	if (g_key_down[KEY_D] || g_key_down[KEY_RIGHT]) {
+	if (g_key_down['D']) {
 		player_vel.x = 1.0F;
 	}
 

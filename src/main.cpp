@@ -52,8 +52,6 @@ struct edit {
 static HINSTANCE g_ins;
 static HACCEL g_acc; 
 
-int g_key_down[KEY_MAX];
-
 static FT_Library g_freetype_library;
 
 static int g_client_width = VIEW_WIDTH;
@@ -851,40 +849,18 @@ static void process_game_cmds(int id)
 static void game_update_keys(WPARAM wp, LPARAM lp)
 {
 	int vk;
-	int key_input;
 	bool is_down;
 
+	if (wp >= 256) {
+		return;
+	}
 	vk = wp;
-	is_down = !(lp & KEY_IS_UP);
-	key_input = 0;
-	if ((vk >= '0' && vk <= '9') || (vk >= 'A' && vk <= 'Z')) {
-		if (vk >= '0' && vk <= '9'){
-			key_input = KEY_0 + (vk - '0');
-		} else {
-			key_input = KEY_A + (vk - 'A');
-		}
 
-		if (is_down) {
-			g_key_down[key_input]++;
-		} else {
-			g_key_down[key_input] = 0;
-		}
+	is_down = !(lp & KEY_IS_UP);
+	if (is_down) {
+		g_key_down[vk]++;
 	} else {
-		if (vk == VK_UP) {
-			key_input = KEY_UP;
-		} else if (vk == VK_RIGHT) {
-			key_input = KEY_RIGHT;
-		} else if (vk == VK_DOWN) {
-			key_input = KEY_DOWN;
-		} else if (vk == VK_LEFT) {
-			key_input = KEY_LEFT;
-		}
-		
-		if (is_down) {
-			g_key_down[key_input]++;
-		} else {
-			g_key_down[key_input] = 0;
-		}
+		g_key_down[vk] = 0;
 	}
 }
 
