@@ -154,11 +154,11 @@ void update_entities(void)
 		player_vel.y = 1.0F;
 	}
 
-	if (g_key_down[KEY_D] || g_key_down[KEY_LEFT]) {
+	if (g_key_down[KEY_A] || g_key_down[KEY_LEFT]) {
 		player_vel.x = -1.0F;
 	}
 	
-	if (g_key_down[KEY_A] || g_key_down[KEY_RIGHT]) {
+	if (g_key_down[KEY_D] || g_key_down[KEY_RIGHT]) {
 		player_vel.x = 1.0F;
 	}
 
