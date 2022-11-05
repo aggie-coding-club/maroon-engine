@@ -6,7 +6,8 @@
 #include "util.hpp"
 
 #define EM_PLAYER 0
-#define COUNTOF_EM 1
+#define EM_CRABBY 1
+#define COUNTOF_EM 2
 
 /**
  * struct box - Box
@@ -91,7 +92,7 @@ extern int g_key_down[256];
  *
  * Return: The entity
  */
-entity *create_entity(int tx, int ty);
+entity *create_entity(int tx, int ty, uint8_t meta);
 
 /**
  * start_entities() - Setup entity system

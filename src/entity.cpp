@@ -10,6 +10,11 @@ int g_key_down[256];
 
 static float g_gravity;
 static entity *g_player;
+static entity *g_crabby_1;
+static entity *g_crabby_2;
+static entity *g_crabby_3;
+static entity *g_crabby_4;
+static entity *g_crabby_5;
 
 static const anim g_captain_idle_anim = {
 	0.1F,
@@ -21,6 +26,12 @@ static const anim g_captain_run_anim = {
 	0.1F,
 	SPR_CAPTAIN_SWORD_RUN_1,
 	SPR_CAPTAIN_SWORD_RUN_6
+};
+
+static const anim g_crabby_idle_anim = {
+	0.1F,
+	SPR_CRABBY_IDLE_1,
+	SPR_CRABBY_IDLE_9,
 };
 
 const entity_meta g_entity_metas[COUNTOF_EM] = {
@@ -36,6 +47,18 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 			}
 		},
 		.def_anim = &g_captain_idle_anim
+	},
+	[EM_CRABBY] = {
+		.mask = {
+			{
+				17.0F / TILE_LEN,
+				6.0F / TILE_LEN,
+			},{
+				58.0F / TILE_LEN,
+				28.0F / TILE_LEN
+			}
+		},
+		.def_anim = &g_crabby_idle_anim
 	}
 };
 
@@ -54,13 +77,13 @@ static void set_animation(entity *e, const anim *new_anim)
 	e->sprite = new_anim->start;
 }
 
-entity *create_entity(int tx, int ty)
+entity *create_entity(int tx, int ty, uint8_t meta)
 {
 	entity *e;
 	e = (entity *) xmalloc(sizeof(*e));
 
 	dl_push_back(&g_entities, &e->node);
-	e->meta = &g_entity_metas[EM_PLAYER];
+	e->meta = &g_entity_metas[meta];
 	e->spawn.x = tx;
 	e->spawn.y = ty;
 
@@ -82,7 +105,19 @@ void destroy_entity(entity *e)
 
 void start_entities(void)
 {
-	g_player = create_entity(3, 3);
+	g_player = create_entity(3, 3, EM_PLAYER);
+	
+	float crab_speed = 1.0F;
+	g_crabby_1 = create_entity(0.5f, 2, EM_CRABBY);
+	g_crabby_1->vel.x = crab_speed;
+	g_crabby_2 = create_entity(5, 2, EM_CRABBY);
+	g_crabby_2->vel.x = crab_speed;
+	g_crabby_3 = create_entity(5, 4, EM_CRABBY);
+	g_crabby_3->vel.x = crab_speed;
+	g_crabby_4 = create_entity(2, 4, EM_CRABBY);
+	g_crabby_4->vel.x = crab_speed;
+	g_crabby_5 = create_entity(3, 4, EM_CRABBY);
+	g_crabby_5->vel.x = crab_speed;
 
 	g_gravity = 2.0F;
 }
@@ -211,6 +246,25 @@ void update_entities(void)
 	}
 
 	dl_for_each_entry_s (e, n, &g_entities, node) {
+
+		/* checking type of entity based on meta pointer */
+		if (e->meta == (g_entity_metas + EM_CRABBY)) {
+			/* crabby movement */
+			uint8_t tile_id_left = get_tile(e->offset.x, 
+					e->offset.y + e->meta->mask.br.y + 0.05F);
+
+			uint8_t tile_id_right = get_tile(e->offset.x + 
+					(e->meta->mask.br.x - e->meta->mask.tl.x), 
+					e->offset.y + e->meta->mask.br.y + 0.05F);
+
+			if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
+				e->vel.x *= -1;
+			} else if (tile_id_right == TILE_SOLID || 
+					tile_id_right != TILE_GRASS) {
+				e->vel.x *= -1;
+			} 
+		}
+
 		update_animation(e);
 		update_physics(e);
 	}
