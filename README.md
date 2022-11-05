@@ -1,5 +1,5 @@
 # Team Members
-Lenny T. , James F. , Robert S. , Wesley T. , Jonah B. , Rahif M. , Neil K., Wyatt C., Jeremy M., Grace K., Shantanu R., Victor P.,
+Lenny T. , James F. , Robert S. , Wesley T. , Jonah B. , Rahif M. , Neil K., Wyatt C., Jeremy M., Grace K., Shantanu R., Victor P., Summer W.
 # The Project Goal
 
 # Project Setup Instructions
