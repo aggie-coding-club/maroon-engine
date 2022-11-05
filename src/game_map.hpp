@@ -12,6 +12,8 @@
 #define TILE_GROUND 3
 #define COUNTOF_TILES 4
 
+#include "entity.hpp"
+
 struct game_map {
 	uint8_t **rows;
 	int w;
@@ -21,6 +23,9 @@ struct game_map {
 extern game_map *g_gm;
 extern uint16_t g_tile_to_idm[COUNTOF_TILES];
 extern uint8_t g_idm_to_tile[];
+
+extern uint16_t g_entity_to_idm[COUNTOF_EM];
+extern uint8_t g_idm_to_entity[];
 
 /**
  * init_game_map() - Create game map

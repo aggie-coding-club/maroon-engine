@@ -19,6 +19,16 @@ uint8_t g_idm_to_tile[] = {
 	[IDM_GROUND - IDM_BLANK] = TILE_GROUND
 };
 
+uint16_t g_entity_to_idm[COUNTOF_EM] = {
+	[EM_PLAYER] = IDM_PLAYER,
+	[EM_CRABBY] = IDM_CRABBY
+};
+
+uint8_t g_idm_to_entity[] = {
+	[IDM_PLAYER - IDM_PLAYER] = EM_PLAYER,
+	[IDM_CRABBY - IDM_PLAYER] = EM_CRABBY
+};
+
 game_map *create_game_map(void)
 {
 	game_map *gm;
