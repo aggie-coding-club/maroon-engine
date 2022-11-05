@@ -64,7 +64,7 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				28.0F / TILE_LEN
 			}
 		},
-		.def_anim = &g_crabby_run_anim
+		.def_anim = &g_crabby_idle_anim
 	}
 };
 
@@ -287,6 +287,11 @@ void end_entities(void)
 {
 	clear_entities();
 	g_player = NULL;
+	g_crabby_1 = NULL;
+	g_crabby_2 = NULL;
+	g_crabby_3 = NULL;
+	g_crabby_4 = NULL;
+	g_crabby_5 = NULL;
 }
 
 void clear_entities(void)
