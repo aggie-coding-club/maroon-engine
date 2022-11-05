@@ -54,7 +54,8 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 			{
 				17.0F / TILE_LEN,
 				6.0F / TILE_LEN,
-			},{
+			},
+			{
 				58.0F / TILE_LEN,
 				28.0F / TILE_LEN
 			}

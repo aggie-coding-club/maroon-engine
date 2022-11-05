@@ -26,10 +26,10 @@
 #define IDM_GRASS 0x4001
 #define IDM_GROUND 0x4002
 
+#define IDM_RUN 0x5000
+
 #define IDM_PLAYER 0x6000
 #define IDM_CRABBY 0x6001
-
-#define IDM_RUN 0x5000
 
 #define IDD_STATIC 0x1000
 #define IDD_WIDTH 0x1001

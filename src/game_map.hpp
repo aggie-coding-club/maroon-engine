@@ -10,7 +10,9 @@
 #define TILE_SOLID 1
 #define TILE_GRASS 2 
 #define TILE_GROUND 3
-#define COUNTOF_TILES 4
+#define TILE_CAPTAIN 4
+#define TILE_CRABBY 5
+#define COUNTOF_TILES 6
 
 #include "entity.hpp"
 
@@ -19,6 +21,8 @@ struct game_map {
 	int w;
 	int h;
 };
+
+extern uint8_t g_tile_to_spr[COUNTOF_TILES];
 
 extern game_map *g_gm;
 extern uint16_t g_tile_to_idm[COUNTOF_TILES];

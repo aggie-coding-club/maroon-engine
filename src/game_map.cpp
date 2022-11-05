@@ -3,8 +3,18 @@
 #include "menu.hpp"
 #include "game_map.hpp"
 #include "util.hpp"
+#include "sprites.hpp"
 
 game_map *g_gm;
+
+uint8_t g_tile_to_spr[COUNTOF_TILES] = {
+	[TILE_BLANK] = SPR_INVALID,
+	[TILE_SOLID] = SPR_INVALID, 
+	[TILE_GRASS] = SPR_GRASS, 
+	[TILE_GROUND] = SPR_GROUND, 
+	[TILE_CAPTAIN] = SPR_CAPTAIN_SWORD_IDLE_1,	
+	[TILE_CRABBY] = SPR_CRABBY_IDLE_1
+};
 
 uint16_t g_tile_to_idm[COUNTOF_TILES] = {
 	[TILE_BLANK] = IDM_BLANK,
@@ -25,8 +35,8 @@ uint16_t g_entity_to_idm[COUNTOF_EM] = {
 };
 
 uint8_t g_idm_to_entity[] = {
-	[IDM_PLAYER - IDM_PLAYER] = EM_PLAYER,
-	[IDM_CRABBY - IDM_PLAYER] = EM_CRABBY
+	[IDM_PLAYER - IDM_PLAYER] = TILE_CAPTAIN,
+	[IDM_CRABBY - IDM_PLAYER] = TILE_CRABBY
 };
 
 game_map *create_game_map(void)

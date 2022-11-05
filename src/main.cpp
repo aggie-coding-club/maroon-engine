@@ -65,8 +65,6 @@ static uint8_t g_place = TILE_GRASS;
 
 static int64_t g_perf_freq;
 
-static bool g_placing_tiles = 1;
-
 /** 
  * cd_parent() - Transforms full path into the parent full path 
  * @path: Path to transform
@@ -454,12 +452,6 @@ static void update_place(int id)
 	CheckMenuItem(g_menu, g_place_select, MF_UNCHECKED);
 	CheckMenuItem(g_menu, id, MF_CHECKED);
 	g_place_select = id;
-
-	if (g_placing_tiles) {
-		g_place = g_idm_to_tile[id - IDM_BLANK];
-	} else {
-		g_place = g_idm_to_entity[id - IDM_PLAYER];
-	}
 }
 
 /**
@@ -588,6 +580,18 @@ static void start_game(void)
 }
 
 /**
+ * in_submenu() - Check if menu id in submenu
+ * @id: ID to check
+ * @first: First item in submenu being checked 
+ *
+ * This assumes convention is being followed for submenus.
+ */
+static bool in_submenu(int id, int first)
+{
+	return (id & 0xF000) == first;
+}
+
+/**
  * process_editor_cmds() - Process editor menu commands
  */
 static void process_editor_cmds(int id)
@@ -657,13 +661,12 @@ static void process_editor_cmds(int id)
 		start_game();
 		break;
 	default:
-
-		if (id >= IDM_PLAYER && id <= IDM_CRABBY) {
-			g_placing_tiles = false;
+		if (in_submenu(id, IDM_BLANK)) {
 			update_place(id);
-		} else if (id >= IDM_BLANK && id <= IDM_BLANK + COUNTOF_TILES) {
-			g_placing_tiles = true;
+			g_place = g_idm_to_tile[id - IDM_BLANK];
+		} else if (in_submenu(id, IDM_PLAYER)) {
 			update_place(id);
+			g_place = g_idm_to_entity[id - IDM_PLAYER];
 		}
 	}
 }
@@ -711,26 +714,6 @@ static void place_tile(int x, int y, int tile)
 }
 
 /**
- * place_entity() - place entity using cursor
- @x: Client window x coord
- @y: Client window y coord
-*/
-static void place_entity(int x, int y) 
-{
-	int tx;
-	int ty;
-
-	tx = g_cam.x + (float) x * g_cam.w / g_client_width;
-	ty = g_cam.y + (float) y * g_cam.h / g_client_height;
-
-	entity *e = create_entity(tx, ty, g_place);
-
-	if (g_place == EM_CRABBY) {
-		e->vel.x = 1.0F;
-	}
-}
-
-/**
  * button_down() - Respond to mouse button down 
  * @wp: WPARAM from wnd_proc
  * @lp: LPARAM from wnd_proc
@@ -738,11 +721,7 @@ static void place_entity(int x, int y)
  */
 static void button_down(WPARAM wp, LPARAM lp, int tile)
 {
-	if (g_placing_tiles) {
-		place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), tile);
-	} else {
-		place_entity(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
-	}
+	place_tile(GET_X_LPARAM(lp), GET_Y_LPARAM(lp), tile);
 }
 
 /**

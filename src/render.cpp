@@ -318,92 +318,6 @@ static GLuint create_prog(GLuint vs, GLuint gs, GLuint fs)
 	return prog;
 }
 
-/**
- * avg_qcr() - Average 8-bit channels in a 32-bit color in a tile 
- * @src: Pointer to top-left channel 
- *
- * NOTE: src is expected to have TILE_STRIDE
- *
- * Return: The final color
- */
-static int avg_qcr(const uint8_t *src)
-{
-	int tl, tr;
-	int bl, br;
-
-	tl = src[0] * src[0];
-	tr = src[4] * src[4];
-	bl = src[TILE_STRIDE] * src[TILE_STRIDE];
-	br = src[TILE_STRIDE + 4 ] * src[TILE_STRIDE + 4];
-	return sqrt((tl + tr + bl + br) / 4);
-}
-
-/**
- * create_menu_bitmap() - Creates menu bitmap from source data
- * @src: 32-bit RGBA source data
- */
-static HBITMAP create_menu_bitmap(const uint8_t *src)
-{
-	uint8_t *dst;
-
-	const uint8_t *sp;
-	uint8_t *dp;
-	int ny;
-
-	HBITMAP hbm;
-
-	dst = (uint8_t *) malloc(SIZEOF_TILE / 4); 
-	if (!dst) {
-		return NULL;
-	}
-
-	dp = dst;
-	sp = src;
-	ny = TILE_LEN / 2;
-	while (ny-- > 0) {
-		int nx;
-
-		nx = TILE_LEN / 2;
-		while (nx-- > 0) {
-			dp[0] = avg_qcr(sp + 2);
-			dp[1] = avg_qcr(sp + 1);
-			dp[2] = avg_qcr(sp);
-			dp[3] = avg_qcr(sp + 3);
-			dp += 4;
-			sp += 8;
-		}
-		sp += TILE_STRIDE;
-	}
-
-	hbm = CreateBitmap(TILE_LEN / 2, TILE_LEN / 2, 1, 32, dst);
-	free(dst);
-
-	return hbm;
-}
-
-/**
- * add_menu_bitmap() - Add menu bitmap
- * @src: 32-bit RGBA source data
- * @i: ID of sprite 
- */
-static void add_menu_bitmap(const uint8_t *src, int id)
-{
-	HBITMAP hbm;
-	int idm;
-
-	id += 2;
-	if (id >= COUNTOF_TILES) {
-		return;
-	}
-	 
-	idm = g_tile_to_idm[id];
-	if (idm == 0) {
-		return;
-	}
-	hbm = create_menu_bitmap(src); 
-	SetMenuItemBitmaps(g_menu, idm, 
-			MF_BYCOMMAND, hbm, NULL);
-}
 
 /**
  * load_square() - Load rectangle
@@ -585,9 +499,6 @@ static void load_atlas(void)
 			fprintf(stderr, "%s could not find\n", *file);
 			break;
 		}
-
-		/*TODO: Make this work with sprites not 32x32*/
-		add_menu_bitmap(src, spr_i);
 
 		if (load_sprite(&dp, src, width, height, spr) < 0) {
 			fprintf(stderr, "could not load sprite %s\n", *file);
@@ -841,13 +752,15 @@ static void render_tiles(square_buf *buf)
 	
 			stx = tx - fmodf(g_cam.x, 1.0F);
 			sty = ty - fmodf(g_cam.y, 1.0F);
-			if (tile >= 2) { 
-				push_sprite(buf, stx, sty, 
-						LAYER_FORE, tile - 2);
-			} 
+			sprite = g_tile_to_spr[tile];
+			if (sprite != SPR_INVALID) {
+				push_sprite(buf, stx, sty, LAYER_FORE, 
+						g_tile_to_spr[tile]);
+			}
 
 			sprite = cols[sty % _countof(cols)];
-			push_sprite(buf, stx, sty - 0.3125F, LAYER_BACK, sprite);
+			push_sprite(buf, stx, sty - 0.3125F, 
+					LAYER_BACK, sprite);
 			if (!g_running && g_grid_on) {
 				push_sprite(buf, stx, sty, LAYER_GRID, 
 						SPR_GRID);
