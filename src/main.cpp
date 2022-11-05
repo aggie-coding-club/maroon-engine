@@ -12,8 +12,6 @@
 #include <commdlg.h>
 #include <fileapi.h>
 #include <glad/glad.h>
-#include <ft2build.h>
-#include FT_FREETYPE_H
 
 #include "entity.hpp"
 #include "menu.hpp"
@@ -51,8 +49,6 @@ struct edit {
 
 static HINSTANCE g_ins;
 static HACCEL g_acc; 
-
-static FT_Library g_freetype_library;
 
 static int g_client_width = VIEW_WIDTH;
 static int g_client_height = VIEW_HEIGHT;
@@ -1084,31 +1080,6 @@ static void msg_loop(void)
 }
 
 /**
- * print_ft_err() - Print free type error
- */
-static void print_ft_err(const char *msg, FT_Error err)
-{
-	const char *err_str;
-
-	err_str = FT_Error_String(err);
-	fprintf(stderr, "ft error: %s: %s", msg, err_str);
-}
-
-/**
- * init_freetype() - Initializes FreeType library
- */
-static void init_freetype()
-{
-	FT_Error err;
-
-	err = FT_Init_FreeType(&g_freetype_library);
-	if (err) {
-		print_ft_err("Could not init FreeType", err);
-		return;
-	}
-}
-
-/**
  * wWinMain() - Entry point of program
  * @ins: Handle used to identify the executable
  * @prev: Always zero, hold over from Win16
@@ -1130,7 +1101,6 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	create_main_window();
 	init_gl();
-	init_freetype();
 	g_gm = create_game_map();
 	size_game_map(g_gm, VIEW_TW, VIEW_TH);
 	msg_loop();

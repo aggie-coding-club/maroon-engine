@@ -107,9 +107,6 @@ void destroy_entity(entity *e)
 void start_entities(void)
 {
 	g_player = create_entity(3, 3, EM_PLAYER);
-	
-	float crab_speed = 1.0F;
-
 	g_gravity = 2.0F;
 }
 
@@ -220,12 +217,6 @@ void update_entities(void)
 	 * the current method is not ideal
 	 */
 	if (touch_below) {
-
-		v2 collided_tile_pos = {
-			(float) (int) g_player->meta->mask.tl.x, 
-			(float) (int) g_player->meta->mask.br.y
-		};
-
 		g_player->vel.y -= g_gravity;
 	}
 
