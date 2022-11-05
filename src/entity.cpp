@@ -144,44 +144,24 @@ void update_entities(void)
 	entity *e, *n;
 	bool touch_below, touch_above;
 	bool touch_left, touch_right;
-
-	/*check for tiles colliding with player on all four sides*/
-	touch_below = get_tile(g_player->offset.x, 
-			g_player->offset.y + g_player->meta->mask.br.y) ||
-			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
-			g_player->offset.y + g_player->meta->mask.br.y);
-	touch_above = get_tile(g_player->offset.x, 
-			g_player->offset.y + g_player->meta->mask.tl.y) ||
-			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
-			g_player->offset.y + g_player->meta->mask.tl.y);
-	touch_left = get_tile(g_player->offset.x - 
-			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
-			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x - 
-			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
-			g_player->meta->mask.br.y * 0.75);
-	touch_right = get_tile(g_player->offset.x + 
-			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
-			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x + 
-			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
-			g_player->meta->mask.br.y * 0.75);
 	
 	player_vel.x = 0.0F;
 	player_vel.y = 0.0F;
 	player_speed = 4.0F;
 
-	if (g_key_down['W'] && !touch_above) {
+	if (g_key_down['W']) {
 		player_vel.y = -1.0F;
 	}
 
-	if (g_key_down['S'] && !touch_below) {
+	if (g_key_down['S']) {
 		player_vel.y = 1.0F;
 	}
 
-	if (g_key_down['A'] && !touch_left) {
+	if (g_key_down['A']) {
 		player_vel.x = -1.0F;
 	}
 	
-	if (g_key_down['D'] && !touch_right) {
+	if (g_key_down['D']) {
 		player_vel.x = 1.0F;
 	}
 
@@ -213,6 +193,39 @@ void update_entities(void)
 	dl_for_each_entry_s (e, n, &g_entities, node) {
 		update_animation(e);
 		update_physics(e);
+	}
+		/*check for tiles colliding with player on all four sides*/
+	touch_below = get_tile(g_player->offset.x, 
+			g_player->offset.y + g_player->meta->mask.br.y) ||
+			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
+			g_player->offset.y + g_player->meta->mask.br.y);
+	if(touch_below) {
+		g_player->pos.y += (((int) (g_player->offset.y + g_player->meta->mask.br.y)) - (g_player->offset.y + g_player->meta->mask.br.y));
+	}
+	touch_above = get_tile(g_player->offset.x, 
+			g_player->offset.y + g_player->meta->mask.tl.y) ||
+			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
+			g_player->offset.y + g_player->meta->mask.tl.y);
+	if(touch_above) {
+		g_player->pos.y += (((int) g_player->offset.y + g_player->meta->mask.tl.y)+1 - g_player->offset.y + g_player->meta->mask.tl.y);
+	}
+	touch_left = get_tile(g_player->offset.x - 
+			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
+			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x - 
+			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
+			g_player->meta->mask.br.y * 0.75);
+	if(touch_left) {
+		g_player->pos.x +=
+		((int) floorf(g_player->offset.x - g_player->meta->mask.tl.x / 5)) + 1 -(g_player->offset.x - g_player->meta->mask.tl.x / 5);
+	}
+	touch_right = get_tile(g_player->offset.x + 
+			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
+			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x + 
+			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
+			g_player->meta->mask.br.y * 0.75);
+	if(touch_right) {
+		g_player->pos.x +=
+		((int) (g_player->offset.x + g_player->meta->mask.tl.x * 1.25)) - (g_player->offset.x + g_player->meta->mask.tl.x * 1.25);
 	}
 }
 
