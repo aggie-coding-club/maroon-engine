@@ -1,5 +1,5 @@
 # Team Members
-Lenny T. , James F. , Robert S. , Wesley T. , Jonah B. , Rahif M. , Neil K., Wyatt C., Jeremy M., Grace K., Shantanu R., Victor P.,
+Lenny T. , James F. , Robert S. , Wesley T. , Jonah B. , Rahif M. , Neil K., Wyatt C., Jeremy M., Grace K., Shantanu R., Victor P., Summer W.
 # The Project Goal
 
 # Project Setup Instructions
@@ -7,7 +7,7 @@ Lenny T. , James F. , Robert S. , Wesley T. , Jonah B. , Rahif M. , Neil K., Wya
 ## System Requirements
 This project assumes you have access to x64 Windows 7 or later.  
 
-You will also need to have a version of OpenGL version 3.3 or later drivers.  
+You will also need to have a version of OpenGL version 3.3 or later drivers..  
 You can check OpenGL version by using this download link:  
 https://www.realtech-vr.com/api/deeplink?SKU=15&target=UrlWin32   
 
@@ -168,3 +168,4 @@ Use "git submodule update --init --recursive" to retrieve new dependencies.
 		header files named with .hpp
 		source files named with .cpp
 
+..
