@@ -31,7 +31,13 @@ static const anim g_captain_run_anim = {
 static const anim g_crabby_idle_anim = {
 	0.1F,
 	SPR_CRABBY_IDLE_1,
-	SPR_CRABBY_IDLE_9,
+	SPR_CRABBY_IDLE_9
+};
+
+static const anim g_crabby_run_anim = {
+	0.1F,
+	SPR_CRABBY_RUN_1,
+	SPR_CRABBY_RUN_6
 };
 
 const entity_meta g_entity_metas[COUNTOF_EM] = {
@@ -58,7 +64,7 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				28.0F / TILE_LEN
 			}
 		},
-		.def_anim = &g_crabby_idle_anim
+		.def_anim = &g_crabby_run_anim
 	}
 };
 
@@ -263,6 +269,13 @@ void update_entities(void)
 					tile_id_right != TILE_GRASS) {
 				e->vel.x *= -1;
 			} 
+
+			/* selecting the animation */
+			if (fabsf(e->vel.x) > 0.05F) {
+				change_animation(e, &g_crabby_run_anim);
+			} else {
+				change_animation(e, &g_crabby_idle_anim);
+			}
 		}
 
 		update_animation(e);
