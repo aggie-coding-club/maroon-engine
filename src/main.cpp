@@ -718,7 +718,6 @@ static void place_tile(int x, int y, int tile)
  * place_entity() - place entity using cursor
  @x: Client window x coord
  @y: Client window y coord
- @em: Entity meta ID
 */
 static void place_entity(int x, int y) 
 {
@@ -739,6 +738,7 @@ static void place_entity(int x, int y)
  * button_down() - Respond to mouse button down 
  * @wp: WPARAM from wnd_proc
  * @lp: LPARAM from wnd_proc
+ * @tile: Tile to add
  */
 static void button_down(WPARAM wp, LPARAM lp, int tile)
 {
@@ -834,7 +834,7 @@ static LRESULT editor_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 		button_down(wp, lp, g_place);
 		return 0;
 	case WM_RBUTTONDOWN:
-		button_down(wp, lp, g_place);
+		button_down(wp, lp, 0);
 		return 0;
 	case WM_MOUSEMOVE:
 		mouse_move(wp, lp);

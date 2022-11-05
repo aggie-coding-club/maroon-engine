@@ -10,11 +10,6 @@ int g_key_down[256];
 
 static float g_gravity;
 static entity *g_player;
-static entity *g_crabby_1;
-static entity *g_crabby_2;
-static entity *g_crabby_3;
-static entity *g_crabby_4;
-static entity *g_crabby_5;
 
 static const anim g_captain_idle_anim = {
 	0.1F,
@@ -114,16 +109,6 @@ void start_entities(void)
 	g_player = create_entity(3, 3, EM_PLAYER);
 	
 	float crab_speed = 1.0F;
-	// g_crabby_1 = create_entity(0.5f, 2, EM_CRABBY);
-	// g_crabby_1->vel.x = crab_speed;
-	// g_crabby_2 = create_entity(5, 2, EM_CRABBY);
-	// g_crabby_2->vel.x = crab_speed;
-	// g_crabby_3 = create_entity(5, 4, EM_CRABBY);
-	// g_crabby_3->vel.x = crab_speed;
-	// g_crabby_4 = create_entity(2, 4, EM_CRABBY);
-	// g_crabby_4->vel.x = crab_speed;
-	// g_crabby_5 = create_entity(3, 4, EM_CRABBY);
-	// g_crabby_5->vel.x = crab_speed;
 
 	g_gravity = 2.0F;
 }
@@ -287,11 +272,6 @@ void end_entities(void)
 {
 	clear_entities();
 	g_player = NULL;
-	// g_crabby_1 = NULL;
-	// g_crabby_2 = NULL;
-	// g_crabby_3 = NULL;
-	// g_crabby_4 = NULL;
-	// g_crabby_5 = NULL;
 }
 
 void clear_entities(void)
