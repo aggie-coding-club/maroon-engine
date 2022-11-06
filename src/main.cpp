@@ -16,7 +16,7 @@
 #include "entity.hpp"
 #include "menu.hpp"
 #include "render.hpp"
-#include "game_map.hpp"
+#include "game-map.hpp"
 
 #define MAX_EDITS 256ULL
 

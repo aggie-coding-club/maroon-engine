@@ -1,7 +1,7 @@
 #include <math.h>
 
 #include "entity.hpp"
-#include "game_map.hpp"
+#include "game-map.hpp"
 #include "render.hpp"
 
 float g_dt;

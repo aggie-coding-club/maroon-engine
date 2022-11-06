@@ -11,7 +11,7 @@
 
 #include "entity.hpp"
 #include "render.hpp"
-#include "game_map.hpp"
+#include "game-map.hpp"
 
 #define TILE_STRIDE (TILE_LEN * 4) 
 #define TILE_SIZE (TILE_LEN * TILE_LEN)

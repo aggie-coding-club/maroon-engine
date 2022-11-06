@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "menu.hpp"
-#include "game_map.hpp"
+#include "game-map.hpp"
 #include "util.hpp"
 #include "sprites.hpp"
 
