@@ -563,7 +563,7 @@ static void start_game(void)
 	int i;
 
 	g_running = true;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 5; i++) {
 		MENUITEMINFOW info;
 
 		memset(&info, 0, sizeof(info));	
@@ -826,7 +826,7 @@ static void end_game(void)
 	int i;
 
 	g_running = false;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 5; i++) {
 		MENUITEMINFOW info;
 
 		memset(&info, 0, sizeof(info));	
@@ -1077,6 +1077,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	
 	g_ins = ins;
 	QueryPerformanceFrequency((LARGE_INTEGER *) &g_perf_freq);
+	init_tables();
 	set_default_directory();
 	create_main_window();
 	init_gl();

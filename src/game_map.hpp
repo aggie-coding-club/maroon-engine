@@ -16,20 +16,31 @@
 
 #include "entity.hpp"
 
+#define PROP_SOLID 1
+
 struct game_map {
 	uint8_t **rows;
 	int w;
 	int h;
 };
 
-extern uint8_t g_tile_to_spr[COUNTOF_TILES];
+extern const uint8_t g_tile_to_spr[COUNTOF_TILES];
+extern const uint8_t g_tile_props[COUNTOF_TILES];
+
+extern const uint8_t g_em_to_tile[COUNTOF_EM];
+extern uint8_t g_tile_to_em[COUNTOF_TILES];
+
+extern const uint8_t g_idm_to_tile[];
+extern const uint8_t g_idm_to_entity[];
 
 extern game_map *g_gm;
-extern uint16_t g_tile_to_idm[COUNTOF_TILES];
-extern uint8_t g_idm_to_tile[];
 
-extern uint16_t g_entity_to_idm[COUNTOF_EM];
-extern uint8_t g_idm_to_entity[];
+/**
+ * init_tables() - Initalizes tables
+ *
+ * Initalize sparse/redudant tables.
+ */
+void init_tables(void);
 
 /**
  * init_game_map() - Create game map

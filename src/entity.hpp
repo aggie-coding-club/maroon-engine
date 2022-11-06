@@ -5,8 +5,9 @@
 #include "dl.hpp"
 #include "util.hpp"
 
-#define EM_PLAYER 0
+#define EM_CAPTAIN 0
 #define EM_CRABBY 1
+#define EM_INVALID 255
 #define COUNTOF_EM 2
 
 /**
@@ -46,27 +47,25 @@ struct entity_meta {
 
 /**
  * @node: Used to point to next entity
- * @meta: Pointer to common entites of this type
  * @v2i: Spawn position
+ * @em: Index of meta
  *
  * @pos: Current position in tiles
  * @vel: Current velocity in tiles per second
- * @offset: cached absolute position of collision mask 
  * @mask: collison mask 
  *
  * @anim_time: Time till next animation frame
  * @cur_anim: Animation
  */
 struct entity {
-	/*misc*/
+	/*emsc*/
 	dl_head node;
-	const entity_meta *meta;
 	v2i spawn;
+	uint8_t em;
 
 	/*physics*/
 	v2 pos;
 	v2 vel;
-	v2 offset;
 
 	/*animation*/
 	const anim *cur_anim;

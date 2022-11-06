@@ -5,9 +5,8 @@
 #include "util.hpp"
 #include "sprites.hpp"
 
-game_map *g_gm;
-
-uint8_t g_tile_to_spr[COUNTOF_TILES] = {
+/*tables to add new entity data to*/
+const uint8_t g_tile_to_spr[COUNTOF_TILES] = {
 	[TILE_BLANK] = SPR_INVALID,
 	[TILE_SOLID] = SPR_INVALID, 
 	[TILE_GRASS] = SPR_GRASS, 
@@ -16,28 +15,49 @@ uint8_t g_tile_to_spr[COUNTOF_TILES] = {
 	[TILE_CRABBY] = SPR_CRABBY_IDLE_1
 };
 
-uint16_t g_tile_to_idm[COUNTOF_TILES] = {
-	[TILE_BLANK] = IDM_BLANK,
+const uint8_t g_tile_props[COUNTOF_TILES] = {
+	[TILE_BLANK] = 0,
 	[TILE_SOLID] = 0, 
-	[TILE_GRASS] = IDM_GRASS, 
-	[TILE_GROUND] = IDM_GROUND, 
+	[TILE_GRASS] = PROP_SOLID, 
+	[TILE_GROUND] = PROP_SOLID, 
+	[TILE_CAPTAIN] = 0,
+	[TILE_CRABBY] = 0 
 };
 
-uint8_t g_idm_to_tile[] = {
+const uint8_t g_em_to_tile[COUNTOF_EM] = {
+	[EM_CAPTAIN] = TILE_CAPTAIN, 
+	[EM_CRABBY] = TILE_CRABBY
+};
+
+const uint8_t g_idm_to_tile[] = {
 	[IDM_BLANK - IDM_BLANK] = TILE_BLANK,
 	[IDM_GRASS - IDM_BLANK] = TILE_GRASS,
 	[IDM_GROUND - IDM_BLANK] = TILE_GROUND
 };
 
-uint16_t g_entity_to_idm[COUNTOF_EM] = {
-	[EM_PLAYER] = IDM_PLAYER,
-	[EM_CRABBY] = IDM_CRABBY
-};
-
-uint8_t g_idm_to_entity[] = {
+const uint8_t g_idm_to_entity[] = {
 	[IDM_PLAYER - IDM_PLAYER] = TILE_CAPTAIN,
 	[IDM_CRABBY - IDM_PLAYER] = TILE_CRABBY
 };
+
+/*redudant table*/
+uint8_t g_tile_to_em[COUNTOF_TILES];
+
+game_map *g_gm;
+
+void init_tables(void)
+{
+	int i;
+
+	memset(g_tile_to_em, EM_INVALID, sizeof(g_tile_to_em));
+
+	for (i = 0; i < COUNTOF_EM; i++) {
+		int tile;
+
+		tile = g_em_to_tile[i];
+		g_tile_to_em[tile] = i;
+	}
+}
 
 game_map *create_game_map(void)
 {

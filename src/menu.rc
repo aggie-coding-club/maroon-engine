@@ -28,7 +28,7 @@ BEGIN
 		MENUITEM "&Grass", IDM_GRASS, CHECKED 
 		MENUITEM "G&round", IDM_GROUND 
 	END
-	POPUP "&Entities"
+	POPUP "E&ntities"
 	BEGIN
 		MENUITEM "&Player", IDM_PLAYER
 		MENUITEM "&Crabby", IDM_CRABBY

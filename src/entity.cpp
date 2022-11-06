@@ -8,8 +8,7 @@ float g_dt;
 DL_HEAD(g_entities);
 int g_key_down[256];
 
-static float g_gravity;
-static entity *g_player;
+static float g_gravity = 2.0F;
 
 static const anim g_captain_idle_anim = {
 	0.1F,
@@ -36,7 +35,7 @@ static const anim g_crabby_run_anim = {
 };
 
 const entity_meta g_entity_metas[COUNTOF_EM] = {
-	[EM_PLAYER] = {
+	[EM_CAPTAIN] = {
 		.mask = {
 			{
 				20.0F / TILE_LEN, 
@@ -79,13 +78,15 @@ static void set_animation(entity *e, const anim *new_anim)
 	e->sprite = new_anim->start;
 }
 
-entity *create_entity(int tx, int ty, uint8_t meta)
+entity *create_entity(int tx, int ty, uint8_t em)
 {
 	entity *e;
+	const entity_meta *meta;
+
 	e = (entity *) xmalloc(sizeof(*e));
 
 	dl_push_back(&g_entities, &e->node);
-	e->meta = &g_entity_metas[meta];
+	e->em= em;
 	e->spawn.x = tx;
 	e->spawn.y = ty;
 
@@ -93,9 +94,15 @@ entity *create_entity(int tx, int ty, uint8_t meta)
 	e->pos.y = ty;
 	e->vel.x = 0.0F;
 	e->vel.y = 0.0F;
-	e->offset = e->pos + e->meta->mask.tl;
 
-	set_animation(e, e->meta->def_anim);
+	meta = g_entity_metas + em;
+	set_animation(e, meta->def_anim);
+
+	switch (em) {
+	case EM_CRABBY:
+		e->vel.x = 2.0F;
+		break;
+	}
 	return e;
 }
 
@@ -107,8 +114,27 @@ void destroy_entity(entity *e)
 
 void start_entities(void)
 {
-	g_player = create_entity(3, 3, EM_PLAYER);
-	g_gravity = 2.0F;
+	uint8_t **r;
+	int y;
+
+	r = g_gm->rows;
+	for (y = 0; y < g_gm->h; y++) {
+		uint8_t *c;
+		int x;
+
+		c = *r; 
+		for (x = 0; x < g_gm->w; x++) {
+			int em;
+
+			em = g_tile_to_em[*c];
+			if (em != EM_INVALID) {
+				create_entity(x, y, em); 
+				*c = 0;
+			}
+			c++;
+		}
+		r++;
+	}
 }
 
 /**
@@ -153,64 +179,67 @@ static void update_physics(entity *e)
 {
 	e->pos.x += e->vel.x * g_dt;
 	e->pos.y += e->vel.y * g_dt;
-	/**
-	 * updating the physics offset to reflect 
-	 * the change in sprite position
-	 */
-	e->offset = e->pos + e->meta->mask.tl;
 }
 
-void update_entities(void)
+/**
+ * update_captain() - Update captain specific behavoir
+ * @e: Captain to update
+ */
+static void update_captain(entity *e)
 {
-	/*simple left and right player movement*/
-	v2 player_vel;
-	float player_speed;
-	entity *e, *n;
+	/*simple left and right captain movement*/
+	const entity_meta *meta;
+	v2 captain_vel;
+	v2 offset;
+	float captain_speed;
 	bool touch_below, touch_above;
 	bool touch_left, touch_right;
 
-	/*check for tiles colliding with player on all four sides*/
-	touch_below = get_tile(g_player->offset.x, 
-			g_player->offset.y + g_player->meta->mask.br.y) ||
-			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
-			g_player->offset.y + g_player->meta->mask.br.y);
-	touch_above = get_tile(g_player->offset.x, 
-			g_player->offset.y + g_player->meta->mask.tl.y) ||
-			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
-			g_player->offset.y + g_player->meta->mask.tl.y);
-	touch_left = get_tile(g_player->offset.x - 
-			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
-			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x - 
-			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
-			g_player->meta->mask.br.y * 0.75);
-	touch_right = get_tile(g_player->offset.x + 
-			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
-			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x + 
-			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
-			g_player->meta->mask.br.y * 0.75);
+	meta = g_entity_metas + e->em;
+
+	/*check for tiles colliding with captain on all four sides*/
+	offset = e->pos + meta->mask.tl;
+	touch_below = get_tile(offset.x, 
+			offset.y + meta->mask.br.y) ||
+			get_tile(offset.x + meta->mask.tl.x,
+			offset.y + meta->mask.br.y);
+	touch_above = get_tile(offset.x, 
+			offset.y + meta->mask.tl.y) ||
+			get_tile(offset.x + meta->mask.tl.x,
+			offset.y + meta->mask.tl.y);
+	touch_left = get_tile(offset.x - 
+			meta->mask.tl.x / 5, offset.y + 
+			meta->mask.tl.y) || get_tile(offset.x - 
+			meta->mask.tl.x / 5, offset.y + 
+			meta->mask.br.y * 0.75);
+	touch_right = get_tile(offset.x + 
+			meta->mask.tl.x * 1.25, offset.y + 
+			meta->mask.tl.y) || get_tile(offset.x + 
+			meta->mask.tl.x * 1.25, offset.y + 
+			meta->mask.br.y * 0.75);
 	
-	player_vel.x = 0.0F;
-	player_vel.y = 0.0F;
-	player_speed = 4.0F;
+	captain_vel.x = 0.0F;
+	captain_vel.y = 0.0F;
+	captain_speed = 4.0F;
 
 	if (g_key_down['W'] && !touch_above) {
-		player_vel.y = -1.0F;
+		captain_vel.y = -1.0F;
 	}
 
 	if (g_key_down['S'] && !touch_below) {
-		player_vel.y = 1.0F;
+		captain_vel.y = 1.0F;
 	}
 
 	if (g_key_down['A'] && !touch_left) {
-		player_vel.x = -1.0F;
+		captain_vel.x = -1.0F;
 	}
 	
 	if (g_key_down['D'] && !touch_right) {
-		player_vel.x = 1.0F;
+		captain_vel.x = 1.0F;
 	}
 
-	g_player->vel = player_vel * player_speed;
-	g_player->vel.y += g_gravity;
+	e->vel = captain_vel * captain_speed;
+	e->vel.y += g_gravity;
 
 	/**
 	 * Note(Lenny) - collision detection and 
@@ -218,43 +247,66 @@ void update_entities(void)
 	 * the current method is not ideal
 	 */
 	if (touch_below) {
-		g_player->vel.y -= g_gravity;
+		e->vel.y -= g_gravity;
 	}
 
-	/* figuring out which animiation to use*/
-	if (fabsf(g_player->vel.x) > 0.05F) {
-		change_animation(g_player, &g_captain_run_anim);
+	/* figuring out which aniemation to use*/
+	if (fabsf(e->vel.x) > 0.05F) {
+		change_animation(e, &g_captain_run_anim);
 	} else {
-		change_animation(g_player, &g_captain_idle_anim);
+		change_animation(e, &g_captain_idle_anim);
 	}
+}
+
+static void update_crabby(entity *e)
+{
+	/* crabby movement */
+	const entity_meta *meta;
+	v2 offset;
+	uint8_t tile_id_left; 
+	uint8_t tile_id_right;
+
+	meta = g_entity_metas + e->em;
+	offset = e->pos + meta->mask.tl;
+
+	tile_id_left = get_tile(offset.x, 
+			offset.y + meta->mask.br.y + 0.1F);
+	tile_id_right = get_tile(offset.x + 
+			(meta->mask.br.x - meta->mask.tl.x), 
+			offset.y + meta->mask.br.y + 0.1F);
+	if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
+		e->vel.x *= -1;
+	} else if (tile_id_right == TILE_SOLID || 
+			tile_id_right != TILE_GRASS) {
+		e->vel.x *= -1;
+	} 
+
+	/* selecting the animation */
+	if (fabsf(e->vel.x) > 0.05F) {
+		change_animation(e, &g_crabby_run_anim);
+	} else {
+		change_animation(e, &g_crabby_idle_anim);
+	}
+}
+
+static void update_specific(entity *e)
+{
+	switch (e->em) {
+	case EM_CAPTAIN:
+		update_captain(e);
+		break;
+	case EM_CRABBY:
+		update_crabby(e);
+		break;
+	}
+}
+
+void update_entities(void)
+{
+	entity *e, *n;
 
 	dl_for_each_entry_s (e, n, &g_entities, node) {
-
-		/* checking type of entity based on meta pointer */
-		if (e->meta == (g_entity_metas + EM_CRABBY)) {
-			/* crabby movement */
-			uint8_t tile_id_left = get_tile(e->offset.x, 
-					e->offset.y + e->meta->mask.br.y + 0.1F);
-
-			uint8_t tile_id_right = get_tile(e->offset.x + 
-					(e->meta->mask.br.x - e->meta->mask.tl.x), 
-					e->offset.y + e->meta->mask.br.y + 0.1F);
-
-			if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
-				e->vel.x *= -1;
-			} else if (tile_id_right == TILE_SOLID || 
-					tile_id_right != TILE_GRASS) {
-				e->vel.x *= -1;
-			} 
-
-			/* selecting the animation */
-			if (fabsf(e->vel.x) > 0.05F) {
-				change_animation(e, &g_crabby_run_anim);
-			} else {
-				change_animation(e, &g_crabby_idle_anim);
-			}
-		}
-
+		update_specific(e);
 		update_animation(e);
 		update_physics(e);
 	}
@@ -263,7 +315,6 @@ void update_entities(void)
 void end_entities(void)
 {
 	clear_entities();
-	g_player = NULL;
 }
 
 void clear_entities(void)
@@ -271,6 +322,10 @@ void clear_entities(void)
 	entity *e, *n;
 
 	dl_for_each_entry_s (e, n, &g_entities, node) {
+		uint8_t *tile;
+
+		tile = g_gm->rows[e->spawn.y] + e->spawn.x;
+		*tile = g_em_to_tile[e->em];
 		destroy_entity(e);
 	}
 }
