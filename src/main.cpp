@@ -255,9 +255,20 @@ static int read_map(const wchar_t *path)
 	row = gm->rows;
 	n = gm->h;
 	while (n-- > 0) {
+		uint8_t *t;
+		int n;
+
 		if (fread(*row, gm->w, 1, f) < 1) {
-			destroy_game_map(gm);
-			goto err1;
+			goto err2;
+		}
+
+		t = *row;
+		n = gm->w; 
+		while (n-- > 0) {
+			if (*t >= COUNTOF_TILES) {
+				goto err2;
+			}
+			t++;	
 		}
 		row++;
 	}
@@ -266,6 +277,10 @@ static int read_map(const wchar_t *path)
 	
 	/*error handling and cleanup*/
 	err = 0;
+err2:
+	if (err < 0) {
+		destroy_game_map(gm);
+	}
 err1:
 	fclose(f);
 	if (err >= 0) {
