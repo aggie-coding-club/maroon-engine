@@ -38,13 +38,14 @@ const uint8_t g_idm_to_entity[] = {
 	[IDM_PLAYER - IDM_PLAYER] = TILE_CAPTAIN,
 	[IDM_CRABBY - IDM_PLAYER] = TILE_CRABBY
 };
-
+	
 /*redudant table*/
 uint8_t g_tile_to_em[COUNTOF_TILES];
+uint8_t g_anim_to_tile[COUNTOF_ANIM];
 
 game_map *g_gm;
 
-void init_tables(void)
+static void init_tile_to_em(void)
 {
 	int i;
 
@@ -56,6 +57,33 @@ void init_tables(void)
 		tile = g_em_to_tile[i];
 		g_tile_to_em[tile] = i;
 	}
+}
+
+static void init_anim_to_tile(void)
+{
+	const entity_meta *meta;
+	const uint8_t *tp;
+	int n;
+
+	memset(g_anim_to_tile, TILE_INVALID, COUNTOF_ANIM);
+
+	meta = g_entity_metas;
+	tp = g_em_to_tile;
+	n = COUNTOF_EM;
+	while (n-- > 0) {
+		int anim;
+
+		anim = meta->def_anim;
+		g_anim_to_tile[anim] = *tp;
+		meta++;
+		tp++;
+	}
+}
+
+void init_tables(void)
+{
+	init_tile_to_em();
+	init_anim_to_tile();
 }
 
 game_map *create_game_map(void)

@@ -14,6 +14,8 @@
 #define TILE_CRABBY 5
 #define COUNTOF_TILES 6
 
+#define TILE_INVALID 255
+
 #include "entity.hpp"
 
 #define PROP_SOLID 1
@@ -29,6 +31,7 @@ extern const uint8_t g_tile_props[COUNTOF_TILES];
 
 extern const uint8_t g_em_to_tile[COUNTOF_EM];
 extern uint8_t g_tile_to_em[COUNTOF_TILES];
+extern uint8_t g_anim_to_tile[COUNTOF_ANIM];
 
 extern const uint8_t g_idm_to_tile[];
 extern const uint8_t g_idm_to_entity[];

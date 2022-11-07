@@ -28,7 +28,7 @@ struct box {
  */
 struct entity_meta {
 	box mask;
-	const anim *def_anim;
+	uint8_t def_anim;
 };
 
 /**

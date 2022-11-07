@@ -586,6 +586,8 @@ static void load_atlas(void)
 	sprite **spr;
 	anim *anim;
 
+	int i;
+
 	dst = (uint8_t *) malloc(SIZEOF_ATLAS);
 	if (!dst) {
 		return;
@@ -605,15 +607,15 @@ static void load_atlas(void)
 	}
 
 	path = g_anim_paths;
-	n = COUNTOF_ANIM;
 	anim = g_anims;
-	while (n-- > 0) {
+	for (i = 0; i < COUNTOF_ANIM; i++) {
 		char full_path[MAX_PATH];
 		char *names[16];
 		int count;
 		int base;
 		int remain;
 		char **name;
+		int tile;
 
 		sprintf(full_path, "res/sprites/%s", *path);
 		count = get_names(full_path, names, 16);
@@ -635,6 +637,11 @@ static void load_atlas(void)
 			}
 			name++;
 			spr++;
+		}
+
+		tile = g_anim_to_tile[i];
+		if (tile != TILE_INVALID) {
+			g_tile_to_spr[tile] = base;
 		}
 
 		anim->start = base;

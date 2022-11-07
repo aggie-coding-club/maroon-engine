@@ -21,7 +21,7 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				32.0F / TILE_LEN
 			}
 		},
-		.def_anim = &g_anims[ANIM_CAPTAIN_IDLE]
+		.def_anim = ANIM_CAPTAIN_IDLE
 	},
 	[EM_CRABBY] = {
 		.mask = {
@@ -34,7 +34,7 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				28.0F / TILE_LEN
 			}
 		},
-		.def_anim = &g_anims[ANIM_CRABBY_IDLE]
+		.def_anim = ANIM_CRABBY_IDLE
 	}
 };
 
@@ -71,7 +71,7 @@ entity *create_entity(int tx, int ty, uint8_t em)
 	e->vel.y = 0.0F;
 
 	meta = g_entity_metas + em;
-	set_animation(e, meta->def_anim);
+	set_animation(e, g_anims + meta->def_anim);
 
 	switch (em) {
 	case EM_CRABBY:
