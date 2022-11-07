@@ -2,37 +2,12 @@
 
 #include "entity.hpp"
 #include "game-map.hpp"
-#include "render.hpp"
 
 float g_dt;
 DL_HEAD(g_entities);
 int g_key_down[256];
 
-static float g_gravity = 2.0F;
-
-static const anim g_captain_idle_anim = {
-	0.1F,
-	SPR_CAPTAIN_SWORD_IDLE_1,
-	SPR_CAPTAIN_SWORD_IDLE_5
-};
-
-static const anim g_captain_run_anim = {
-	0.1F,
-	SPR_CAPTAIN_SWORD_RUN_1,
-	SPR_CAPTAIN_SWORD_RUN_6
-};
-
-static const anim g_crabby_idle_anim = {
-	0.1F,
-	SPR_CRABBY_IDLE_1,
-	SPR_CRABBY_IDLE_9
-};
-
-static const anim g_crabby_run_anim = {
-	0.1F,
-	SPR_CRABBY_RUN_1,
-	SPR_CRABBY_RUN_6
-};
+static const float g_gravity = 2.0F;
 
 const entity_meta g_entity_metas[COUNTOF_EM] = {
 	[EM_CAPTAIN] = {
@@ -46,7 +21,7 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				32.0F / TILE_LEN
 			}
 		},
-		.def_anim = &g_captain_idle_anim
+		.def_anim = &g_anims[ANIM_CAPTAIN_IDLE]
 	},
 	[EM_CRABBY] = {
 		.mask = {
@@ -59,7 +34,7 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				28.0F / TILE_LEN
 			}
 		},
-		.def_anim = &g_crabby_idle_anim
+		.def_anim = &g_anims[ANIM_CRABBY_IDLE]
 	}
 };
 
@@ -74,7 +49,7 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 static void set_animation(entity *e, const anim *new_anim)
 {
 	e->cur_anim = new_anim;
-	e->anim_time = new_anim->dt;
+	e->anim_time = ANIM_DT;
 	e->sprite = new_anim->start;
 }
 
@@ -167,7 +142,7 @@ static void update_animation(entity *e)
 			e->sprite = e->cur_anim->start;
 		}
 
-		e->anim_time = e->cur_anim->dt;
+		e->anim_time = ANIM_DT;
 	}
 }
 
@@ -252,9 +227,9 @@ static void update_captain(entity *e)
 
 	/* figuring out which aniemation to use*/
 	if (fabsf(e->vel.x) > 0.05F) {
-		change_animation(e, &g_captain_run_anim);
+		change_animation(e, &g_anims[ANIM_CAPTAIN_RUN]);
 	} else {
-		change_animation(e, &g_captain_idle_anim);
+		change_animation(e, &g_anims[ANIM_CAPTAIN_IDLE]);
 	}
 }
 
@@ -283,9 +258,9 @@ static void update_crabby(entity *e)
 
 	/* selecting the animation */
 	if (fabsf(e->vel.x) > 0.05F) {
-		change_animation(e, &g_crabby_run_anim);
+		change_animation(e, &g_anims[ANIM_CRABBY_RUN]);
 	} else {
-		change_animation(e, &g_crabby_idle_anim);
+		change_animation(e, &g_anims[ANIM_CRABBY_IDLE]);
 	}
 }
 

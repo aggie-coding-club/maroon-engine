@@ -10,8 +10,8 @@
 #include <wglext.h>
 
 #include "entity.hpp"
-#include "render.hpp"
 #include "game-map.hpp"
+#include "render.hpp"
 
 #define TILE_STRIDE (TILE_LEN * 4) 
 #define TILE_SIZE (TILE_LEN * TILE_LEN)
@@ -76,7 +76,7 @@ float g_cloud_x;
 rect g_cam = {0, 0, VIEW_TW, VIEW_TH}; 
 
 static int g_square_next;
-static sprite *g_sprites[COUNTOF_SPR];
+static sprite *g_sprites[COUNTOF_SPR_ALL];
 
 static HDC g_hdc;
 static HGLRC g_glrc;
@@ -457,24 +457,134 @@ static int load_sprite(uint8_t **dst, const uint8_t *src, int w, int h,
 	return 0;
 }
 
+static void free_names(char **names, int n)
+{
+	while (n-- > 0) {
+		free(*names++);
+	}
+}
+
+/**
+ * alpha_cmp() - Quick sort string comparator
+ * @lhs: Pointer of string, should be of type const char **
+ * @rhs: Pointer of string, should be of type const char **
+ *
+ * Returns: Identical to strcmp return value
+ */
+static int alpha_cmp(const void *lhs, const void *rhs)
+{
+	const char *lstr;
+	const char *rstr;
+
+	lstr = *(const char **) lhs;
+	rstr = *(const char **) rhs;
+	return strcmp(lstr, rstr);
+}
+
+/**
+ * get_names() - Get sorted ASCII file names in directory 
+ * @path: Directory to search names 
+ * @names: Names of files 
+ * @count: Max count of files
+ *
+ * Return: Returns number of files found on success or -1 on failure
+ */
+static int get_names(const char *path, char **names, int count)
+{
+	char src[MAX_PATH];
+	WIN32_FIND_DATAA find;
+	HANDLE sh;
+	int i;
+	DWORD err;
+
+	i = 0;
+	sprintf(src, "%s/*", path);
+	sh = FindFirstFileA(src, &find);
+	if (sh == INVALID_HANDLE_VALUE) {
+		fprintf(stderr, "Cannot find first file: %s\n", path);
+		return -1;
+	}
+	do {
+		if (i == count) {
+			fprintf(stderr, "Too many files\n");
+			goto err;
+		}
+		if (!(find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+			names[i] = strdup(find.cFileName);
+			if (!names[i]) {
+				goto err;
+			}
+			i++;
+		}
+	} while (FindNextFileA(sh, &find));
+
+	err = GetLastError();
+	FindClose(sh);
+	if (err != ERROR_NO_MORE_FILES) {
+		fprintf(stderr, "Could not find all files\n");
+		goto err;
+	}
+
+	qsort(names, i, sizeof(*names), alpha_cmp);
+
+	return i;
+err:
+	free_names(names, i);
+	return -1;
+}
+
+/**
+ * read_sprite(): Reads sprite into atlas 
+ * @path: Path to sprite relative to res/sprites
+ * @dp: Pointer to modify for next image in atlas 
+ * @spr: Pointer to modify
+ *
+ * Return: Return 0 on success, -1 on failure
+ */
+static int read_sprite(const char *path, uint8_t **dp, sprite **spr)
+{
+	char full_path[MAX_PATH];
+	uint8_t *src;
+	int width;
+	int height;
+	int err;
+
+	sprintf(full_path, "res/sprites/%s", path);
+	src = stbi_load(full_path, &width, &height, NULL, 4);
+	if (!src) {
+		fprintf(stderr, "%s could not find\n", path);
+		return -1;
+	}
+
+	if (load_sprite(dp, src, width, height, spr) < 0) {
+		fprintf(stderr, "could not load sprite %s\n", path);
+		err = -1;
+	} else {
+		err = 0;
+	}
+
+	stbi_image_free(src);
+	return err;
+}
+
 /**
  * load_atlas() - Load sprites into atlas.
  *
  * Combines a bunch of individual sprites listed
- * in g_sprite_files into a single atlas,
+ * in g_sprite_paths into a single atlas,
  * start from the top left and going right
  * than down. 
  */
 static void load_atlas(void)
 {
-	const char *const *file;
+	const char *const *path;
 	size_t n;
 
 	uint8_t *dst;
 	uint8_t *dp;
 
-	int spr_i;
 	sprite **spr;
+	anim *anim;
 
 	dst = (uint8_t *) malloc(SIZEOF_ATLAS);
 	if (!dst) {
@@ -484,32 +594,57 @@ static void load_atlas(void)
 	dp = dst;
 	spr = g_sprites;
 
-	file = g_sprite_files; 
+	path = g_sprite_paths; 
 	n = COUNTOF_SPR; 
 	while (n-- > 0) { 
-		char path[MAX_PATH];
-
-		uint8_t *src;
-		int width;
-		int height;
-
-		sprintf(path, "res/sprites/%s", *file);
-		src = stbi_load(path, &width, &height, NULL, 4);
-		if (!src) {
-			fprintf(stderr, "%s could not find\n", *file);
-			break;
+		if (read_sprite(*path, &dp, spr)) {
+			abort();
 		}
-
-		if (load_sprite(&dp, src, width, height, spr) < 0) {
-			fprintf(stderr, "could not load sprite %s\n", *file);
-			break;
-		}
-		stbi_image_free(src);
-
-		file++;
-		spr_i++;
+		path++;
 		spr++;
 	}
+
+	path = g_anim_paths;
+	n = COUNTOF_ANIM;
+	anim = g_anims;
+	while (n-- > 0) {
+		char full_path[MAX_PATH];
+		char *names[16];
+		int count;
+		int base;
+		int remain;
+		char **name;
+
+		sprintf(full_path, "res/sprites/%s", *path);
+		count = get_names(full_path, names, 16);
+		if (count < 0) {
+			continue;
+		}
+
+		base = spr - g_sprites;
+		remain = COUNTOF_SPR_ALL - base;
+		if (count > remain) {
+			fprintf(stderr, "Too many sprites\n");
+		}
+
+		name = names;
+		while (count-- > 0) {
+			sprintf(full_path, "%s/%s", *path, *name);
+			if (read_sprite(full_path, &dp, spr)) {
+				abort();
+			}
+			name++;
+			spr++;
+		}
+
+		anim->start = base;
+		base = spr - g_sprites;
+		anim->end = base - 1;
+
+		path++;
+		anim++;
+	}
+
 	stbi_write_png("res/tex/tex.png", ATLAS_LEN, 
 			ATLAS_LEN, 4, dst, ATLAS_STRIDE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ATLAS_LEN, 

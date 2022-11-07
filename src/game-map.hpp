@@ -24,7 +24,7 @@ struct game_map {
 	int h;
 };
 
-extern const uint8_t g_tile_to_spr[COUNTOF_TILES];
+extern uint8_t g_tile_to_spr[COUNTOF_TILES];
 extern const uint8_t g_tile_props[COUNTOF_TILES];
 
 extern const uint8_t g_em_to_tile[COUNTOF_EM];

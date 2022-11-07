@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "dl.hpp"
 #include "util.hpp"
+#include "render.hpp"
 
 #define EM_CAPTAIN 0
 #define EM_CRABBY 1
@@ -18,21 +19,6 @@
 struct box {
 	v2 tl;
 	v2 br;
-};
-
-/**
- * struct anim - An animation 
- * @dt: The time between sprites 
- * @start: First sprite in animation 
- * @end: Last sprite in animation 
- * 
- * Animation iterates through each sprite.
- * The sprites in animation will be consecutive.
- */
-struct anim {
-	float dt;
-	uint8_t start;
-	uint8_t end;
 };
 
 /**

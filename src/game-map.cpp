@@ -5,14 +5,13 @@
 #include "util.hpp"
 #include "sprites.hpp"
 
-/*tables to add new entity data to*/
-const uint8_t g_tile_to_spr[COUNTOF_TILES] = {
+uint8_t g_tile_to_spr[COUNTOF_TILES] = {
 	[TILE_BLANK] = SPR_INVALID,
 	[TILE_SOLID] = SPR_INVALID, 
 	[TILE_GRASS] = SPR_GRASS, 
 	[TILE_GROUND] = SPR_GROUND, 
-	[TILE_CAPTAIN] = SPR_CAPTAIN_SWORD_IDLE_1,	
-	[TILE_CRABBY] = SPR_CRABBY_IDLE_1
+	[TILE_CAPTAIN] = SPR_INVALID,
+	[TILE_CRABBY] = SPR_INVALID 
 };
 
 const uint8_t g_tile_props[COUNTOF_TILES] = {
