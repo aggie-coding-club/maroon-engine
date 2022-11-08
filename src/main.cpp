@@ -1038,11 +1038,11 @@ static void game_loop(void)
 	begin = query_perf_counter(); 
 	g_dt = 0.0F;
 	
+	float last_dist = 0;
 	while (g_running) {
 		int64_t end; 
 		int64_t dpc;
 
-		
 		update_entities();
 		render();
 
