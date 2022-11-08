@@ -1,6 +1,7 @@
 bin
 obj
 lib/freetype_build
+lib/freetype
 
 # Prerequisites
 *.d
