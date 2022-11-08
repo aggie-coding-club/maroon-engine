@@ -65,6 +65,8 @@ static uint8_t g_place = TILE_GRASS;
 
 static int64_t g_perf_freq;
 
+static rect g_old_cam;
+
 /** 
  * cd_parent() - Transforms full path into the parent full path 
  * @path: Path to transform
@@ -93,17 +95,6 @@ static void set_default_directory(void)
 }
 
 /**
- * fclampf() - Single precision float clamp
- * @v: Value to clamp
- * @l: Min value
- * @h: Max value
- */
-static float fclampf(float v, float l, float h)
-{
-	return fminf(fmaxf(v, l), h);
-}
-
-/**
  * update_scrollbars() - Refresh scrollbar 
  * @width: The new width of the window
  * @height: The new height of the window
@@ -116,9 +107,7 @@ static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
 
-	g_cam.x = fclampf(g_cam.x, g_gm->w - g_cam.w, 0);
-	g_cam.y = fclampf(g_cam.y, g_gm->h - g_cam.h, 0);
-
+	bound_cam();
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
@@ -590,7 +579,7 @@ static void start_game(void)
 	CheckMenuItem(g_menu, IDM_RUN, MF_CHECKED);
 	DrawMenuBar(g_wnd);
 
-	/*TODO: put start code here*/
+	g_old_cam = g_cam;
 	start_entities();
 }
 
@@ -851,6 +840,7 @@ static void end_game(void)
 		SetMenuItemInfoW(g_menu, i, MF_BYPOSITION, &info);
 	}
 	end_entities();
+	g_cam = g_old_cam;
 	CheckMenuItem(g_menu, IDM_RUN, MF_UNCHECKED);
 	DrawMenuBar(g_wnd);
 }
@@ -1038,7 +1028,6 @@ static void game_loop(void)
 	begin = query_perf_counter(); 
 	g_dt = 0.0F;
 	
-	float last_dist = 0;
 	while (g_running) {
 		int64_t end; 
 		int64_t dpc;

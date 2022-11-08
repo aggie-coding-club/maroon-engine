@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "dl.hpp"
 #include "util.hpp"
-#include "render.hpp"
+#include "sprites.hpp"
 
 #define EM_CAPTAIN 0
 #define EM_CRABBY 1

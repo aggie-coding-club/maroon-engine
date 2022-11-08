@@ -2,6 +2,7 @@
 
 #include "entity.hpp"
 #include "game-map.hpp"
+#include "render.hpp"
 
 float g_dt;
 DL_HEAD(g_entities);
@@ -233,13 +234,13 @@ static void update_captain(entity *e)
 	}
 
 	/* camera follow */
-	if(g_key_down[VK_RIGHT]){
-		g_cam.x += 4 * g_dt;
+	if (g_key_down[VK_RIGHT]){
+		g_cam.x += 4.0F * g_dt;
 	}
 
 	v2 cap_pos = e->pos + g_entity_metas[e->em].mask.tl;
 	v2 cam_pos = v2{g_cam.x, g_cam.y};
-	float bound = 2;
+	float bound = 2.0F;
 
 	float dist_x = cap_pos.x - cam_pos.x;
 
@@ -248,17 +249,18 @@ static void update_captain(entity *e)
 
 	float catch_up_speed = 5.0F;
 
-	if(dist_to_end < bound){
+	if (dist_to_end < bound) {
 		g_cam.x += catch_up_speed * g_dt;
 	}
 
-	if(dist_to_start < bound){
+	if (dist_to_start < bound) {
 		g_cam.x -= catch_up_speed * g_dt;
 	}
 
-	if(g_cam.x < 0){
-		g_cam.x = 0;
+	if (g_cam.x < 0.0F) {
+		g_cam.x = 0.0F;
 	}
+	bound_cam();
 }
 
 static void update_crabby(entity *e)
