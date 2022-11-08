@@ -964,6 +964,8 @@ static void update_sprites(void)
 
 	render_tiles(buf);
 	if (g_running) {
+		
+
 		push_sprite(buf, g_cloud_x, 0.375F, 
 				LAYER_CLOUD, SPR_BIG_CLOUDS);
 		push_sprite(buf, g_cloud_x + 14.0F, 0.375F, 

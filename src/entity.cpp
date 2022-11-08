@@ -231,6 +231,34 @@ static void update_captain(entity *e)
 	} else {
 		change_animation(e, &g_anims[ANIM_CAPTAIN_IDLE]);
 	}
+
+	/* camera follow */
+	if(g_key_down[VK_RIGHT]){
+		g_cam.x += 4 * g_dt;
+	}
+
+	v2 cap_pos = e->pos + g_entity_metas[e->em].mask.tl;
+	v2 cam_pos = v2{g_cam.x, g_cam.y};
+	float bound = 2;
+
+	float dist_x = cap_pos.x - cam_pos.x;
+
+	float dist_to_end = (g_cam.w - cap_pos.x) + g_cam.x;
+	float dist_to_start = (g_cam.w - dist_to_end);
+
+	float catch_up_speed = 5.0F;
+
+	if(dist_to_end < bound){
+		g_cam.x += catch_up_speed * g_dt;
+	}
+
+	if(dist_to_start < bound){
+		g_cam.x -= catch_up_speed * g_dt;
+	}
+
+	if(g_cam.x < 0){
+		g_cam.x = 0;
+	}
 }
 
 static void update_crabby(entity *e)
