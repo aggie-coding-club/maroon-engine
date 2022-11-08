@@ -9,6 +9,7 @@ DL_HEAD(g_entities);
 int g_key_down[256];
 
 static const float g_gravity = 2.0F;
+static int8_t cam_seek = 0;
 
 const entity_meta g_entity_metas[COUNTOF_EM] = {
 	[EM_CAPTAIN] = {
@@ -234,32 +235,36 @@ static void update_captain(entity *e)
 	}
 
 	/* camera follow */
-	if (g_key_down[VK_RIGHT]){
-		g_cam.x += 4.0F * g_dt;
-	}
-
 	v2 cap_pos = e->pos + g_entity_metas[e->em].mask.tl;
-	v2 cam_pos = v2{g_cam.x, g_cam.y};
 	float bound = 2.0F;
-
-	float dist_x = cap_pos.x - cam_pos.x;
 
 	float dist_to_end = (g_cam.w - cap_pos.x) + g_cam.x;
 	float dist_to_start = (g_cam.w - dist_to_end);
 
-	float catch_up_speed = 5.0F;
+	/*TODO(Lenny): Make the camera slow down as it gets closer to cap*/
+	float catch_up_speed = 4.0F;
 
-	if (dist_to_end < bound) {
-		g_cam.x += catch_up_speed * g_dt;
+	if (cam_seek) {
+		g_cam.x += catch_up_speed * cam_seek * g_dt;
+
+		if (dist_to_end >= g_cam.w / 2 && cam_seek == 1) {
+			cam_seek = 0;
+		} else if (dist_to_start >= g_cam.w / 2 && cam_seek == -1) {
+			cam_seek = 0;
+		}
 	}
 
-	if (dist_to_start < bound) {
-		g_cam.x -= catch_up_speed * g_dt;
+	if (dist_to_end < bound && cam_seek == false) {
+		cam_seek = 1;
+	} else if (dist_to_start < bound && cam_seek == false) {
+		cam_seek = -1;
 	}
 
 	if (g_cam.x < 0.0F) {
 		g_cam.x = 0.0F;
+		cam_seek = 0;
 	}
+
 	bound_cam();
 }
 
@@ -274,16 +279,19 @@ static void update_crabby(entity *e)
 	meta = g_entity_metas + e->em;
 	offset = e->pos + meta->mask.tl;
 
+	float crabby_speed = 0.0f;
+
 	tile_id_left = get_tile(offset.x, 
 			offset.y + meta->mask.br.y + 0.1F);
 	tile_id_right = get_tile(offset.x + 
 			(meta->mask.br.x - meta->mask.tl.x), 
 			offset.y + meta->mask.br.y + 0.1F);
+
 	if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
-		e->vel.x *= -1;
+		e->vel.x *= -crabby_speed;
 	} else if (tile_id_right == TILE_SOLID || 
 			tile_id_right != TILE_GRASS) {
-		e->vel.x *= -1;
+		e->vel.x *= -crabby_speed;
 	} 
 
 	/* selecting the animation */

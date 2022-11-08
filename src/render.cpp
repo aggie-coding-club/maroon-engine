@@ -886,7 +886,7 @@ static void render_tiles(square_buf *buf)
 			int sprite;
 			int atx, aty;
 			int tile;
-			int stx, sty;
+			float stx, sty;
 
 			atx = g_cam.x + tx;
 			aty = g_cam.y + ty;
@@ -900,7 +900,7 @@ static void render_tiles(square_buf *buf)
 						g_tile_to_spr[tile]);
 			}
 
-			sprite = cols[sty % _countof(cols)];
+			sprite = cols[(int)sty % _countof(cols)];
 			push_sprite(buf, stx, sty - 0.3125F, 
 					LAYER_BACK, sprite);
 			if (!g_running && g_grid_on) {
