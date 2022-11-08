@@ -155,6 +155,16 @@ static bool unsaved_warning(void)
 }
 
 /**
+ * err_window() - Show generic error message box
+ * @parent: Parent window 
+ * @err: Error message 
+ */
+static void err_window(HWND parent, const wchar_t *err)
+{
+	MessageBoxW(parent, err, L"Error", MB_ICONERROR);
+}
+
+/**
  * write_map() - Save map to file.
  * @path - Path to map
  *
@@ -201,8 +211,7 @@ err1:
 	}
 err0:
 	if (err < 0) {
-		MessageBoxW(g_wnd, L"Could not save map", 
-				L"Error", MB_ICONERROR);
+		err_window(g_wnd, L"Could not save map"); 
 	}
 	return err;
 }
@@ -277,8 +286,7 @@ err1:
 	}
 err0:
 	if (err < 0) {
-		MessageBoxW(g_wnd, L"Could not read map", 
-				L"Error", MB_ICONERROR);
+		err_window(g_wnd, L"Could not read map"); 
 	}
 	return err;
 }
@@ -491,23 +499,19 @@ static void attempt_resize(HWND wnd)
 	width = GetDlgItemInt(wnd, IDD_WIDTH, &success, FALSE);
 	if (!success) {
 		err = -1;
-		MessageBoxW(wnd, L"Invalid width", 
-				L"Error", MB_ICONERROR);
+		err_window(wnd, L"Invalid width"); 
 	} else if (width > 999) {
 		err = -1;
-		MessageBoxW(wnd, L"Width must be at most 999", 
-				L"Error", MB_ICONERROR);
+		err_window(wnd, L"Width must be at most 999"); 
 	} 
 
 	height = GetDlgItemInt(wnd, IDD_HEIGHT, &success, FALSE);
 	if (!success) {
 		err = -1;
-		MessageBoxW(wnd, L"Invalid height", 
-				L"Error", MB_ICONERROR);
+		err_window(wnd, L"Invalid height"); 
 	} else if (height > 999) {
 		err = -1;
-		MessageBoxW(wnd, L"Height must be at most 999", 
-				L"Error", MB_ICONERROR);
+		err_window(wnd, L"Height must be at most 999"); 
 	}
 
 	if (err >= 0) {
@@ -580,6 +584,10 @@ static void start_game(void)
 	DrawMenuBar(g_wnd);
 
 	g_old_cam = g_cam;
+	g_cam.x = 0;
+	g_cam.y = 0;
+	g_cam.w = VIEW_TW;
+	g_cam.h = VIEW_TH;
 	start_entities();
 }
 
