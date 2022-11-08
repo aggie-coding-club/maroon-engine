@@ -4,9 +4,12 @@
 #include <stdint.h>
 #include "dl.hpp"
 #include "util.hpp"
+#include "sprites.hpp"
 
-#define EM_PLAYER 0
-#define COUNTOF_EM 1
+#define EM_CAPTAIN 0
+#define EM_CRABBY 1
+#define EM_INVALID 255
+#define COUNTOF_EM 2
 
 /**
  * struct box - Box
@@ -19,53 +22,36 @@ struct box {
 };
 
 /**
- * struct anim - An animation 
- * @dt: The time between sprites 
- * @start: First sprite in animation 
- * @end: Last sprite in animation 
- * 
- * Animation iterates through each sprite.
- * The sprites in animation will be consecutive.
- */
-struct anim {
-	float dt;
-	uint8_t start;
-	uint8_t end;
-};
-
-/**
  * struct entity_meta - Includes constant info for entity 
  * @mask: Collision mask
  * @def_anim: Default animation 
  */
 struct entity_meta {
 	box mask;
-	const anim *def_anim;
+	uint8_t def_anim;
 };
 
 /**
  * @node: Used to point to next entity
- * @meta: Pointer to common entites of this type
  * @v2i: Spawn position
+ * @em: Index of meta
  *
  * @pos: Current position in tiles
  * @vel: Current velocity in tiles per second
- * @offset: cached absolute position of collision mask 
  * @mask: collison mask 
  *
  * @anim_time: Time till next animation frame
  * @cur_anim: Animation
  */
 struct entity {
-	/*misc*/
+	/*emsc*/
 	dl_head node;
-	const entity_meta *meta;
 	v2i spawn;
+	uint8_t em;
 
 	/*physics*/
 	v2 pos;
 	v2 vel;
-	v2 offset;
 
 	/*animation*/
 	const anim *cur_anim;
@@ -91,7 +77,7 @@ extern int g_key_down[256];
  *
  * Return: The entity
  */
-entity *create_entity(int tx, int ty);
+entity *create_entity(int tx, int ty, uint8_t meta);
 
 /**
  * start_entities() - Setup entity system

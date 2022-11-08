@@ -1,23 +1,90 @@
 #include <string.h>
 
 #include "menu.hpp"
-#include "game_map.hpp"
+#include "game-map.hpp"
 #include "util.hpp"
+#include "sprites.hpp"
 
-game_map *g_gm;
-
-uint16_t g_tile_to_idm[COUNTOF_TILES] = {
-	[TILE_BLANK] = IDM_BLANK,
-	[TILE_SOLID] = 0, 
-	[TILE_GRASS] = IDM_GRASS, 
-	[TILE_GROUND] = IDM_GROUND, 
+uint8_t g_tile_to_spr[COUNTOF_TILES] = {
+	[TILE_BLANK] = SPR_INVALID,
+	[TILE_SOLID] = SPR_INVALID, 
+	[TILE_GRASS] = SPR_GRASS, 
+	[TILE_GROUND] = SPR_GROUND, 
+	[TILE_CAPTAIN] = SPR_INVALID,
+	[TILE_CRABBY] = SPR_INVALID 
 };
 
-uint8_t g_idm_to_tile[] = {
+const uint8_t g_tile_props[COUNTOF_TILES] = {
+	[TILE_BLANK] = 0,
+	[TILE_SOLID] = 0, 
+	[TILE_GRASS] = PROP_SOLID, 
+	[TILE_GROUND] = PROP_SOLID, 
+	[TILE_CAPTAIN] = 0,
+	[TILE_CRABBY] = 0 
+};
+
+const uint8_t g_em_to_tile[COUNTOF_EM] = {
+	[EM_CAPTAIN] = TILE_CAPTAIN, 
+	[EM_CRABBY] = TILE_CRABBY
+};
+
+const uint8_t g_idm_to_tile[] = {
 	[IDM_BLANK - IDM_BLANK] = TILE_BLANK,
 	[IDM_GRASS - IDM_BLANK] = TILE_GRASS,
 	[IDM_GROUND - IDM_BLANK] = TILE_GROUND
 };
+
+const uint8_t g_idm_to_entity[] = {
+	[IDM_PLAYER - IDM_PLAYER] = TILE_CAPTAIN,
+	[IDM_CRABBY - IDM_PLAYER] = TILE_CRABBY
+};
+	
+/*redudant table*/
+uint8_t g_tile_to_em[COUNTOF_TILES];
+uint8_t g_anim_to_tile[COUNTOF_ANIM];
+
+game_map *g_gm;
+
+static void init_tile_to_em(void)
+{
+	int i;
+
+	memset(g_tile_to_em, EM_INVALID, sizeof(g_tile_to_em));
+
+	for (i = 0; i < COUNTOF_EM; i++) {
+		int tile;
+
+		tile = g_em_to_tile[i];
+		g_tile_to_em[tile] = i;
+	}
+}
+
+static void init_anim_to_tile(void)
+{
+	const entity_meta *meta;
+	const uint8_t *tp;
+	int n;
+
+	memset(g_anim_to_tile, TILE_INVALID, COUNTOF_ANIM);
+
+	meta = g_entity_metas;
+	tp = g_em_to_tile;
+	n = COUNTOF_EM;
+	while (n-- > 0) {
+		int anim;
+
+		anim = meta->def_anim;
+		g_anim_to_tile[anim] = *tp;
+		meta++;
+		tp++;
+	}
+}
+
+void init_tables(void)
+{
+	init_tile_to_em();
+	init_anim_to_tile();
+}
 
 game_map *create_game_map(void)
 {

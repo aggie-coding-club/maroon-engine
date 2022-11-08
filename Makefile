@@ -2,10 +2,9 @@ CC = gcc
 CXX = g++
 
 CXXFLAGS = -DUNICODE -Wall 
-CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl -Ilib/freetype/include
+CXXFLAGS += -Ilib/glad/include -Ilib/stb -Ilib/wgl
 CXXFLAGS += -MT $@ -MMD -MP -MF $(@:.o=.d)
-DEPOBJS = lib/glad/src/glad.o lib/freetype_build/libfreetype.a
-DEPOBJS += lib/stb/stb_image.o lib/stb/stb_image_write.o
+DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o lib/stb/stb_image_write.o
 
 GEN = -G "MinGW Makefiles"
 
@@ -19,12 +18,6 @@ OBJ = $(patsubst src/%.cpp,obj/%.o,$(SRC))
 DEP = $(patsubst src/%.cpp,obj/%.d,$(SRC))
 
 all: dir obj/menu.o engine
-
-lib/freetype_build/libfreetype.a:
-	mkdir -p lib\freetype_build
-	cd lib/freetype_build && \
-	cmake $(GEN) ../freetype && \
-	mingw32-make
 
 lib/stb/stb_image.o:
 	cd lib/stb && \
@@ -56,4 +49,3 @@ engine: $(OBJ) obj/menu.o $(DEPOBJS)
 clean:
 	rm bin -rf
 	rm obj -rf 
-	rm lib/freetype_build -rf 

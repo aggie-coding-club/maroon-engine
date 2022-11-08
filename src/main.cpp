@@ -12,13 +12,11 @@
 #include <commdlg.h>
 #include <fileapi.h>
 #include <glad/glad.h>
-#include <ft2build.h>
-#include FT_FREETYPE_H
 
 #include "entity.hpp"
 #include "menu.hpp"
 #include "render.hpp"
-#include "game_map.hpp"
+#include "game-map.hpp"
 
 #define MAX_EDITS 256ULL
 
@@ -52,8 +50,6 @@ struct edit {
 static HINSTANCE g_ins;
 static HACCEL g_acc; 
 
-static FT_Library g_freetype_library;
-
 static int g_client_width = VIEW_WIDTH;
 static int g_client_height = VIEW_HEIGHT;
 
@@ -68,6 +64,8 @@ static uint16_t g_place_select = IDM_GRASS;
 static uint8_t g_place = TILE_GRASS;
 
 static int64_t g_perf_freq;
+
+static rect g_old_cam;
 
 /** 
  * cd_parent() - Transforms full path into the parent full path 
@@ -97,17 +95,6 @@ static void set_default_directory(void)
 }
 
 /**
- * fclampf() - Single precision float clamp
- * @v: Value to clamp
- * @l: Min value
- * @h: Max value
- */
-static float fclampf(float v, float l, float h)
-{
-	return fminf(fmaxf(v, l), h);
-}
-
-/**
  * update_scrollbars() - Refresh scrollbar 
  * @width: The new width of the window
  * @height: The new height of the window
@@ -120,9 +107,7 @@ static void update_scrollbars(int width, int height)
 {
 	SCROLLINFO si;
 
-	g_cam.x = fclampf(g_cam.x, g_gm->w - g_cam.w, 0);
-	g_cam.y = fclampf(g_cam.y, g_gm->h - g_cam.h, 0);
-
+	bound_cam();
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_DISABLENOSCROLL;
 	si.nMin = 0;
@@ -167,6 +152,16 @@ static bool unsaved_warning(void)
 	return !g_change || MessageBoxW(g_wnd, 
 			L"Unsaved changes will be lost", L"Warning", 
 			MB_ICONEXCLAMATION | MB_OKCANCEL) == IDOK;
+}
+
+/**
+ * err_window() - Show generic error message box
+ * @parent: Parent window 
+ * @err: Error message 
+ */
+static void err_window(HWND parent, const wchar_t *err)
+{
+	MessageBoxW(parent, err, L"Error", MB_ICONERROR);
 }
 
 /**
@@ -216,8 +211,7 @@ err1:
 	}
 err0:
 	if (err < 0) {
-		MessageBoxW(g_wnd, L"Could not save map", 
-				L"Error", MB_ICONERROR);
+		err_window(g_wnd, L"Could not save map"); 
 	}
 	return err;
 }
@@ -259,9 +253,20 @@ static int read_map(const wchar_t *path)
 	row = gm->rows;
 	n = gm->h;
 	while (n-- > 0) {
+		uint8_t *t;
+		int n;
+
 		if (fread(*row, gm->w, 1, f) < 1) {
-			destroy_game_map(gm);
-			goto err1;
+			goto err2;
+		}
+
+		t = *row;
+		n = gm->w; 
+		while (n-- > 0) {
+			if (*t >= COUNTOF_TILES) {
+				goto err2;
+			}
+			t++;	
 		}
 		row++;
 	}
@@ -270,6 +275,10 @@ static int read_map(const wchar_t *path)
 	
 	/*error handling and cleanup*/
 	err = 0;
+err2:
+	if (err < 0) {
+		destroy_game_map(gm);
+	}
 err1:
 	fclose(f);
 	if (err >= 0) {
@@ -277,8 +286,7 @@ err1:
 	}
 err0:
 	if (err < 0) {
-		MessageBoxW(g_wnd, L"Could not read map", 
-				L"Error", MB_ICONERROR);
+		err_window(g_wnd, L"Could not read map"); 
 	}
 	return err;
 }
@@ -456,7 +464,6 @@ static void update_place(int id)
 	CheckMenuItem(g_menu, g_place_select, MF_UNCHECKED);
 	CheckMenuItem(g_menu, id, MF_CHECKED);
 	g_place_select = id;
-	g_place = g_idm_to_tile[id - IDM_BLANK];
 }
 
 /**
@@ -492,23 +499,19 @@ static void attempt_resize(HWND wnd)
 	width = GetDlgItemInt(wnd, IDD_WIDTH, &success, FALSE);
 	if (!success) {
 		err = -1;
-		MessageBoxW(wnd, L"Invalid width", 
-				L"Error", MB_ICONERROR);
+		err_window(wnd, L"Invalid width"); 
 	} else if (width > 999) {
 		err = -1;
-		MessageBoxW(wnd, L"Width must be at most 999", 
-				L"Error", MB_ICONERROR);
+		err_window(wnd, L"Width must be at most 999"); 
 	} 
 
 	height = GetDlgItemInt(wnd, IDD_HEIGHT, &success, FALSE);
 	if (!success) {
 		err = -1;
-		MessageBoxW(wnd, L"Invalid height", 
-				L"Error", MB_ICONERROR);
+		err_window(wnd, L"Invalid height"); 
 	} else if (height > 999) {
 		err = -1;
-		MessageBoxW(wnd, L"Height must be at most 999", 
-				L"Error", MB_ICONERROR);
+		err_window(wnd, L"Height must be at most 999"); 
 	}
 
 	if (err >= 0) {
@@ -568,7 +571,7 @@ static void start_game(void)
 	int i;
 
 	g_running = true;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 5; i++) {
 		MENUITEMINFOW info;
 
 		memset(&info, 0, sizeof(info));	
@@ -580,8 +583,24 @@ static void start_game(void)
 	CheckMenuItem(g_menu, IDM_RUN, MF_CHECKED);
 	DrawMenuBar(g_wnd);
 
-	/*TODO: put start code here*/
+	g_old_cam = g_cam;
+	g_cam.x = 0;
+	g_cam.y = 0;
+	g_cam.w = VIEW_TW;
+	g_cam.h = VIEW_TH;
 	start_entities();
+}
+
+/**
+ * in_submenu() - Check if menu id in submenu
+ * @id: ID to check
+ * @first: First item in submenu being checked 
+ *
+ * This assumes convention is being followed for submenus.
+ */
+static bool in_submenu(int id, int first)
+{
+	return (id & 0xF000) == first;
 }
 
 /**
@@ -654,8 +673,12 @@ static void process_editor_cmds(int id)
 		start_game();
 		break;
 	default:
-		if (id & IDM_BLANK) {
+		if (in_submenu(id, IDM_BLANK)) {
 			update_place(id);
+			g_place = g_idm_to_tile[id - IDM_BLANK];
+		} else if (in_submenu(id, IDM_PLAYER)) {
+			update_place(id);
+			g_place = g_idm_to_entity[id - IDM_PLAYER];
 		}
 	}
 }
@@ -706,7 +729,7 @@ static void place_tile(int x, int y, int tile)
  * button_down() - Respond to mouse button down 
  * @wp: WPARAM from wnd_proc
  * @lp: LPARAM from wnd_proc
- * @tile: Tile to place
+ * @tile: Tile to add
  */
 static void button_down(WPARAM wp, LPARAM lp, int tile)
 {
@@ -815,7 +838,7 @@ static void end_game(void)
 	int i;
 
 	g_running = false;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 5; i++) {
 		MENUITEMINFOW info;
 
 		memset(&info, 0, sizeof(info));	
@@ -825,6 +848,7 @@ static void end_game(void)
 		SetMenuItemInfoW(g_menu, i, MF_BYPOSITION, &info);
 	}
 	end_entities();
+	g_cam = g_old_cam;
 	CheckMenuItem(g_menu, IDM_RUN, MF_UNCHECKED);
 	DrawMenuBar(g_wnd);
 }
@@ -1016,7 +1040,6 @@ static void game_loop(void)
 		int64_t end; 
 		int64_t dpc;
 
-		
 		update_entities();
 		render();
 
@@ -1048,31 +1071,6 @@ static void msg_loop(void)
 }
 
 /**
- * print_ft_err() - Print free type error
- */
-static void print_ft_err(const char *msg, FT_Error err)
-{
-	const char *err_str;
-
-	err_str = FT_Error_String(err);
-	fprintf(stderr, "ft error: %s: %s", msg, err_str);
-}
-
-/**
- * init_freetype() - Initializes FreeType library
- */
-static void init_freetype()
-{
-	FT_Error err;
-
-	err = FT_Init_FreeType(&g_freetype_library);
-	if (err) {
-		print_ft_err("Could not init FreeType", err);
-		return;
-	}
-}
-
-/**
  * wWinMain() - Entry point of program
  * @ins: Handle used to identify the executable
  * @prev: Always zero, hold over from Win16
@@ -1091,10 +1089,10 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	
 	g_ins = ins;
 	QueryPerformanceFrequency((LARGE_INTEGER *) &g_perf_freq);
+	init_tables();
 	set_default_directory();
 	create_main_window();
 	init_gl();
-	init_freetype();
 	g_gm = create_game_map();
 	size_game_map(g_gm, VIEW_TW, VIEW_TH);
 	msg_loop();

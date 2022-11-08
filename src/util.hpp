@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <math.h>
 
 #define endof(ary) (ary + _countof(ary))
 
@@ -34,6 +35,17 @@ inline v2 operator+=(v2 a, v2 b)
 inline int div_up(int val, int div)
 {
 	return (val + div - 1) / div;
+}
+
+/**
+ * fclampf() - Single precision float clamp
+ * @v: Value to clamp
+ * @l: Min value
+ * @h: Max value
+ */
+inline float fclampf(float v, float l, float h)
+{
+	return fminf(fmaxf(v, l), h);
 }
 
 /**
