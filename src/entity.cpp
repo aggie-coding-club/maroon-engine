@@ -276,6 +276,10 @@ static void update_crabby(entity *e)
 	uint8_t tile_id_left; 
 	uint8_t tile_id_right;
 
+	/* for player detection/charging */
+	int wall_collide;
+	int player_detected;
+
 	meta = g_entity_metas + e->em;
 	offset = e->pos + meta->mask.tl;
 
@@ -293,6 +297,29 @@ static void update_crabby(entity *e)
 			tile_id_right != TILE_GRASS) {
 		e->vel.x *= -crabby_speed;
 	} 
+
+	/**
+	 * detecting the player and charging at them
+	 * 
+	 * variables will be set appropriately once tile and
+	 * player detection is implemented for crabby
+	 * 
+	 * -1 indicates left, 1 indicates right, and 0 indicates
+	 * no detection
+	 */
+	wall_collide = 0;
+	player_detected = 0;
+
+	if (player_detected != 0) {
+		/* crabby moves left if player is left and no wall is left*/
+		if (player_detected == -1 && wall_collide != -1) {
+			e->vel.x = -3.0F;
+		}
+		/* crabby moves right if player is right and no wall is right */
+		if (player_detected == 1 && wall_collide != 1) {
+			e->vel.x = 3.0F;
+		}
+	}
 
 	/* selecting the animation */
 	if (fabsf(e->vel.x) > 0.05F) {
