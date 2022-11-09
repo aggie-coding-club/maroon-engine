@@ -341,6 +341,44 @@ static void update_crabby(entity *e)
 	} else {
 		change_animation(e, &g_anims[ANIM_CRABBY_IDLE]);
 	}
+
+	/*check for tiles colliding with player on all four sides*/
+
+	entity_meta cap_meta = g_entity_metas[e->em];
+
+	box collider = {
+		{g_captain->pos.x + cap_meta.mask.tl.x, g_captain->pos.y + cap_meta.mask.tl.y},
+		{g_captain->pos.x + cap_meta.mask.br.x, g_captain->pos.y + cap_meta.mask.br.y}
+	};
+
+	double COLLIDER_OFFSET = 0.001;
+
+	bool touch_below = get_tile(collider.tl.x, collider.br.y) ||
+			get_tile(collider.tl.x, collider.br.y);
+
+	if (touch_below) {
+		g_captain->pos.y += (((int) (collider.br.y)) - (collider.br.y));
+	}
+	
+	bool touch_above = get_tile(collider.tl.x, collider.tl.y) ||
+			get_tile(collider.br.x, collider.br.y);
+			
+	if (touch_above) {
+		g_captain->pos.y += (((int)collider.tl.y)+1 - collider.tl.y);
+	}
+
+	bool touch_left = get_tile(collider.tl.x, collider.tl.y+COLLIDER_OFFSET) || get_tile(collider.tl.x, collider.br.y-COLLIDER_OFFSET);
+	
+	if (touch_left) {
+		g_captain->pos.x +=
+		((int) floorf(collider.tl.x)) + 1 -(collider.tl.x);
+	}
+
+	bool touch_right = get_tile(collider.br.x, collider.tl.y + COLLIDER_OFFSET) || get_tile(collider.br.x, collider.br.y-COLLIDER_OFFSET);
+	
+	if (touch_right) {
+		g_captain->pos.x += ((int) (collider.br.x)) - (collider.br.x);
+	}
 }
 
 static void update_specific(entity *e)
