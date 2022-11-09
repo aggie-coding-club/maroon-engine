@@ -8,20 +8,8 @@ float g_dt;
 DL_HEAD(g_entities);
 int g_key_down[256];
 
-static float g_gravity;
-static entity *g_player;
-
-static const anim g_captain_idle_anim = {
-	0.1F,
-	SPR_CAPTAIN_SWORD_IDLE_1,
-	SPR_CAPTAIN_SWORD_IDLE_5
-};
-
-static const anim g_captain_run_anim = {
-	0.1F,
-	SPR_CAPTAIN_SWORD_RUN_1,
-	SPR_CAPTAIN_SWORD_RUN_6
-};
+static const float g_gravity = 2.0F;
+static int8_t cam_seek = 0;
 
 const entity_meta g_entity_metas[COUNTOF_EM] = {
 	[EM_PLAYER] = {
@@ -38,6 +26,8 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 		.def_anim = &g_captain_idle_anim
 	}
 };
+
+static entity *g_captain = NULL;
 
 /**
  * set_animation - Set current animation for entity
@@ -84,7 +74,33 @@ void start_entities(void)
 {
 	g_player = create_entity(3, 3);
 
-	g_gravity = 2.0F;
+	r = g_gm->rows;
+	for (y = 0; y < g_gm->h; y++) {
+		uint8_t *c;
+		int x;
+
+		c = *r; 
+		for (x = 0; x < g_gm->w; x++) {
+			int em;
+
+			em = g_tile_to_em[*c];
+			if (em != EM_INVALID) {
+				entity *e = create_entity(x, y, em); 
+
+				if (em == EM_CAPTAIN) {
+					g_captain = e;
+				}
+
+				*c = 0;
+			}
+			c++;
+		}
+		r++;
+	}
+
+	if (g_captain == NULL) {
+		printf("No player on this level!\n");
+	}
 }
 
 /**
@@ -180,12 +196,99 @@ void update_entities(void)
 			(float) (int) g_player->meta->mask.br.y
 		};
 
-		g_player->vel.y -= g_gravity;
+	/* camera follow */
+	box b = g_entity_metas[e->em].mask;
+	v2 cap_pos = e->pos + b.tl;
+	float bound = 2.0F;
+
+	float dist_to_end = (g_cam.w - cap_pos.x) + g_cam.x;
+	float dist_to_start = (g_cam.w - dist_to_end);
+
+	/*TODO(Lenny): Make the camera slow down as it gets closer to cap*/
+	float catch_up_speed = 4.0F;
+	if (cam_seek) {
+
+		g_cam.x += catch_up_speed * cam_seek * g_dt;
+
+		if (dist_to_end >= g_cam.w / 2 && cam_seek == 1) {
+			cam_seek = 0;
+			catch_up_speed = catch_up_speed;
+		} else if (dist_to_start >= g_cam.w / 2 && cam_seek == -1) {
+			cam_seek = 0;
+			catch_up_speed = catch_up_speed;
+		}
 	}
 
-	/* figuring out which animiation to use*/
-	if (fabsf(g_player->vel.x) > 0.05F) {
-		change_animation(g_player, &g_captain_run_anim);
+	if (dist_to_end < bound && cam_seek == false) {
+		cam_seek = 1;
+	} else if (dist_to_start < bound && cam_seek == false) {
+		cam_seek = -1;
+	}
+
+	if (g_cam.x < 0.0F) {
+		g_cam.x = 0.0F;
+		cam_seek = 0;
+	}
+
+	bound_cam();
+}
+
+static void update_crabby(entity *e)
+{
+	/* crabby movement */
+	const entity_meta *meta;
+	v2 offset;
+	uint8_t tile_id_left; 
+	uint8_t tile_id_right;
+
+	/* for player detection/charging */
+	int wall_collide;
+	int player_detected;
+
+	meta = g_entity_metas + e->em;
+	offset = e->pos + meta->mask.tl;
+
+	float crabby_speed = 1.0f;
+
+	tile_id_left = get_tile(offset.x, 
+			offset.y + meta->mask.br.y + 0.1F);
+	tile_id_right = get_tile(offset.x + 
+			(meta->mask.br.x - meta->mask.tl.x), 
+			offset.y + meta->mask.br.y + 0.1F);
+
+	if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
+		e->vel.x *= -crabby_speed;
+	} else if (tile_id_right == TILE_SOLID || 
+			tile_id_right != TILE_GRASS) {
+		e->vel.x *= -crabby_speed;
+	} 
+
+	/**
+	 * detecting the player and charging at them
+	 * 
+	 * variables will be set appropriately once tile and
+	 * player detection is implemented for crabby
+	 * 
+	 * -1 indicates left, 1 indicates right, and 0 indicates
+	 * no detection
+	 */
+	wall_collide = 0;
+	player_detected = 0;
+
+	if (player_detected != 0) {
+		/* crabby moves left if player is left and no wall is left*/
+		if (player_detected == -1 && wall_collide != -1) {
+			e->vel.x = -3.0F;
+		}
+		/* crabby moves right if player is right and no wall is right */
+		if (player_detected == 1 && wall_collide != 1) {
+			e->vel.x = 3.0F;
+		}
+	}
+
+	/* selecting the animation */
+	if (fabsf(e->vel.x) > 0.05F) {
+		change_animation(e, &g_anims[ANIM_CRABBY_RUN]);
 	} else {
 		change_animation(g_player, &g_captain_idle_anim);
 	}
