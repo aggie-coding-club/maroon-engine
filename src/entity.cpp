@@ -40,6 +40,8 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 	}
 };
 
+static entity *g_captain = NULL;
+
 /**
  * set_animation - Set current animation for entity
  * @e: Entity to change
@@ -105,12 +107,21 @@ void start_entities(void)
 
 			em = g_tile_to_em[*c];
 			if (em != EM_INVALID) {
-				create_entity(x, y, em); 
+				entity *e = create_entity(x, y, em); 
+
+				if (em == EM_CAPTAIN) {
+					g_captain = e;
+				}
+
 				*c = 0;
 			}
 			c++;
 		}
 		r++;
+	}
+
+	if (g_captain == NULL) {
+		printf("No player on this level!\n");
 	}
 }
 
@@ -235,7 +246,8 @@ static void update_captain(entity *e)
 	}
 
 	/* camera follow */
-	v2 cap_pos = e->pos + g_entity_metas[e->em].mask.tl;
+	box b = g_entity_metas[e->em].mask;
+	v2 cap_pos = e->pos + b.tl;
 	float bound = 2.0F;
 
 	float dist_to_end = (g_cam.w - cap_pos.x) + g_cam.x;
@@ -243,14 +255,16 @@ static void update_captain(entity *e)
 
 	/*TODO(Lenny): Make the camera slow down as it gets closer to cap*/
 	float catch_up_speed = 4.0F;
-
 	if (cam_seek) {
+
 		g_cam.x += catch_up_speed * cam_seek * g_dt;
 
 		if (dist_to_end >= g_cam.w / 2 && cam_seek == 1) {
 			cam_seek = 0;
+			catch_up_speed = catch_up_speed;
 		} else if (dist_to_start >= g_cam.w / 2 && cam_seek == -1) {
 			cam_seek = 0;
+			catch_up_speed = catch_up_speed;
 		}
 	}
 
@@ -279,7 +293,7 @@ static void update_crabby(entity *e)
 	meta = g_entity_metas + e->em;
 	offset = e->pos + meta->mask.tl;
 
-	float crabby_speed = 0.0f;
+	float crabby_speed = 1.0f;
 
 	tile_id_left = get_tile(offset.x, 
 			offset.y + meta->mask.br.y + 0.1F);
