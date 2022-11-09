@@ -298,37 +298,32 @@ static void update_crabby(entity *e)
 		update_physics(e);
 	}
 		/*check for tiles colliding with player on all four sides*/
-	touch_below = get_tile(g_player->offset.x, 
-			g_player->offset.y + g_player->meta->mask.br.y) ||
-			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
-			g_player->offset.y + g_player->meta->mask.br.y);
+
+		box collider = {
+			{g_player->pos.x+g_player->meta->mask.tl.x, g_player->pos.y+g_player->meta->mask.tl.y}
+			{g_player->pos.x+g_player->meta->mask.br.x, g_player->pos.y+g_player->meta->mask.br.y}
+			}
+		double COLLIDER_OFFSET = 0.001
+
+	touch_below = get_tile(collider.tl.x, collider.br.y) ||
+			get_tile(collider.tl.x, collider.br.y);
 	if(touch_below) {
-		g_player->pos.y += (((int) (g_player->offset.y + g_player->meta->mask.br.y)) - (g_player->offset.y + g_player->meta->mask.br.y));
+		g_player->pos.y += (((int) (collider.br.y)) - (collider.br.y));
 	}
-	touch_above = get_tile(g_player->offset.x, 
-			g_player->offset.y + g_player->meta->mask.tl.y) ||
-			get_tile(g_player->offset.x + g_player->meta->mask.tl.x,
-			g_player->offset.y + g_player->meta->mask.tl.y);
+	touch_above = get_tile(collider.tl.x, collider.tl.y) ||
+			get_tile(collider.br.x, collier.br.y);
 	if(touch_above) {
-		g_player->pos.y += (((int) g_player->offset.y + g_player->meta->mask.tl.y)+1 - g_player->offset.y + g_player->meta->mask.tl.y);
+		g_player->pos.y += (((int)collider.tl.y)+1 - collider.tl.y);
 	}
-	touch_left = get_tile(g_player->offset.x - 
-			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
-			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x - 
-			g_player->meta->mask.tl.x / 5, g_player->offset.y + 
-			g_player->meta->mask.br.y * 0.75);
+	touch_left = get_tile(collider.tl.x, collider.tl.y+COLLIDER_OFFSET) || get_tile(collider.tl.x, collider.br.y-COLLIDER_OFFSET);
 	if(touch_left) {
 		g_player->pos.x +=
-		((int) floorf(g_player->offset.x - g_player->meta->mask.tl.x / 5)) + 1 -(g_player->offset.x - g_player->meta->mask.tl.x / 5);
+		((int) floorf(collider.tl.x)) + 1 -(collider.tl.x);
 	}
-	touch_right = get_tile(g_player->offset.x + 
-			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
-			g_player->meta->mask.tl.y) || get_tile(g_player->offset.x + 
-			g_player->meta->mask.tl.x * 1.25, g_player->offset.y + 
-			g_player->meta->mask.br.y * 0.75);
+	touch_right = get_tile(collider.br.x, collider.tl.y+COLLIDER_OFFSET) || get_tile(collider.br.x, collider.br.y-COLLIDER_OFFSET);
 	if(touch_right) {
 		g_player->pos.x +=
-		((int) (g_player->offset.x + g_player->meta->mask.tl.x * 1.25)) - (g_player->offset.x + g_player->meta->mask.tl.x * 1.25);
+		((int) (collider.br.x)) - (collider.br.x);
 	}
 }
 
