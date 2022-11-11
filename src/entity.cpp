@@ -367,6 +367,7 @@ static void update_crabby(entity *e)
 	int player_detected;
 	float dist_to_player;
 	float captain_width;
+	float tile_level_diff;
 
 	meta = g_entity_metas + e->em;
 	offset = e->pos + meta->mask.tl;
@@ -403,40 +404,43 @@ static void update_crabby(entity *e)
 	player_detected = 0;
 	/* horizontal distance to player */
 	dist_to_player = e->pos.x - g_captain->pos.x;
+	/* check for crabby and player at same tile level */
+	tile_level_diff = e->pos.y - g_captain->pos.y;
+	if (tile_level_diff < 0) tile_level_diff *= -1;
 	/* width of player using collision mask */
 	captain_width = (g_entity_metas + g_captain->em)->mask.br.x 
 					- (g_entity_metas + g_captain->em)->mask.tl.x;
 
 	/* determine if crabby is close enough to player on either side */
-	if (dist_to_player < 3 * captain_width && 
-		dist_to_player > captain_width) {		
-		player_detected = -1;
-	}
-	if (dist_to_player > 0 && dist_to_player < captain_width) {
-		player_detected = -2;
-	}
-	if (dist_to_player > -3 * captain_width && 
-		dist_to_player < -captain_width) {
-		player_detected = 1;
-	}
-	if (dist_to_player < 0 && dist_to_player > -captain_width) {
-		player_detected = 2;
+	if (tile_level_diff < 0.5) {
+		if (dist_to_player < 3 * captain_width && 
+			dist_to_player > captain_width) {		
+			player_detected = -1;
+		}
+		if (dist_to_player > 0 && dist_to_player < captain_width) {
+			player_detected = -2;
+		}
+		if (dist_to_player > -3.8 * captain_width && 
+			dist_to_player < -1.9 * captain_width) {
+			player_detected = 1;
+		}
+		if (dist_to_player < 0 && dist_to_player > -1.9 * captain_width) {
+			player_detected = 2;
+		}
 	}
 
 	/* movement behavior if player detected */
-	if (player_detected != 0) {
-		if (player_detected == -1 && wall_collide != -1) {
-			e->vel.x = -3.0F;
-		}
-		if (player_detected == -2 && wall_collide != -1) {
-			e->vel.x = 0.0F;
-		}
-		if (player_detected == 1 && wall_collide != 1) {
-			e->vel.x = 3.0F;
-		}
-		if (player_detected == 2 && wall_collide != 1) {
-			e->vel.x = 0.0F;
-		}
+	if (player_detected == -1 && wall_collide != -1) {
+		e->vel.x = -3.0F;
+	}
+	if (player_detected == -2 && wall_collide != -1) {
+		e->vel.x = 0.0F;
+	}
+	if (player_detected == 1 && wall_collide != 1) {
+		e->vel.x = 3.0F;
+	}
+	if (player_detected == 2 && wall_collide != 1) {
+		e->vel.x = 0.0F;
 	}
 
 	/* selecting the animation */
