@@ -40,12 +40,14 @@
  * @y: y-pos in camera pixels relative to top
  * @layer: layer of square 
  * @id: the id of the square from 0 to 255 
+ * @flip: flip state
  */
 struct square {
 	int16_t x; 
 	int16_t y; 
 	uint8_t layer;
 	uint8_t id;
+	uint8_t flip;
 };
 
 /**
@@ -688,10 +690,13 @@ static void sprite_vaa_set_up(void)
 			sizeof(square), (void *) 4);
 	glVertexAttribIPointer(2, 1, GL_UNSIGNED_BYTE, 
 			sizeof(square), (void *) 5);
+	glVertexAttribIPointer(3, 1, GL_UNSIGNED_BYTE, 
+			sizeof(square), (void *) 6);
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 	glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(3);
 }
 
 /**
@@ -813,8 +818,9 @@ static void render_sprites(square_buf *buf)
  * @y: y-pos in tiles relative to top of screen
  * @layer: layer of sprite from 0 to 255, higher layers on bottom 
  * @id: ID of sprite
+ * @split: horizontally flip sprite when > 0
  */
-static void push_sprite(square_buf *buf, float x, float y, int layer, int id)
+static void push_sprite(square_buf *buf, float x, float y, int layer, int id, int flip)
 {
 	int px0, py0;
 	sprite *spr;
@@ -829,7 +835,12 @@ static void push_sprite(square_buf *buf, float x, float y, int layer, int id)
 		return;
 	}
 
-	pt = spr->pts;
+	if (flip == 0){
+		pt = spr->pts;
+	} else {
+		pt = spr->pts + spr->count - 1;
+	}
+
 	for (i = 0; i < spr->count; i++) {
 		int px;
 		int py;
@@ -848,13 +859,19 @@ static void push_sprite(square_buf *buf, float x, float y, int layer, int id)
 			s->y = py;
 			s->layer = layer;
 			s->id = spr->base + i;
+			s->flip = flip;
 			buf->count++;
 			if (buf->count == MAX_SQUARES) {
 				render_sprites(buf);
 				buf->count = 0;
 			}
 		}
-		pt++;
+
+		if (flip == 0) {
+			pt++;
+		} else {
+			pt--;
+		}
 	}
 }
 
@@ -897,15 +914,15 @@ static void render_tiles(square_buf *buf)
 			sprite = g_tile_to_spr[tile];
 			if (sprite != SPR_INVALID) {
 				push_sprite(buf, stx, sty, LAYER_FORE, 
-						g_tile_to_spr[tile]);
+						g_tile_to_spr[tile], 0);
 			}
 
 			sprite = cols[(int)sty % _countof(cols)];
 			push_sprite(buf, stx, sty - 0.3125F, 
-					LAYER_BACK, sprite);
+					LAYER_BACK, sprite, 0);
 			if (!g_running && g_grid_on) {
 				push_sprite(buf, stx, sty, LAYER_GRID, 
-						SPR_GRID);
+						SPR_GRID, 0);
 			}
 		}
 	}
@@ -924,7 +941,7 @@ static void render_entities(square_buf *buf)
 
 		tx = e->pos.x - g_cam.x;
 		ty = e->pos.y - g_cam.y;
-		push_sprite(buf, tx, ty, LAYER_ENTITY, e->sprite);
+		push_sprite(buf, tx, ty, LAYER_ENTITY, e->sprite, e->flipped);
 	}
 }
 
@@ -967,9 +984,9 @@ static void update_sprites(void)
 		
 
 		push_sprite(buf, g_cloud_x, 0.375F, 
-				LAYER_CLOUD, SPR_BIG_CLOUDS);
+				LAYER_CLOUD, SPR_BIG_CLOUDS, 0);
 		push_sprite(buf, g_cloud_x + 14.0F, 0.375F, 
-				LAYER_CLOUD, SPR_BIG_CLOUDS);
+				LAYER_CLOUD, SPR_BIG_CLOUDS, 0);
 		g_cloud_x -= g_dt;
 		if (g_cloud_x < -14.0F) {
 			g_cloud_x += 14.0F;

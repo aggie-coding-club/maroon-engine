@@ -7,6 +7,7 @@ uniform vec2 view;
 
 in VS_OUT {
 	uint id; 
+	uint flip;
 } gs_in[];
 
 out vec2 tex_coord;
@@ -36,26 +37,51 @@ void main()
 	pos.xy *= 2.0F; /*move origin from center to corner*/
 	pos.xy -= 1.0F;
 	pos.y = -pos.y; /*flip y-axis: second step*/ 
+	
+	/*computing vertices for when flipped or not*/
+	uint flip = gs_in[0].flip;
+	
+	if (flip == 0u) {
+		/*bottom left*/
+		gl_Position = pos;
+		tex_coord = tile + vec2(b, s);
+		EmitVertex();
 
-	/*bottom left*/
-	gl_Position = pos;
-	tex_coord = tile + vec2(b, s);
-	EmitVertex();
+		/*bottom right*/
+		gl_Position = pos + vec4(2.0F/view.x, 0.0F, 0.0F, 0.0F);
+		tex_coord = tile + vec2(s, s);
+		EmitVertex();
 
-	/*bottom right*/
-	gl_Position = pos + vec4(2.0F/view.x, 0.0F, 0.0F, 0.0F);
-	tex_coord = tile + vec2(s, s);
-	EmitVertex();
+		/*top left*/
+		gl_Position = pos + vec4(0.0F, 2.0F/view.y, 0.0F, 0.0F);
+		tex_coord = tile + vec2(b, b);
+		EmitVertex();
 
-	/*top left*/
-	gl_Position = pos + vec4(0.0F, 2.0F/view.y, 0.0F, 0.0F);
-	tex_coord = tile + vec2(b, b);
-	EmitVertex();
+		/*top right*/
+		gl_Position = pos + vec4(2.0F/view.xy, 0.0F, 0.0F);
+		tex_coord = tile + vec2(s, b);
+		EmitVertex();
+	} else {
+		/*bottom left*/
+		gl_Position = pos;
+		tex_coord = tile + vec2(s, s);
+		EmitVertex();
 
-	/*top right*/
-	gl_Position = pos + vec4(2.0F/view.xy, 0.0F, 0.0F);
-	tex_coord = tile + vec2(s, b);
-	EmitVertex();
+		/*bottom right*/
+		gl_Position = pos + vec4(2.0F/view.x, 0.0F, 0.0F, 0.0F);
+		tex_coord = tile + vec2(b, s);
+		EmitVertex();
+
+		/*top left*/
+		gl_Position = pos + vec4(0.0F, 2.0F/view.y, 0.0F, 0.0F);
+		tex_coord = tile + vec2(s, b);
+		EmitVertex();
+
+		/*top right*/
+		gl_Position = pos + vec4(2.0F/view.xy, 0.0F, 0.0F);
+		tex_coord = tile + vec2(b, b);
+		EmitVertex();
+	}
 
 	EndPrimitive();
 }

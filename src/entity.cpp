@@ -74,6 +74,8 @@ entity *create_entity(int tx, int ty, uint8_t em)
 	e->vel.x = 0.0F;
 	e->vel.y = 0.0F;
 
+	e->flipped = 0;
+
 	meta = g_entity_metas + em;
 	set_animation(e, g_anims + meta->def_anim);
 
@@ -245,6 +247,20 @@ static void update_captain(entity *e)
 		change_animation(e, &g_anims[ANIM_CAPTAIN_IDLE]);
 	}
 
+	if(!g_key_down[VK_SPACE]){
+		e->flipped = true;
+	}else{
+		e->flipped = false;
+	}
+
+	// if (e->vel.x < 0) {
+	// 	e->flipped = true;
+	// }
+
+	// if (e->vel.x > 0) {
+	// 	e->flipped = false;
+	// }
+
 	/* camera follow */
 	box b = g_entity_metas[e->em].mask;
 	v2 cap_pos = e->pos + b.tl;
@@ -306,10 +322,10 @@ static void update_crabby(entity *e)
 			offset.y + meta->mask.br.y + 0.1F);
 
 	if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
-		e->vel.x *= -crabby_speed;
+		e->vel.x = crabby_speed;
 	} else if (tile_id_right == TILE_SOLID || 
 			tile_id_right != TILE_GRASS) {
-		e->vel.x *= -crabby_speed;
+		e->vel.x = -crabby_speed;
 	} 
 
 	/**
@@ -335,11 +351,21 @@ static void update_crabby(entity *e)
 		}
 	}
 
+
 	/* selecting the animation */
 	if (fabsf(e->vel.x) > 0.05F) {
 		change_animation(e, &g_anims[ANIM_CRABBY_RUN]);
 	} else {
 		change_animation(e, &g_anims[ANIM_CRABBY_IDLE]);
+	}
+
+
+	if (e->vel.x < 0) {
+		e->flipped = false;
+	}
+
+	if (e->vel.x > 0) {
+		e->flipped = true;
 	}
 }
 
