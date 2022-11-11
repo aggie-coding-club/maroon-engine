@@ -177,89 +177,145 @@ static void update_physics(entity *e)
  */
 static void update_captain(entity *e)
 {
-	/*simple left and right captain movement*/
+	/* simple left and right captain movement */
 	const entity_meta *meta;
 	v2 captain_vel;
-	v2 offset;
 	float captain_speed;
 	bool touch_below, touch_above;
 	bool touch_left, touch_right;
 
 	meta = g_entity_metas + e->em;
 
-	/*check for tiles colliding with captain on all four sides*/
-	offset = e->pos + meta->mask.tl;
-	touch_below = get_tile(offset.x, 
-			offset.y + meta->mask.br.y) ||
-			get_tile(offset.x + meta->mask.tl.x,
-			offset.y + meta->mask.br.y);
-	touch_above = get_tile(offset.x, 
-			offset.y + meta->mask.tl.y) ||
-			get_tile(offset.x + meta->mask.tl.x,
-			offset.y + meta->mask.tl.y);
-	touch_left = get_tile(offset.x - 
-			meta->mask.tl.x / 5, offset.y + 
-			meta->mask.tl.y) || get_tile(offset.x - 
-			meta->mask.tl.x / 5, offset.y + 
-			meta->mask.br.y * 0.75);
-	touch_right = get_tile(offset.x + 
-			meta->mask.tl.x * 1.25, offset.y + 
-			meta->mask.tl.y) || get_tile(offset.x + 
-			meta->mask.tl.x * 1.25, offset.y + 
-			meta->mask.br.y * 0.75);
-	
+	/* check for tiles colliding with captain on all four sides */
+
+	/* Collider abstraction: global coordinate representation of the 
+		players 'rectangular' collider, fiddle with these values to 
+		change the size/shape of collider */
+	box collider = {
+			{e->pos.x + meta->mask.tl.x, e->pos.y + meta->mask.tl.y},
+			{e->pos.x + meta->mask.br.x, e->pos.y + meta->mask.br.y}
+			};
+
+	/* seperation vector: value uesed ot store the 'seperation' needed 
+		between the collider and player,  think of it as 
+		representation of an overlap */
+	v2 sep_vector = {0,0};
+
+	/* For all four directions, determine if a collision occurs, 
+		if a collision occurs, calculate the amount of 'overlap' 
+		between collider and tile, and set to respective sep_vector value
+	The key thing here is that the sep_vector is set to the larger of the x 
+		and larger of the y components
+	Overlap is calculated by flooring the respective x/y location 
+		of the collider and (if needed) adding 1 to get the 'edge' of 
+		the tile the collider is in */
+	touch_below = get_tile(collider.tl.x, collider.br.y) ||
+			get_tile(collider.br.x, collider.br.y);
+
+	if(touch_below) {
+		if(fabs(floorf(collider.br.y) - collider.br.y) > fabs(sep_vector.y)) {
+			sep_vector.y = floorf(collider.br.y) - collider.br.y;
+		}
+	}
+
+	touch_above = get_tile(collider.tl.x, collider.tl.y) ||
+			get_tile(collider.br.x, collider.tl.y);
+
+	if(touch_above) {
+		if(fabs(floorf(collider.tl.y + 1) - collider.tl.y) > 
+			fabs(sep_vector.y)) {
+			sep_vector.y = floorf(collider.tl.y + 1) - collider.tl.y;
+		};
+	}
+
+	touch_left = get_tile(collider.tl.x, collider.tl.y) || 
+		get_tile(collider.tl.x, collider.br.y);
+
+	if (touch_left) {
+		if (fabs(floorf(collider.tl.x + 1) - collider.tl.x) > 
+			fabs(sep_vector.x)) {
+			sep_vector.x = floorf(collider.tl.x + 1) - collider.tl.x;
+		};
+	}
+
+	touch_right = get_tile(collider.br.x, collider.tl.y) || 
+	get_tile(collider.br.x, collider.br.y);
+	if (touch_right) {
+		if (fabs(floorf(collider.br.x) - collider.br.x) > fabs(sep_vector.x)) {
+			sep_vector.x = floorf(collider.br.x) - collider.br.x;
+		};
+	}
+
+	/* This is a hard-coded edge case for corners. In a corner, 
+		all colliders trigger and we need to flip our sep_vector for the 
+		smallest of our overlaps and resolve both directions */
+	if (touch_right && touch_left && touch_below && touch_above) {
+		if(fabs(floorf(collider.tl.x + 1) - collider.tl.x) < 
+			fabs((floorf(collider.br.x) - collider.br.x))) {
+			sep_vector.x = floorf(collider.tl.x + 1) - collider.tl.x;
+		} else {
+			sep_vector.x = floorf(collider.br.x) - collider.br.x;
+		}
+
+		if(fabs(floorf(collider.tl.y+1) - collider.tl.y) < 
+			fabs(floorf(collider.br.y) - collider.br.y)) {
+			sep_vector.y = floorf(collider.tl.y + 1) - collider.tl.y;
+		} else {
+			sep_vector.y = floorf(collider.br.y) - collider.br.y;
+		}
+
+		e->pos.x += sep_vector.x;
+		e->pos.y += sep_vector.y;
+	} 
+
+	/* When the corner edge-case is not being handled, the code will 
+		calculate the smallest distance in the x or y direction to 
+		move the player in order to resolve a collision
+	 	and change the position of the player in only that direction */
+	else if(fabs(sep_vector.x) < fabs(sep_vector.y) || 
+		(sep_vector.y == 0 && sep_vector.x != 0)) {
+		e->pos.x += sep_vector.x;
+	} else if(sep_vector.y != 0) {
+		e->pos.y += sep_vector.y;
+	}
+
 	captain_vel.x = 0.0F;
 	captain_vel.y = 0.0F;
 	captain_speed = 4.0F;
 
-	if (g_key_down['W'] && !touch_above) {
+	if (g_key_down['W']) {
 		captain_vel.y = -1.0F;
 	}
 
-	if (g_key_down['S'] && !touch_below) {
+	if (g_key_down['S']) {
 		captain_vel.y = 1.0F;
 	}
 
-	if (g_key_down['A'] && !touch_left) {
+	if (g_key_down['A']) {
 		captain_vel.x = -1.0F;
 	}
 	
-	if (g_key_down['D'] && !touch_right) {
+	if (g_key_down['D']) {
 		captain_vel.x = 1.0F;
 	}
 
 	e->vel = captain_vel * captain_speed;
 	e->vel.y += g_gravity;
 
-	/**
-	 * Note(Lenny) - collision detection and 
-	 * resolution code should go here
-	 * the current method is not ideal
-	 */
-	if (touch_below) {
-		e->vel.y -= g_gravity;
-	}
-
-	/* figuring out which aniemation to use*/
+	/* figuring out which aniemation to use */
 	if (fabsf(e->vel.x) > 0.05F) {
 		change_animation(e, &g_anims[ANIM_CAPTAIN_RUN]);
 	} else {
 		change_animation(e, &g_anims[ANIM_CAPTAIN_IDLE]);
 	}
 
-	if(!g_key_down[VK_SPACE]){
+	if (e->vel.x < 0) {
 		e->flipped = true;
-	}else{
-		e->flipped = false;
 	}
 
-	// if (e->vel.x < 0) {
-	// 	e->flipped = true;
-	// }
-
-	// if (e->vel.x > 0) {
-	// 	e->flipped = false;
-	// }
+	if (e->vel.x > 0) {
+		e->flipped = false;
+	}
 
 	/* camera follow */
 	box b = g_entity_metas[e->em].mask;
@@ -351,14 +407,12 @@ static void update_crabby(entity *e)
 		}
 	}
 
-
 	/* selecting the animation */
 	if (fabsf(e->vel.x) > 0.05F) {
 		change_animation(e, &g_anims[ANIM_CRABBY_RUN]);
 	} else {
 		change_animation(e, &g_anims[ANIM_CRABBY_IDLE]);
 	}
-
 
 	if (e->vel.x < 0) {
 		e->flipped = false;
