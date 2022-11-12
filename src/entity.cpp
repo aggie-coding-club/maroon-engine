@@ -21,9 +21,10 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 			{
 				52.0F / TILE_LEN,
 				32.0F / TILE_LEN
-			}
+			},
 		},
-		.def_anim = ANIM_CAPTAIN_IDLE
+		.def_anim = ANIM_CAPTAIN_IDLE,
+		.max_health = 10
 	},
 	[EM_CRABBY] = {
 		.mask = {
@@ -36,7 +37,8 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				28.0F / TILE_LEN
 			}
 		},
-		.def_anim = ANIM_CRABBY_IDLE
+		.def_anim = ANIM_CRABBY_IDLE,
+		.max_health = 3
 	}
 };
 
@@ -57,7 +59,7 @@ static void set_animation(entity *e, const anim *new_anim)
 	e->sprite = new_anim->start;
 }
 
-entity *create_entity(int tx, int ty, uint8_t em, float health, float max_health)
+entity *create_entity(int tx, int ty, uint8_t em)
 {
 	entity *e;
 	const entity_meta *meta;
@@ -83,8 +85,7 @@ entity *create_entity(int tx, int ty, uint8_t em, float health, float max_health
 		break;
 	}
 	
-	e->health = health
-	e->max_health = max_health
+	e->health = meta->max_health;
 	return e;
 }
 
@@ -346,25 +347,15 @@ static void update_crabby(entity *e)
 	}
 }
 
-void set_max_health(entity *e, float amount)
+void heal(entity *e, int heal_amount)
 {
-	e->max_health = amount
+	e->health = e->health + heal_amount;
 }
 
-void heal(entity *e, float heal_amount)
+void take_damage(entity *e, int damage_amount)
 {
-	e->health = health + heal_amount
-	if health > max_health
-	{
-		e->health = max_health
-	}
-}
-
-void take_damage(entity *e, float damage_amount)
-{
-	e->health = health - damage_amount
-	if health < 0
-	{
+	e->health = e->health - damage_amount;
+	if (e->health < 0) {
 		/* add whatever happens upon death*/
 	}
 }

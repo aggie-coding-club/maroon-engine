@@ -25,10 +25,12 @@ struct box {
  * struct entity_meta - Includes constant info for entity 
  * @mask: Collision mask
  * @def_anim: Default animation 
+ * @max_health: max health of entity
  */
 struct entity_meta {
 	box mask;
 	uint8_t def_anim;
+	int max_health;
 };
 
 /**
@@ -59,8 +61,7 @@ struct entity {
 	uint8_t sprite;	
 
 	/*gameLogic*/
-	float max_health
-	float health
+	float health;
 };
 
 /** 
