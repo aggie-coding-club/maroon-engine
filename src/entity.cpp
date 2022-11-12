@@ -431,6 +431,10 @@ static void update_crabby(entity *e)
 
 	/* normal crabby movement */
 	if (player_detected == 0) {
+		if (e->vel.x == 0.0F || e->vel.x == 3.0F || e->vel.x == -3.0F) {
+			e->vel.x = crabby_speed;
+		}
+		
 		tile_id_left = get_tile(offset.x, 
 				offset.y + meta->mask.br.y + 0.1F);
 		tile_id_right = get_tile(offset.x + 
@@ -442,9 +446,9 @@ static void update_crabby(entity *e)
 		} else if (tile_id_right == TILE_SOLID || 
 				tile_id_right != TILE_GRASS) {
 			e->vel.x = -crabby_speed;
-		} 
+		}
 	}
-	
+
 	/* selecting the animation */
 	if (fabsf(e->vel.x) > 0.05F) {
 		change_animation(e, &g_anims[ANIM_CRABBY_RUN]);
