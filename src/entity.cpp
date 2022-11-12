@@ -373,20 +373,6 @@ static void update_crabby(entity *e)
 	offset = e->pos + meta->mask.tl;
 
 	float crabby_speed = 1.0f;
-	e->vel.x = crabby_speed;
-
-	tile_id_left = get_tile(offset.x, 
-			offset.y + meta->mask.br.y + 0.1F);
-	tile_id_right = get_tile(offset.x + 
-			(meta->mask.br.x - meta->mask.tl.x), 
-			offset.y + meta->mask.br.y + 0.1F);
-
-	if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
-		e->vel.x = crabby_speed;
-	} else if (tile_id_right == TILE_SOLID || 
-			tile_id_right != TILE_GRASS) {
-		e->vel.x = -crabby_speed;
-	} 
 
 	/**
 	 * detecting the player and charging at them
@@ -443,6 +429,22 @@ static void update_crabby(entity *e)
 		e->vel.x = 0.0F;
 	}
 
+	/* normal crabby movement */
+	if (player_detected == 0) {
+		tile_id_left = get_tile(offset.x, 
+				offset.y + meta->mask.br.y + 0.1F);
+		tile_id_right = get_tile(offset.x + 
+				(meta->mask.br.x - meta->mask.tl.x), 
+				offset.y + meta->mask.br.y + 0.1F);
+
+		if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
+			e->vel.x = crabby_speed;
+		} else if (tile_id_right == TILE_SOLID || 
+				tile_id_right != TILE_GRASS) {
+			e->vel.x = -crabby_speed;
+		} 
+	}
+	
 	/* selecting the animation */
 	if (fabsf(e->vel.x) > 0.05F) {
 		change_animation(e, &g_anims[ANIM_CRABBY_RUN]);
