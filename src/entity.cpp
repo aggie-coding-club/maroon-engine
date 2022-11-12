@@ -76,6 +76,8 @@ entity *create_entity(int tx, int ty, uint8_t em)
 	e->vel.x = 0.0F;
 	e->vel.y = 0.0F;
 
+	e->flipped = 0;
+
 	meta = g_entity_metas + em;
 	set_animation(e, g_anims + meta->def_anim);
 
@@ -179,74 +181,144 @@ static void update_physics(entity *e)
  */
 static void update_captain(entity *e)
 {
-	/*simple left and right captain movement*/
+	/* simple left and right captain movement */
 	const entity_meta *meta;
 	v2 captain_vel;
-	v2 offset;
 	float captain_speed;
 	bool touch_below, touch_above;
 	bool touch_left, touch_right;
 
 	meta = g_entity_metas + e->em;
 
-	/*check for tiles colliding with captain on all four sides*/
-	offset = e->pos + meta->mask.tl;
-	touch_below = get_tile(offset.x, 
-			offset.y + meta->mask.br.y) ||
-			get_tile(offset.x + meta->mask.tl.x,
-			offset.y + meta->mask.br.y);
-	touch_above = get_tile(offset.x, 
-			offset.y + meta->mask.tl.y) ||
-			get_tile(offset.x + meta->mask.tl.x,
-			offset.y + meta->mask.tl.y);
-	touch_left = get_tile(offset.x - 
-			meta->mask.tl.x / 5, offset.y + 
-			meta->mask.tl.y) || get_tile(offset.x - 
-			meta->mask.tl.x / 5, offset.y + 
-			meta->mask.br.y * 0.75);
-	touch_right = get_tile(offset.x + 
-			meta->mask.tl.x * 1.25, offset.y + 
-			meta->mask.tl.y) || get_tile(offset.x + 
-			meta->mask.tl.x * 1.25, offset.y + 
-			meta->mask.br.y * 0.75);
-	
+	/* check for tiles colliding with captain on all four sides */
+
+	/* Collider abstraction: global coordinate representation of the 
+		players 'rectangular' collider, fiddle with these values to 
+		change the size/shape of collider */
+	box collider = {
+			{e->pos.x + meta->mask.tl.x, e->pos.y + meta->mask.tl.y},
+			{e->pos.x + meta->mask.br.x, e->pos.y + meta->mask.br.y}
+			};
+
+	/* seperation vector: value uesed ot store the 'seperation' needed 
+		between the collider and player,  think of it as 
+		representation of an overlap */
+	v2 sep_vector = {0,0};
+
+	/* For all four directions, determine if a collision occurs, 
+		if a collision occurs, calculate the amount of 'overlap' 
+		between collider and tile, and set to respective sep_vector value
+	The key thing here is that the sep_vector is set to the larger of the x 
+		and larger of the y components
+	Overlap is calculated by flooring the respective x/y location 
+		of the collider and (if needed) adding 1 to get the 'edge' of 
+		the tile the collider is in */
+	touch_below = get_tile(collider.tl.x, collider.br.y) ||
+			get_tile(collider.br.x, collider.br.y);
+
+	if(touch_below) {
+		if(fabs(floorf(collider.br.y) - collider.br.y) > fabs(sep_vector.y)) {
+			sep_vector.y = floorf(collider.br.y) - collider.br.y;
+		}
+	}
+
+	touch_above = get_tile(collider.tl.x, collider.tl.y) ||
+			get_tile(collider.br.x, collider.tl.y);
+
+	if(touch_above) {
+		if(fabs(floorf(collider.tl.y + 1) - collider.tl.y) > 
+			fabs(sep_vector.y)) {
+			sep_vector.y = floorf(collider.tl.y + 1) - collider.tl.y;
+		};
+	}
+
+	touch_left = get_tile(collider.tl.x, collider.tl.y) || 
+		get_tile(collider.tl.x, collider.br.y);
+
+	if (touch_left) {
+		if (fabs(floorf(collider.tl.x + 1) - collider.tl.x) > 
+			fabs(sep_vector.x)) {
+			sep_vector.x = floorf(collider.tl.x + 1) - collider.tl.x;
+		};
+	}
+
+	touch_right = get_tile(collider.br.x, collider.tl.y) || 
+	get_tile(collider.br.x, collider.br.y);
+	if (touch_right) {
+		if (fabs(floorf(collider.br.x) - collider.br.x) > fabs(sep_vector.x)) {
+			sep_vector.x = floorf(collider.br.x) - collider.br.x;
+		};
+	}
+
+	/* This is a hard-coded edge case for corners. In a corner, 
+		all colliders trigger and we need to flip our sep_vector for the 
+		smallest of our overlaps and resolve both directions */
+	if (touch_right && touch_left && touch_below && touch_above) {
+		if(fabs(floorf(collider.tl.x + 1) - collider.tl.x) < 
+			fabs((floorf(collider.br.x) - collider.br.x))) {
+			sep_vector.x = floorf(collider.tl.x + 1) - collider.tl.x;
+		} else {
+			sep_vector.x = floorf(collider.br.x) - collider.br.x;
+		}
+
+		if(fabs(floorf(collider.tl.y+1) - collider.tl.y) < 
+			fabs(floorf(collider.br.y) - collider.br.y)) {
+			sep_vector.y = floorf(collider.tl.y + 1) - collider.tl.y;
+		} else {
+			sep_vector.y = floorf(collider.br.y) - collider.br.y;
+		}
+
+		e->pos.x += sep_vector.x;
+		e->pos.y += sep_vector.y;
+	} 
+
+	/* When the corner edge-case is not being handled, the code will 
+		calculate the smallest distance in the x or y direction to 
+		move the player in order to resolve a collision
+	 	and change the position of the player in only that direction */
+	else if(fabs(sep_vector.x) < fabs(sep_vector.y) || 
+		(sep_vector.y == 0 && sep_vector.x != 0)) {
+		e->pos.x += sep_vector.x;
+	} else if(sep_vector.y != 0) {
+		e->pos.y += sep_vector.y;
+	}
+
 	captain_vel.x = 0.0F;
 	captain_vel.y = 0.0F;
 	captain_speed = 4.0F;
 
-	if (g_key_down['W'] && !touch_above) {
+	if (g_key_down['W']) {
 		captain_vel.y = -1.0F;
 	}
 
-	if (g_key_down['S'] && !touch_below) {
+	if (g_key_down['S']) {
 		captain_vel.y = 1.0F;
 	}
 
-	if (g_key_down['A'] && !touch_left) {
+	if (g_key_down['A']) {
 		captain_vel.x = -1.0F;
 	}
 	
-	if (g_key_down['D'] && !touch_right) {
+	if (g_key_down['D']) {
 		captain_vel.x = 1.0F;
 	}
 
 	e->vel = captain_vel * captain_speed;
 	e->vel.y += g_gravity;
 
-	/**
-	 * Note(Lenny) - collision detection and 
-	 * resolution code should go here
-	 * the current method is not ideal
-	 */
-	if (touch_below) {
-		e->vel.y -= g_gravity;
-	}
-
-	/* figuring out which aniemation to use*/
+	/* figuring out which aniemation to use */
 	if (fabsf(e->vel.x) > 0.05F) {
 		change_animation(e, &g_anims[ANIM_CAPTAIN_RUN]);
 	} else {
 		change_animation(e, &g_anims[ANIM_CAPTAIN_IDLE]);
+	}
+
+	if (e->vel.x < 0) {
+		e->flipped = true;
+	}
+
+	if (e->vel.x > 0) {
+		e->flipped = false;
 	}
 
 	/* camera follow */
@@ -297,11 +369,15 @@ static void update_crabby(entity *e)
 	/* for player detection/charging */
 	int wall_collide;
 	int player_detected;
+	float dist_to_player;
+	float captain_width;
+	float tile_level_diff;
 
 	meta = g_entity_metas + e->em;
 	offset = e->pos + meta->mask.tl;
 
 	float crabby_speed = 1.0f;
+	e->vel.x = crabby_speed;
 
 	tile_id_left = get_tile(offset.x, 
 			offset.y + meta->mask.br.y + 0.1F);
@@ -310,33 +386,65 @@ static void update_crabby(entity *e)
 			offset.y + meta->mask.br.y + 0.1F);
 
 	if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
-		e->vel.x *= -crabby_speed;
+		e->vel.x = crabby_speed;
 	} else if (tile_id_right == TILE_SOLID || 
 			tile_id_right != TILE_GRASS) {
-		e->vel.x *= -crabby_speed;
+		e->vel.x = -crabby_speed;
 	} 
 
 	/**
 	 * detecting the player and charging at them
 	 * 
-	 * variables will be set appropriately once tile and
-	 * player detection is implemented for crabby
+	 * wall_collide will be handled once physics is implemented
+	 * player_detected indicates direction of detection
+	 * using these integers:
 	 * 
 	 * -1 indicates left, 1 indicates right, and 0 indicates
 	 * no detection
+	 * -2 and 2 represent directional detection when crabby
+	 * is right next to player
 	 */
 	wall_collide = 0;
 	player_detected = 0;
+	/* horizontal distance to player */
+	dist_to_player = e->pos.x - g_captain->pos.x;
+	/* check for crabby and player at same tile level */
+	tile_level_diff = e->pos.y - g_captain->pos.y;
+	if (tile_level_diff < 0) tile_level_diff *= -1;
+	/* width of player using collision mask */
+	captain_width = (g_entity_metas + g_captain->em)->mask.br.x 
+					- (g_entity_metas + g_captain->em)->mask.tl.x;
 
-	if (player_detected != 0) {
-		/* crabby moves left if player is left and no wall is left*/
-		if (player_detected == -1 && wall_collide != -1) {
-			e->vel.x = -3.0F;
+	/* determine if crabby is close enough to player on either side */
+	if (tile_level_diff < 0.5) {
+		if (dist_to_player < 3 * captain_width && 
+			dist_to_player > captain_width) {		
+			player_detected = -1;
 		}
-		/* crabby moves right if player is right and no wall is right */
-		if (player_detected == 1 && wall_collide != 1) {
-			e->vel.x = 3.0F;
+		if (dist_to_player > 0 && dist_to_player < captain_width) {
+			player_detected = -2;
 		}
+		if (dist_to_player > -3.8 * captain_width && 
+			dist_to_player < -1.9 * captain_width) {
+			player_detected = 1;
+		}
+		if (dist_to_player < 0 && dist_to_player > -1.9 * captain_width) {
+			player_detected = 2;
+		}
+	}
+
+	/* movement behavior if player detected */
+	if (player_detected == -1 && wall_collide != -1) {
+		e->vel.x = -3.0F;
+	}
+	if (player_detected == -2 && wall_collide != -1) {
+		e->vel.x = 0.0F;
+	}
+	if (player_detected == 1 && wall_collide != 1) {
+		e->vel.x = 3.0F;
+	}
+	if (player_detected == 2 && wall_collide != 1) {
+		e->vel.x = 0.0F;
 	}
 
 	/* selecting the animation */
@@ -344,6 +452,14 @@ static void update_crabby(entity *e)
 		change_animation(e, &g_anims[ANIM_CRABBY_RUN]);
 	} else {
 		change_animation(e, &g_anims[ANIM_CRABBY_IDLE]);
+	}
+
+	if (e->vel.x < 0) {
+		e->flipped = false;
+	}
+
+	if (e->vel.x > 0) {
+		e->flipped = true;
 	}
 }
 

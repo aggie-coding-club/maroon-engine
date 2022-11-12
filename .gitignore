@@ -2,6 +2,7 @@ bin
 obj
 lib/freetype_build
 lib/freetype
+.vscode/
 
 # Prerequisites
 *.d

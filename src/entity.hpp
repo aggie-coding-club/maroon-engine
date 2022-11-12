@@ -44,6 +44,7 @@ struct entity_meta {
  *
  * @anim_time: Time till next animation frame
  * @cur_anim: Animation
+ * @flipped: flip state
  */
 struct entity {
 	/*emsc*/
@@ -58,6 +59,8 @@ struct entity {
 	/*animation*/
 	const anim *cur_anim;
 	float anim_time;
+	uint8_t sprite;
+	int flipped;	
 	uint8_t sprite;	
 
 	/*gameLogic*/
