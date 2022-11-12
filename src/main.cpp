@@ -13,6 +13,7 @@
 #include <fileapi.h>
 #include <glad/glad.h>
 
+#include "audio.hpp"
 #include "entity.hpp"
 #include "menu.hpp"
 #include "render.hpp"
@@ -1090,12 +1091,14 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	g_ins = ins;
 	QueryPerformanceFrequency((LARGE_INTEGER *) &g_perf_freq);
 	init_tables();
+	init_xaudio2();
 	set_default_directory();
 	create_main_window();
 	init_gl();
 	g_gm = create_game_map();
 	size_game_map(g_gm, VIEW_TW, VIEW_TH);
 	msg_loop();
+	end_xaudio2();
 	
 	return 0;
 }

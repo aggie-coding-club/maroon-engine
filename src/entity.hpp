@@ -59,8 +59,7 @@ struct entity {
 	/*animation*/
 	const anim *cur_anim;
 	float anim_time;
-	uint8_t sprite;
-	int flipped;	
+	int flipped;
 	uint8_t sprite;	
 
 	/*gameLogic*/
