@@ -57,6 +57,10 @@ struct entity {
 	const anim *cur_anim;
 	float anim_time;
 	uint8_t sprite;	
+
+	/*gameLogic*/
+	float max_health
+	float health
 };
 
 /** 
@@ -77,7 +81,7 @@ extern int g_key_down[256];
  *
  * Return: The entity
  */
-entity *create_entity(int tx, int ty, uint8_t meta);
+entity *create_entity(int tx, int ty, uint8_t meta, float health, float max_health);
 
 /**
  * start_entities() - Setup entity system

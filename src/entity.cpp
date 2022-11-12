@@ -57,7 +57,7 @@ static void set_animation(entity *e, const anim *new_anim)
 	e->sprite = new_anim->start;
 }
 
-entity *create_entity(int tx, int ty, uint8_t em)
+entity *create_entity(int tx, int ty, uint8_t em, float health, float max_health)
 {
 	entity *e;
 	const entity_meta *meta;
@@ -82,6 +82,9 @@ entity *create_entity(int tx, int ty, uint8_t em)
 		e->vel.x = 2.0F;
 		break;
 	}
+	
+	e->health = health
+	e->max_health = max_health
 	return e;
 }
 
@@ -342,6 +345,30 @@ static void update_crabby(entity *e)
 		change_animation(e, &g_anims[ANIM_CRABBY_IDLE]);
 	}
 }
+
+void set_max_health(entity *e, float amount)
+{
+	e->max_health = amount
+}
+
+void heal(entity *e, float heal_amount)
+{
+	e->health = health + heal_amount
+	if health > max_health
+	{
+		e->health = max_health
+	}
+}
+
+void take_damage(entity *e, float damage_amount)
+{
+	e->health = health - damage_amount
+	if health < 0
+	{
+		/* add whatever happens upon death*/
+	}
+}
+
 
 static void update_specific(entity *e)
 {
