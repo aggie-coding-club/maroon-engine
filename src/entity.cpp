@@ -21,9 +21,10 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 			{
 				52.0F / TILE_LEN,
 				32.0F / TILE_LEN
-			}
+			},
 		},
-		.def_anim = ANIM_CAPTAIN_IDLE
+		.def_anim = ANIM_CAPTAIN_IDLE,
+		.max_health = 10
 	},
 	[EM_CRABBY] = {
 		.mask = {
@@ -36,7 +37,8 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				28.0F / TILE_LEN
 			}
 		},
-		.def_anim = ANIM_CRABBY_IDLE
+		.def_anim = ANIM_CRABBY_IDLE,
+		.max_health = 3
 	}
 };
 
@@ -84,6 +86,8 @@ entity *create_entity(int tx, int ty, uint8_t em)
 		e->vel.x = 2.0F;
 		break;
 	}
+	
+	e->health = meta->max_health;
 	return e;
 }
 
@@ -464,6 +468,20 @@ static void update_crabby(entity *e)
 		e->flipped = true;
 	}
 }
+
+void heal(entity *e, int heal_amount)
+{
+	e->health = e->health + heal_amount;
+}
+
+void take_damage(entity *e, int damage_amount)
+{
+	e->health = e->health - damage_amount;
+	if (e->health < 0) {
+		/* add whatever happens upon death*/
+	}
+}
+
 
 static void update_specific(entity *e)
 {

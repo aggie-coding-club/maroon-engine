@@ -25,10 +25,12 @@ struct box {
  * struct entity_meta - Includes constant info for entity 
  * @mask: Collision mask
  * @def_anim: Default animation 
+ * @max_health: max health of entity
  */
 struct entity_meta {
 	box mask;
 	uint8_t def_anim;
+	int max_health;
 };
 
 /**
@@ -59,6 +61,10 @@ struct entity {
 	float anim_time;
 	uint8_t sprite;
 	int flipped;	
+	uint8_t sprite;	
+
+	/*gameLogic*/
+	float health;
 };
 
 /** 
@@ -79,7 +85,7 @@ extern int g_key_down[256];
  *
  * Return: The entity
  */
-entity *create_entity(int tx, int ty, uint8_t meta);
+entity *create_entity(int tx, int ty, uint8_t meta, float health, float max_health);
 
 /**
  * start_entities() - Setup entity system
