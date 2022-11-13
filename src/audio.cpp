@@ -225,12 +225,71 @@ static stb_vorbis *update_vorbis(stb_vorbis *vorb)
 	return vorb;
 }
 
+/**
+ * wait_full() - Wait if all buffers are in use
+ */
+static void wait_full(void)
+{
+	while (1) {
+		XAUDIO2_VOICE_STATE vs;
+
+		if (g_mus_qi == MUS_NONE) {
+			stop();
+			break;
+		} 
+		g_source->GetState(&vs);
+		if (vs.BuffersQueued < NUM_SBUFS - 1) {
+			break;
+		}
+		WaitForSingleObject(g_buf_end_ev, INFINITE);
+	}
+}
+
+/**
+ * wait_nonempty - Wait if some buffers are in use
+ */
+static void wait_nonempty(void)
+{
+	XAUDIO2_VOICE_STATE vs;
+
+	do {
+		if (g_mus_qi != MUS_INVALID) {
+			stop();
+		}
+		g_source->GetState(&vs);
+	} while (vs.BuffersQueued > 0);
+}
+
+static int get_samples(stb_vorbis *vorb, short *buf)
+{
+	bool zero;
+	int remain;
+
+	zero = false;
+	remain = SBUF_LEN;
+	while (remain > 0) {
+		int count;
+
+		count = stb_vorbis_get_samples_short(vorb, 1, &buf, remain);
+		if (count <= 0) {
+			if (zero) {
+				return -1;
+			}
+			zero = true;
+                    	stb_vorbis_seek_start(vorb);
+		} else {
+			remain -= count;
+		}
+	}
+
+	return SBUF_LEN - remain;
+}
+
 static void update_audio(void)
 {
 	sbuf *bufs;
 	stb_vorbis *vorb;
 	int i;
-	XAUDIO2_VOICE_STATE vs;
 
 	bufs = (sbuf *) malloc(NUM_SBUFS * sizeof(*bufs)); 
 	if (!bufs) {
@@ -251,15 +310,15 @@ static void update_audio(void)
 			break;
 		}
 
-		buf = bufs[i];
-		count = stb_vorbis_get_samples_short(vorb, 1, &buf, SBUF_LEN);
-		if (count <= 0) {
+		buf = bufs[i]; 
+		count = get_samples(vorb, buf);
+		if (count < 0) {
 			break;
 		}
 
 		memset(&xbuf, 0, sizeof(xbuf));
 		xbuf.Flags = XAUDIO2_END_OF_STREAM; 
-		xbuf.pAudioData = (BYTE *) (bufs + i);
+		xbuf.pAudioData = (BYTE *) buf;
 		xbuf.AudioBytes = count * 2; 
 
 		hr = g_source->SubmitSourceBuffer(&xbuf);
@@ -278,27 +337,11 @@ static void update_audio(void)
 		if (i >= NUM_SBUFS) {
 			i = 0;
 		}
-
-		while (1) {
-			if (g_mus_qi == MUS_NONE) {
-				stop();
-				break;
-			} 
-			g_source->GetState(&vs);
-			if (vs.BuffersQueued < NUM_SBUFS - 1) {
-				break;
-			}
-			WaitForSingleObject(g_buf_end_ev, INFINITE);
-		}
+		wait_full();
 	}
 
 	stb_vorbis_close(vorb);
-	do {
-		if (g_mus_qi != MUS_INVALID) {
-			stop();
-		}
-		g_source->GetState(&vs);
-	} while (vs.BuffersQueued > 0);
+	wait_nonempty();
 	free(bufs);
 }
 

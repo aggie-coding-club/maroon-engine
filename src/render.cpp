@@ -818,7 +818,7 @@ static void render_sprites(square_buf *buf)
  * @y: y-pos in tiles relative to top of screen
  * @layer: layer of sprite from 0 to 255, higher layers on bottom 
  * @id: ID of sprite
- * @split: horizontally flip sprite when > 0
+ * @flip: horizontally flip sprite when > 0
  */
 static void push_sprite(square_buf *buf, float x, float y, int layer, int id, int flip)
 {
@@ -835,7 +835,7 @@ static void push_sprite(square_buf *buf, float x, float y, int layer, int id, in
 		return;
 	}
 
-	if (flip == 0){
+	if (flip == 0) {
 		pt = spr->pts;
 	} else {
 		pt = spr->pts + spr->count - 1;
