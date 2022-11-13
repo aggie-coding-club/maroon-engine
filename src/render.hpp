@@ -54,7 +54,7 @@ extern float g_cloud_x;
  *
  * Return: Bounded value
  */
-static inline float bound_coord(float v, float gm, float cam)
+inline float bound_coord(float v, float gm, float cam)
 {
 	return fclampf(v, 0.0F, fabsf(gm - cam)); 
 }
@@ -62,10 +62,20 @@ static inline float bound_coord(float v, float gm, float cam)
 /**
  * bound_cam() - Bounds camera to inside borders 
  */
-static inline void bound_cam(void) 
+inline void bound_cam(void) 
 {
 	g_cam.x = bound_coord(g_cam.x, g_gm->w, g_cam.w);
 	g_cam.y = bound_coord(g_cam.y, g_gm->h, g_cam.h);
+}
+
+/**
+ * err_wnd() - Show generic error message box
+ * @parent: Parent window 
+ * @err: Error message 
+ */
+inline void err_wnd(HWND parent, const wchar_t *err)
+{
+	MessageBoxW(parent, err, L"Error", MB_ICONERROR);
 }
 
 /**

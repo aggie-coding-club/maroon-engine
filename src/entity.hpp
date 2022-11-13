@@ -90,8 +90,12 @@ entity *create_entity(int tx, int ty, uint8_t meta, float health, float max_heal
  * start_entities() - Setup entity system
  * This is a temporary function that will be deleted once we are able
  * to create entities throught the editor.
+ *
+ * Return: Returns zero on success and negative on failure
+ *
+ * Failure occurs if no player is found
 */
-void start_entities(void);
+int start_entities(void);
 
 /**
  * update_entities - Updates entities 

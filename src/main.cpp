@@ -156,16 +156,6 @@ static bool unsaved_warning(void)
 }
 
 /**
- * err_window() - Show generic error message box
- * @parent: Parent window 
- * @err: Error message 
- */
-static void err_window(HWND parent, const wchar_t *err)
-{
-	MessageBoxW(parent, err, L"Error", MB_ICONERROR);
-}
-
-/**
  * write_map() - Save map to file.
  * @path - Path to map
  *
@@ -212,7 +202,7 @@ err1:
 	}
 err0:
 	if (err < 0) {
-		err_window(g_wnd, L"Could not save map"); 
+		err_wnd(g_wnd, L"Could not save map"); 
 	}
 	return err;
 }
@@ -287,7 +277,7 @@ err1:
 	}
 err0:
 	if (err < 0) {
-		err_window(g_wnd, L"Could not read map"); 
+		err_wnd(g_wnd, L"Could not read map"); 
 	}
 	return err;
 }
@@ -500,19 +490,19 @@ static void attempt_resize(HWND wnd)
 	width = GetDlgItemInt(wnd, IDD_WIDTH, &success, FALSE);
 	if (!success) {
 		err = -1;
-		err_window(wnd, L"Invalid width"); 
+		err_wnd(wnd, L"Invalid width"); 
 	} else if (width > 999) {
 		err = -1;
-		err_window(wnd, L"Width must be at most 999"); 
+		err_wnd(wnd, L"Width must be at most 999"); 
 	} 
 
 	height = GetDlgItemInt(wnd, IDD_HEIGHT, &success, FALSE);
 	if (!success) {
 		err = -1;
-		err_window(wnd, L"Invalid height"); 
+		err_wnd(wnd, L"Invalid height"); 
 	} else if (height > 999) {
 		err = -1;
-		err_window(wnd, L"Height must be at most 999"); 
+		err_wnd(wnd, L"Height must be at most 999"); 
 	}
 
 	if (err >= 0) {
@@ -571,6 +561,10 @@ static void start_game(void)
 {
 	int i;
 
+	if (start_entities() < 0) {
+		return;
+	}
+
 	g_running = true;
 	for (i = 0; i < 5; i++) {
 		MENUITEMINFOW info;
@@ -589,7 +583,7 @@ static void start_game(void)
 	g_cam.y = 0;
 	g_cam.w = VIEW_TW;
 	g_cam.h = VIEW_TH;
-	start_entities();
+	play_music(MUS_SAPPHIRE_LAKE);
 }
 
 /**
@@ -849,6 +843,7 @@ static void end_game(void)
 		SetMenuItemInfoW(g_menu, i, MF_BYPOSITION, &info);
 	}
 	end_entities();
+	stop_music();
 	g_cam = g_old_cam;
 	CheckMenuItem(g_menu, IDM_RUN, MF_UNCHECKED);
 	DrawMenuBar(g_wnd);
@@ -1087,12 +1082,12 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	UNREFERENCED_PARAMETER(prev);
 	UNREFERENCED_PARAMETER(cmd);
 	UNREFERENCED_PARAMETER(show);
-	
+
 	g_ins = ins;
 	QueryPerformanceFrequency((LARGE_INTEGER *) &g_perf_freq);
+	set_default_directory();
 	init_tables();
 	init_xaudio2();
-	set_default_directory();
 	create_main_window();
 	init_gl();
 	g_gm = create_game_map();

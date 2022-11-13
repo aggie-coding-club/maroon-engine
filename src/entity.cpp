@@ -8,8 +8,9 @@ float g_dt;
 DL_HEAD(g_entities);
 int g_key_down[256];
 
+static entity *g_captain;
 static const float g_gravity = 2.0F;
-static int8_t cam_seek = 0;
+static int8_t cam_seek;
 
 const entity_meta g_entity_metas[COUNTOF_EM] = {
 	[EM_CAPTAIN] = {
@@ -41,8 +42,6 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 		.max_health = 3
 	}
 };
-
-static entity *g_captain = NULL;
 
 /**
  * set_animation - Set current animation for entity
@@ -97,38 +96,51 @@ void destroy_entity(entity *e)
 	free(e);
 }
 
-void start_entities(void)
+static int spawn_entity(int x, int y)
 {
-	uint8_t **r;
+	uint8_t *tile;
+	int em;
+	entity *e;
+
+	tile = &g_gm->rows[y][x]; 
+	em = g_tile_to_em[*tile];
+	if (em == EM_INVALID) {
+		return 0;
+	}
+	e = create_entity(x, y, em); 
+	if (em == EM_CAPTAIN) {
+		if (g_captain) {
+			err_wnd(g_wnd, L"Too many captains");
+			return -1;
+		}
+		g_captain = e;
+	}
+	*tile = 0;
+	return 1;
+}
+
+int start_entities(void)
+{
 	int y;
 
-	r = g_gm->rows;
 	for (y = 0; y < g_gm->h; y++) {
-		uint8_t *c;
 		int x;
 
-		c = *r; 
 		for (x = 0; x < g_gm->w; x++) {
-			int em;
-
-			em = g_tile_to_em[*c];
-			if (em != EM_INVALID) {
-				entity *e = create_entity(x, y, em); 
-
-				if (em == EM_CAPTAIN) {
-					g_captain = e;
-				}
-
-				*c = 0;
+			if (spawn_entity(x, y) < 0) {
+				goto end;
 			}
-			c++;
 		}
-		r++;
 	}
 
-	if (g_captain == NULL) {
-		printf("No player on this level!\n");
+	if (!g_captain) {
+		err_wnd(g_wnd, L"No captain found");
+		goto end;
 	}
+	return 0;
+end:
+	end_entities();
+	return -1;
 }
 
 /**
@@ -373,10 +385,10 @@ static void update_crabby(entity *e)
 	float captain_width;
 	float tile_level_diff;
 
+	float crabby_speed = 1.0F;
+	
 	meta = g_entity_metas + e->em;
 	offset = e->pos + meta->mask.tl;
-
-	float crabby_speed = 1.0f;
 
 	/**
 	 * detecting the player and charging at them
@@ -396,25 +408,27 @@ static void update_crabby(entity *e)
 	dist_to_player = e->pos.x - g_captain->pos.x;
 	/* check for crabby and player at same tile level */
 	tile_level_diff = e->pos.y - g_captain->pos.y;
-	if (tile_level_diff < 0) tile_level_diff *= -1;
+	if (tile_level_diff < 0) {
+		tile_level_diff *= -1;
+	}
 	/* width of player using collision mask */
 	captain_width = (g_entity_metas + g_captain->em)->mask.br.x 
 					- (g_entity_metas + g_captain->em)->mask.tl.x;
 
 	/* determine if crabby is close enough to player on either side */
-	if (tile_level_diff < 0.5) {
+	if (tile_level_diff < 0.5F) {
 		if (dist_to_player < 3 * captain_width && 
 			dist_to_player > captain_width) {		
 			player_detected = -1;
 		}
-		if (dist_to_player > 0 && dist_to_player < captain_width) {
+		if (dist_to_player > 0.0F && dist_to_player < captain_width) {
 			player_detected = -2;
 		}
-		if (dist_to_player > -3.8 * captain_width && 
-			dist_to_player < -1.9 * captain_width) {
+		if (dist_to_player > -3.8F * captain_width && 
+			dist_to_player < -1.9F * captain_width) {
 			player_detected = 1;
 		}
-		if (dist_to_player < 0 && dist_to_player > -1.9 * captain_width) {
+		if (dist_to_player < 0 && dist_to_player > -1.9F * captain_width) {
 			player_detected = 2;
 		}
 	}
@@ -508,6 +522,7 @@ void update_entities(void)
 
 void end_entities(void)
 {
+	g_captain = NULL;
 	clear_entities();
 }
 
