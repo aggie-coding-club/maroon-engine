@@ -324,7 +324,6 @@ static void update_captain(entity *e)
 
 	update_physics(e);
 
-#if 0
 	/* camera follow */
 	box b = g_entity_metas[e->em].mask;
 	v2 cap_pos = e->pos + b.tl;
@@ -357,7 +356,6 @@ static void update_captain(entity *e)
 		g_cam.x = 0.0F;
 		cam_seek = 0;
 	}
-#endif
 
 	bound_cam();
 }
