@@ -15,6 +15,8 @@
 #define NUM_SBUFS 8
 #define SBUF_LEN 2400 
 
+#define SBUF_MS (1000 * SBUF_LEN / 48000)
+
 typedef void WINAPI co_uninitialize_fn(void);
 typedef HRESULT WINAPI co_initialize_ex_fn(LPVOID, DWORD);
 typedef HRESULT WINAPI xaudio2_create_fn(
@@ -241,7 +243,7 @@ static void wait_full(void)
 		if (vs.BuffersQueued < NUM_SBUFS - 1) {
 			break;
 		}
-		WaitForSingleObject(g_buf_end_ev, INFINITE);
+		WaitForSingleObject(g_buf_end_ev, SBUF_MS);
 	}
 }
 
@@ -252,12 +254,13 @@ static void wait_nonempty(void)
 {
 	XAUDIO2_VOICE_STATE vs;
 
-	do {
-		if (g_mus_qi != MUS_INVALID) {
-			stop();
-		}
+	while (1) {
 		g_source->GetState(&vs);
-	} while (vs.BuffersQueued > 0);
+		if (vs.BuffersQueued <= 0) {
+			break;
+		}
+		WaitForSingleObject(g_buf_end_ev, SBUF_MS);
+	}
 }
 
 static int get_samples(stb_vorbis *vorb, short *buf)

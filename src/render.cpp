@@ -57,6 +57,8 @@ struct square {
  * @pts: Position of each square
  */
 struct sprite {
+	int16_t w;
+	int16_t h;
 	uint8_t base;
 	uint8_t count;
 	v2i pts[];
@@ -404,6 +406,8 @@ static int load_sprite(uint8_t **dst, const uint8_t *src, int w, int h,
 	if (!spr) {
 		return -1;
 	}
+	spr->w = w;
+	spr->h = h;
 	spr->base = g_square_next;
 	spr->count = 0;
 	*pspr = spr;
@@ -835,11 +839,7 @@ static void push_sprite(square_buf *buf, float x, float y, int layer, int id, in
 		return;
 	}
 
-	if (flip == 0) {
-		pt = spr->pts;
-	} else {
-		pt = spr->pts + spr->count - 1;
-	}
+	pt = spr->pts;
 
 	for (i = 0; i < spr->count; i++) {
 		int px;
@@ -849,6 +849,11 @@ static void push_sprite(square_buf *buf, float x, float y, int layer, int id, in
 
 		px = px0 + pt->x;
 		py = py0 + pt->y; 
+	
+		if (flip) {
+			px = spr->w - pt->x - TILE_LEN + px0;
+		}
+
 		xbound = px > -TILE_LEN && px < g_cam.w * TILE_LEN + TILE_LEN;
 		ybound = py > -TILE_LEN && py < g_cam.h * TILE_LEN + TILE_LEN;
 		if (xbound && ybound) {
@@ -866,12 +871,7 @@ static void push_sprite(square_buf *buf, float x, float y, int layer, int id, in
 				buf->count = 0;
 			}
 		}
-
-		if (flip == 0) {
-			pt++;
-		} else {
-			pt--;
-		}
+		pt++;
 	}
 }
 

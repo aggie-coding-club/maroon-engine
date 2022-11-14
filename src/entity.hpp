@@ -78,6 +78,18 @@ extern const entity_meta g_entity_metas[COUNTOF_EM];
 extern int g_key_down[256];
 
 /**
+ * operator+ - Offset box by 2D vector
+ * @b: Box to offset
+ * @v: Offset
+ *
+ * Return: The offseted box
+ */
+inline box operator+(box b, v2 v)
+{
+	return (box) {b.tl + v, b.br + v};
+}
+
+/**
  * create_entity() - Creates an entity
  * @tx: Spawn x-pos
  * @ty: Spawn y-pos

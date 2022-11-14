@@ -928,6 +928,7 @@ static LRESULT __stdcall wnd_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 	switch (msg) {
 	case WM_CLOSE:
 		if (unsaved_warning()) {
+			end_xaudio2();
 			ExitProcess(0);
 		}
 		return 0;
@@ -1093,7 +1094,6 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	g_gm = create_game_map();
 	size_game_map(g_gm, VIEW_TW, VIEW_TH);
 	msg_loop();
-	end_xaudio2();
 	
 	return 0;
 }

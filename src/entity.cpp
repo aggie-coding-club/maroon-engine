@@ -4,6 +4,15 @@
 #include "game-map.hpp"
 #include "render.hpp"
 
+#define TLF 1
+#define TRF 2
+#define BLF 4
+#define BRF 8
+
+#define CHECK_FLAGS(flags, check) ((flags &(check)) == (check))
+
+typedef void resolve_col_fn(entity *e, const box *ebox, const box *obox);
+
 float g_dt;
 DL_HEAD(g_entities);
 int g_key_down[256];
@@ -17,10 +26,10 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 		.mask = {
 			{
 				20.0F / TILE_LEN, 
-				0.0F
+				4.0F / TILE_LEN
 			},
 			{
-				52.0F / TILE_LEN,
+				44.0F / TILE_LEN,
 				32.0F / TILE_LEN
 			},
 		},
@@ -75,7 +84,7 @@ entity *create_entity(int tx, int ty, uint8_t em)
 	e->vel.x = 0.0F;
 	e->vel.y = 0.0F;
 
-	e->flipped = 0;
+	e->flipped = false;
 
 	meta = g_entity_metas + em;
 	set_animation(e, g_anims + meta->def_anim);
@@ -177,6 +186,98 @@ static void update_animation(entity *e)
 	}
 }
 
+static inline bool v2_in_box(const box *b, float x, float y)
+{
+	bool horz, vert;
+	horz = (x >= b->tl.x && x < b->br.x);
+	vert = (y >= b->tl.y && y < b->br.y); 
+	return horz && vert;
+}
+
+static int get_col_flags(const box *ebox, const box *obox)
+{
+	int flags;
+
+	flags = 0;
+	if (v2_in_box(obox, ebox->tl.x, ebox->tl.y)) {
+		flags |= TLF;
+	}
+	if (v2_in_box(obox, ebox->br.x, ebox->tl.y)) {
+		flags |= TRF;
+	}
+	if (v2_in_box(obox, ebox->tl.x, ebox->br.y)) {
+		flags |= BLF;
+	}
+	if (v2_in_box(obox, ebox->br.x, ebox->br.y)) {
+		flags |= BRF;
+	}
+	return flags;
+}
+
+static void resolve_horz_col(entity *e, const box *ebox, const box *obox)
+{
+	const entity_meta *em;
+	int flags;
+
+	em = g_entity_metas + e->em;
+	flags = get_col_flags(ebox, obox);
+
+	if (flags & (TLF | BLF)) {
+		e->pos.x = obox->br.x - em->mask.tl.x; 
+	} else if (flags & (TRF | BRF)) {
+		e->pos.x = obox->tl.x - em->mask.br.x;
+	} 
+}
+
+static void resolve_vert_col(entity *e, const box *ebox, const box *obox)
+{
+	const entity_meta *em;
+	int flags;
+
+	em = g_entity_metas + e->em;
+	flags = get_col_flags(ebox, obox);
+
+	if (flags & (TLF | TRF)) {
+		e->pos.y = obox->br.y - em->mask.tl.y; 
+	} else if (flags & (BLF | BRF)) {
+		e->pos.y = obox->tl.y - em->mask.br.y;
+	}
+}
+
+static void update_cols(entity *e, resolve_col_fn *resolve)
+{
+	const entity_meta *em;
+	box ebox;
+	int x0, y0;
+	int x1, y1;
+	int x, y;
+
+	em = g_entity_metas + e->em;
+	ebox = em->mask + e->pos;
+
+	x0 = floorf(ebox.tl.x);
+	y0 = floorf(ebox.tl.y); 
+	x1 = ceilf(ebox.br.x);
+	y1 = ceilf(ebox.br.y); 
+	for (y = y0; y < y1; y++) {
+		for (x = x0; x < x1; x++) {
+			int tile;
+			box tbox;
+
+			tile = get_tile(x, y);
+			if (!tile) {
+				continue;
+			}
+			
+			tbox.tl.x = x;
+			tbox.tl.y = y;
+			tbox.br.x = x + 1.0F;
+			tbox.br.y = y + 1.0F;
+			resolve(e, &ebox, &tbox);
+		}
+	}
+}
+
 /**
  * update_physics() - Update physics of entity
  * @e: Entity to update physics of
@@ -184,7 +285,9 @@ static void update_animation(entity *e)
 static void update_physics(entity *e)
 {
 	e->pos.x += e->vel.x * g_dt;
+	update_cols(e, resolve_horz_col);
 	e->pos.y += e->vel.y * g_dt;
+	update_cols(e, resolve_vert_col);
 }
 
 /**
@@ -193,146 +296,35 @@ static void update_physics(entity *e)
  */
 static void update_captain(entity *e)
 {
-	/* simple left and right captain movement */
-	const entity_meta *meta;
-	v2 captain_vel;
-	float captain_speed;
-	bool touch_below, touch_above;
-	bool touch_left, touch_right;
-
-	meta = g_entity_metas + e->em;
-
-	/* check for tiles colliding with captain on all four sides */
-
-	/* Collider abstraction: global coordinate representation of the 
-		players 'rectangular' collider, fiddle with these values to 
-		change the size/shape of collider */
-	box collider = {
-			{e->pos.x + meta->mask.tl.x, e->pos.y + meta->mask.tl.y},
-			{e->pos.x + meta->mask.br.x, e->pos.y + meta->mask.br.y}
-			};
-
-	/* seperation vector: value uesed ot store the 'seperation' needed 
-		between the collider and player,  think of it as 
-		representation of an overlap */
-	v2 sep_vector = {0,0};
-
-	/* For all four directions, determine if a collision occurs, 
-		if a collision occurs, calculate the amount of 'overlap' 
-		between collider and tile, and set to respective sep_vector value
-	The key thing here is that the sep_vector is set to the larger of the x 
-		and larger of the y components
-	Overlap is calculated by flooring the respective x/y location 
-		of the collider and (if needed) adding 1 to get the 'edge' of 
-		the tile the collider is in */
-	touch_below = get_tile(collider.tl.x, collider.br.y) ||
-			get_tile(collider.br.x, collider.br.y);
-
-	if(touch_below) {
-		if(fabs(floorf(collider.br.y) - collider.br.y) > fabs(sep_vector.y)) {
-			sep_vector.y = floorf(collider.br.y) - collider.br.y;
-		}
-	}
-
-	touch_above = get_tile(collider.tl.x, collider.tl.y) ||
-			get_tile(collider.br.x, collider.tl.y);
-
-	if(touch_above) {
-		if(fabs(floorf(collider.tl.y + 1) - collider.tl.y) > 
-			fabs(sep_vector.y)) {
-			sep_vector.y = floorf(collider.tl.y + 1) - collider.tl.y;
-		};
-	}
-
-	touch_left = get_tile(collider.tl.x, collider.tl.y) || 
-		get_tile(collider.tl.x, collider.br.y);
-
-	if (touch_left) {
-		if (fabs(floorf(collider.tl.x + 1) - collider.tl.x) > 
-			fabs(sep_vector.x)) {
-			sep_vector.x = floorf(collider.tl.x + 1) - collider.tl.x;
-		};
-	}
-
-	touch_right = get_tile(collider.br.x, collider.tl.y) || 
-	get_tile(collider.br.x, collider.br.y);
-	if (touch_right) {
-		if (fabs(floorf(collider.br.x) - collider.br.x) > fabs(sep_vector.x)) {
-			sep_vector.x = floorf(collider.br.x) - collider.br.x;
-		};
-	}
-
-	/* This is a hard-coded edge case for corners. In a corner, 
-		all colliders trigger and we need to flip our sep_vector for the 
-		smallest of our overlaps and resolve both directions */
-	if (touch_right && touch_left && touch_below && touch_above) {
-		if(fabs(floorf(collider.tl.x + 1) - collider.tl.x) < 
-			fabs((floorf(collider.br.x) - collider.br.x))) {
-			sep_vector.x = floorf(collider.tl.x + 1) - collider.tl.x;
-		} else {
-			sep_vector.x = floorf(collider.br.x) - collider.br.x;
-		}
-
-		if(fabs(floorf(collider.tl.y+1) - collider.tl.y) < 
-			fabs(floorf(collider.br.y) - collider.br.y)) {
-			sep_vector.y = floorf(collider.tl.y + 1) - collider.tl.y;
-		} else {
-			sep_vector.y = floorf(collider.br.y) - collider.br.y;
-		}
-
-		e->pos.x += sep_vector.x;
-		e->pos.y += sep_vector.y;
-	} 
-
-	/* When the corner edge-case is not being handled, the code will 
-		calculate the smallest distance in the x or y direction to 
-		move the player in order to resolve a collision
-	 	and change the position of the player in only that direction */
-	else if(fabs(sep_vector.x) < fabs(sep_vector.y) || 
-		(sep_vector.y == 0 && sep_vector.x != 0)) {
-		e->pos.x += sep_vector.x;
-	} else if(sep_vector.y != 0) {
-		e->pos.y += sep_vector.y;
-	}
-
-	captain_vel.x = 0.0F;
-	captain_vel.y = 0.0F;
-	captain_speed = 4.0F;
+	e->vel.x = 0.0F;
+	e->vel.y = 0.0F;
 
 	if (g_key_down['W']) {
-		captain_vel.y = -1.0F;
+		e->vel.y = -4.0F;
 	}
-
 	if (g_key_down['S']) {
-		captain_vel.y = 1.0F;
+		e->vel.y = 4.0F;
 	}
 
 	if (g_key_down['A']) {
-		captain_vel.x = -1.0F;
-	}
+		e->vel.x = -4.0F;
+		e->flipped = true;
+	} 
 	
 	if (g_key_down['D']) {
-		captain_vel.x = 1.0F;
-	}
+		e->vel.x = 4.0F;
+		e->flipped = false;
+	} 
 
-	e->vel = captain_vel * captain_speed;
-	e->vel.y += g_gravity;
-
-	/* figuring out which aniemation to use */
 	if (fabsf(e->vel.x) > 0.05F) {
 		change_animation(e, &g_anims[ANIM_CAPTAIN_RUN]);
 	} else {
 		change_animation(e, &g_anims[ANIM_CAPTAIN_IDLE]);
 	}
 
-	if (e->vel.x < 0) {
-		e->flipped = true;
-	}
+	update_physics(e);
 
-	if (e->vel.x > 0) {
-		e->flipped = false;
-	}
-
+#if 0
 	/* camera follow */
 	box b = g_entity_metas[e->em].mask;
 	v2 cap_pos = e->pos + b.tl;
@@ -344,7 +336,6 @@ static void update_captain(entity *e)
 	/*TODO(Lenny): Make the camera slow down as it gets closer to cap*/
 	float catch_up_speed = 4.0F;
 	if (cam_seek) {
-
 		g_cam.x += catch_up_speed * cam_seek * g_dt;
 
 		if (dist_to_end >= g_cam.w / 2 && cam_seek == 1) {
@@ -366,6 +357,7 @@ static void update_captain(entity *e)
 		g_cam.x = 0.0F;
 		cam_seek = 0;
 	}
+#endif
 
 	bound_cam();
 }
@@ -481,6 +473,7 @@ static void update_crabby(entity *e)
 	if (e->vel.x > 0) {
 		e->flipped = true;
 	}
+	update_physics(e);
 }
 
 void heal(entity *e, int heal_amount)
@@ -516,7 +509,6 @@ void update_entities(void)
 	dl_for_each_entry_s (e, n, &g_entities, node) {
 		update_specific(e);
 		update_animation(e);
-		update_physics(e);
 	}
 }
 
