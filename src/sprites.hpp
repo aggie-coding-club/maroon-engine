@@ -29,17 +29,21 @@
 
 #define ANIM_CAPTAIN_IDLE 0
 #define ANIM_CAPTAIN_RUN 1
-#define ANIM_CRABBY_IDLE 2
-#define ANIM_CRABBY_RUN 3
-#define COUNTOF_ANIM 4
+#define ANIM_CAPTAIN_JUMP 2
+#define ANIM_CAPTAIN_FALL 3
+#define ANIM_CRABBY_IDLE 4
+#define ANIM_CRABBY_RUN 5
+#define COUNTOF_ANIM 6
 
 #define ANIM_DT 0.1F
+
+#define AF_REPEAT 1
 
 /**
  * struct anim - An animation 
  * @start: First sprite in animation 
  * @end: Last sprite in animation 
- * 
+ *
  * Animation iterates through each sprite.
  * The sprites in animation will be consecutive.
  */
@@ -50,6 +54,7 @@ struct anim {
 
 extern const char *const g_sprite_paths[COUNTOF_SPR];
 extern const char *const g_anim_paths[COUNTOF_ANIM];
+extern const uint8_t g_anim_flags[COUNTOF_ANIM];
 extern anim g_anims[COUNTOF_ANIM]; 
 
 #endif

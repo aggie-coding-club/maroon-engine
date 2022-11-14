@@ -11,6 +11,10 @@
 #define EM_INVALID 255
 #define COUNTOF_EM 2
 
+#define EF_FLIP 1
+#define EF_GROUND 2
+#define EF_CEIL 4
+
 /**
  * struct box - Box
  * @tl: Top-left of box
@@ -34,36 +38,32 @@ struct entity_meta {
 };
 
 /**
+ * misc:
  * @node: Used to point to next entity
  * @v2i: Spawn position
  * @em: Index of meta
+ * @health: current health
+ * @flags: flags for entity 
  *
+ * physics:
  * @pos: Current position in tiles
  * @vel: Current velocity in tiles per second
- * @mask: collison mask 
  *
+ * animation:
  * @anim_time: Time till next animation frame
- * @cur_anim: Animation
- * @flipped: flip state
+ * @anim: Animation
  */
 struct entity {
-	/*emsc*/
 	dl_head node;
-	v2i spawn;
-	uint8_t em;
-
-	/*physics*/
 	v2 pos;
 	v2 vel;
-
-	/*animation*/
-	const anim *cur_anim;
-	float anim_time;
-	int flipped;
-	uint8_t sprite;	
-
-	/*gameLogic*/
 	float health;
+	float anim_time;
+	v2i spawn;
+	uint8_t flags;
+	uint8_t sprite;	
+	uint8_t anim;
+	uint8_t em;
 };
 
 /** 

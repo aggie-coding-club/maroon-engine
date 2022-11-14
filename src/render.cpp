@@ -941,7 +941,8 @@ static void render_entities(square_buf *buf)
 
 		tx = e->pos.x - g_cam.x;
 		ty = e->pos.y - g_cam.y;
-		push_sprite(buf, tx, ty, LAYER_ENTITY, e->sprite, e->flipped);
+		push_sprite(buf, tx, ty, LAYER_ENTITY, 
+				e->sprite, e->flags & EF_FLIP);
 	}
 }
 
