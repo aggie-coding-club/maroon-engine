@@ -69,16 +69,6 @@ inline void bound_cam(void)
 }
 
 /**
- * err_wnd() - Show generic error message box
- * @parent: Parent window 
- * @err: Error message 
- */
-inline void err_wnd(HWND parent, const wchar_t *err)
-{
-	MessageBoxW(parent, err, L"Error", MB_ICONERROR);
-}
-
-/**
  * init_gl() - initialize OpenGL context and load necessary extensions 
  */
 void init_gl(void);

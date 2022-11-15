@@ -75,7 +75,6 @@ struct entity {
 extern float g_dt;
 extern dl_head g_entities;
 extern const entity_meta g_entity_metas[COUNTOF_EM];
-extern int g_key_down[256];
 
 /**
  * operator+ - Offset box by 2D vector

@@ -14,10 +14,10 @@
 #include <glad/glad.h>
 
 #include "audio.hpp"
-#include "entity.hpp"
 #include "menu.hpp"
 #include "render.hpp"
-#include "game-map.hpp"
+#include "input.hpp"
+#include "win32.hpp"
 
 #define MAX_EDITS 256ULL
 
@@ -584,6 +584,7 @@ static void start_game(void)
 	g_cam.w = VIEW_TW;
 	g_cam.h = VIEW_TH;
 	play_music(MUS_SAPPHIRE_LAKE);
+	clear_input();
 }
 
 /**
@@ -899,7 +900,7 @@ static LRESULT game_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch(msg) {
 	case WM_KILLFOCUS:
-		memset(g_key_down, 0, sizeof(g_key_down));
+		clear_input();
 		return 0;
 	case WM_KEYDOWN:
 	case WM_KEYUP:
@@ -1012,7 +1013,7 @@ static void editor_loop(void)
 }
 
 /**
- * query_perf_counter - Wrapper around QueryPerformanceConter
+ * query_perf_counter() - Wrapper around QueryPerformanceConter
  */
 static int64_t query_perf_counter(void)
 {
@@ -1022,11 +1023,24 @@ static int64_t query_perf_counter(void)
 }
 
 /**
+ * process_game_msgs() - Process game messages 
+ */
+static void process_game_msgs(void)
+{
+	MSG msg; 
+	while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+		if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
+		    TranslateMessage(&msg);
+		    DispatchMessage(&msg);
+		}
+	}
+}
+
+/**
  * game_loop() - Game loop of program
  */
 static void game_loop(void)
 {
-	MSG msg; 
 	int64_t begin;
 
 	EnableScrollBar(g_wnd, SB_BOTH, ESB_DISABLE_BOTH);
@@ -1037,16 +1051,10 @@ static void game_loop(void)
 		int64_t end; 
 		int64_t dpc;
 
+		update_input();
+		process_game_msgs();
 		update_entities();
 		render();
-
-		/*needed to make sure dead entities accessed*/
-		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
-			if (!TranslateAccelerator(g_wnd, g_acc, &msg)) {
-			    TranslateMessage(&msg);
-			    DispatchMessage(&msg);
-			}
-		}
 		
 		end = query_perf_counter(); 
 		dpc = end - begin;
@@ -1089,6 +1097,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	set_default_directory();
 	init_tables();
 	init_xaudio2();
+	init_input();
 	create_main_window();
 	init_gl();
 	g_gm = create_game_map();

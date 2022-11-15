@@ -1,8 +1,8 @@
 #include <math.h>
 
-#include "entity.hpp"
-#include "game-map.hpp"
+#include "input.hpp"
 #include "render.hpp"
+#include "win32.hpp"
 
 #define TLF 1
 #define TRF 2
@@ -18,7 +18,6 @@ typedef int resolve_col_fn(entity *e, const box *ebox, const box *obox);
 
 float g_dt;
 DL_HEAD(g_entities);
-int g_key_down[256];
 
 static entity *g_captain;
 static const float g_gravity = 2.0F;
@@ -356,17 +355,17 @@ static void update_captain(entity *e)
 {
 	e->vel.x = 0.0F;
 
-	if (g_key_down[VK_SPACE] == 1 && can_jump(e)) {
+	if (g_buttons[BT_JUMP] == 1 && can_jump(e)) {
 		e->vel.y = -10.0F;
 		e->flags &= ~EF_GROUND;
 	}
 
-	if (g_key_down['A']) {
+	if (g_buttons[BT_LEFT]) {
 		e->vel.x = -4.0F;
 		e->flags |= EF_FLIP;
 	} 
 	
-	if (g_key_down['D']) {
+	if (g_buttons[BT_RIGHT]) {
 		e->vel.x = 4.0F;
 		e->flags &= ~EF_FLIP;
 	} 

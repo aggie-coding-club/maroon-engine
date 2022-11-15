@@ -63,6 +63,20 @@ inline int min(int a, int b)
 }
 
 /**
+ * max() - Maximum of two integers 
+ * @a: Left value
+ * @b: Right value 
+ * 
+ * NOTE: Use fmax and fmaxf for doubles/floats respectivly 
+ *
+ * Return: Return maximum of two integers 
+ */
+inline int max(int a, int b)
+{
+	return a < b ? a : b;
+}
+
+/**
  * fatal_crt_error() - Display message box with CRT error and exit 
  *
  * This function is used if a C-Runtime (CRT) function fails with

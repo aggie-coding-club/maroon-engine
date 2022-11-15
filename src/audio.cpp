@@ -4,6 +4,7 @@
 #include <stb_vorbis.c>
 
 #include "audio.hpp"
+#include "win32.hpp"
 
 /**
  * @MUS_INVALID: Their is no music in queue
@@ -83,67 +84,9 @@ void voice_cb::OnLoopEnd(void *buf_ctx) {}
 
 void voice_cb::OnVoiceError(void *buf_ctx, HRESULT err) {}
 
-/**
- * load_procs() - Load library with procedures 
- * @path: Path to library
- * @names: Names of procedures load, termianted with NULL
- * @procs: Buffer procs to load into
- *
- * Return: The loaded library, or NULL on failure
- */
-static HMODULE load_procs(const char *path, 
-		const char *const *names, FARPROC *procs)
-{
-	HMODULE lib;	
-	FARPROC *proc;
-	const char *const *name;
-
-	lib = LoadLibraryA(path); 
-	if (!lib) { 
-		return NULL;
-	}
-
-	proc = procs;
-	for (name = names; *name; name++) {
-		*proc = GetProcAddress(lib, *name);
-		if (!*proc) {
-			FreeLibrary(lib);
-			return NULL;
-		}
-
-		proc++;
-	}
-
-	return lib;
-}
-
-/**
- * load_procs_ver() - Attempt to one version of library with procedures 
- * @paths: Paths to attempt to load, in order give, termianted with NULL 
- * @procs: Buffer procs to load
- * @names: Names of procedures load, termianted with NULL
- *
- * Return: The loaded library, or NULL on failure
- */
-static HMODULE load_procs_ver(const char *const *paths, 
-		const char *const *names, FARPROC *procs) 
-{
-	const char *const *path;
-
-	for (path = paths; *path; path++) {
-		HMODULE lib;
-
-		lib = load_procs(*path, names, procs); 
-		if (lib) {
-			return lib;
-		}
-	}
-	return NULL;
-}
-
 static int start_com(void)
 {
-	static const char *const g_names[] = {
+	static const char *const names[] = {
 		"CoInitializeEx",
 		"CoUninitialize",
 		NULL
@@ -153,7 +96,7 @@ static int start_com(void)
 	co_initialize_ex_fn *co_initialize_ex;
 	HRESULT hr;
 
-	g_com_lib = load_procs("ole32.dll", g_names, procs);
+	g_com_lib = load_procs("ole32.dll", names, procs);
 	if (!g_com_lib) {
 		return -1;
 	}
