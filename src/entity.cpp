@@ -425,9 +425,13 @@ static void update_crabby(entity *e)
 	v2 offset;
 	uint8_t tile_id_left; 
 	uint8_t tile_id_right;
+	box collider;
+	bool touch_below;
+	bool touch_left;
+	bool touch_right;
+	bool gravity_on;
 
 	/* for player detection/charging */
-	int wall_collide;
 	int player_detected;
 	float dist_to_player;
 	float captain_width;
@@ -438,10 +442,22 @@ static void update_crabby(entity *e)
 	meta = g_entity_metas + e->em;
 	offset = e->pos + meta->mask.tl;
 
+	/* borrowing floor & wall detection from old update_captain() */
+	collider = {
+			{e->pos.x + meta->mask.tl.x, e->pos.y + meta->mask.tl.y},
+			{e->pos.x + meta->mask.br.x, e->pos.y + meta->mask.br.y}
+			};
+
+	touch_below = get_tile(collider.tl.x+0.5F, collider.br.y) ||
+		get_tile(collider.br.x-0.5F, collider.br.y);
+	touch_left = get_tile(collider.tl.x-0.15F, collider.br.y-1);
+	touch_right = get_tile(collider.br.x, collider.br.y-1);
+
+	gravity_on = false;
+
 	/**
 	 * detecting the player and charging at them
 	 * 
-	 * wall_collide will be handled once physics is implemented
 	 * player_detected indicates direction of detection
 	 * using these integers:
 	 * 
@@ -450,7 +466,6 @@ static void update_crabby(entity *e)
 	 * -2 and 2 represent directional detection when crabby
 	 * is right next to player
 	 */
-	wall_collide = 0;
 	player_detected = 0;
 	/* horizontal distance to player */
 	dist_to_player = e->pos.x - g_captain->pos.x;
@@ -482,17 +497,27 @@ static void update_crabby(entity *e)
 	}
 
 	/* movement behavior if player detected */
-	if (player_detected == -1 && wall_collide != -1) {
-		e->vel.x = -3.0F;
-	}
-	if (player_detected == -2 && wall_collide != -1) {
-		e->vel.x = 0.0F;
-	}
-	if (player_detected == 1 && wall_collide != 1) {
-		e->vel.x = 3.0F;
-	}
-	if (player_detected == 2 && wall_collide != 1) {
-		e->vel.x = 0.0F;
+	if (player_detected != 0) {
+		if (touch_below) {
+			e->vel.y = 0.0F;
+		}
+		else {
+			e->vel.y = g_gravity;
+			gravity_on = true;
+		}
+		
+		if (player_detected == -1) {
+			e->vel.x = -3.0F;
+		}
+		if (player_detected == -2) {
+			e->vel.x = 0.0F;
+		}
+		if (player_detected == 1) {
+			e->vel.x = 3.0F;
+		}
+		if (player_detected == 2) {
+			e->vel.x = 0.0F;
+		}
 	}
 
 	/* normal crabby movement */
@@ -501,17 +526,27 @@ static void update_crabby(entity *e)
 			e->vel.x = crabby_speed;
 		}
 		
+		if (gravity_on) {
+			e->vel.x = 0.0F;
+			if (touch_below) {
+				e->vel.y = 0.0F;
+			}
+		}
+
 		tile_id_left = get_tile(offset.x, 
 				offset.y + meta->mask.br.y + 0.1F);
 		tile_id_right = get_tile(offset.x + 
 				(meta->mask.br.x - meta->mask.tl.x), 
 				offset.y + meta->mask.br.y + 0.1F);
 
-		if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS) {
-			e->vel.x = crabby_speed;
-		} else if (tile_id_right == TILE_SOLID || 
-				tile_id_right != TILE_GRASS) {
-			e->vel.x = -crabby_speed;
+		if (!gravity_on) {
+			if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS || 
+				touch_left) {
+				e->vel.x = crabby_speed;
+			} else if (tile_id_right == TILE_SOLID || 
+					tile_id_right != TILE_GRASS || touch_right) {
+				e->vel.x = -crabby_speed;
+			}
 		}
 	}
 
