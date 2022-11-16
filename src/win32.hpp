@@ -13,6 +13,34 @@ inline void err_wnd(HWND parent, const wchar_t *err)
 	MessageBoxW(parent, err, L"Error", MB_ICONERROR);
 }
 
+/** 
+ * cd_parent() - Transforms full path into the parent full path 
+ * @path: Path to transform
+ */
+void cd_parent(wchar_t *path);
+
+/**
+ * init_res_path() - Initialize resource file path
+ *
+ * Should be called before any calls to get_res_path 
+ */
+void init_res_path(void);
+
+/**
+ * get_res_path() - Turns path relative to res to full path
+ * @dst: Full path output (should be MAX_PATH in size) 
+ * @src: Relative path input
+ */
+void get_res_path(wchar_t *dst, const wchar_t *src);
+
+/**
+ * get_res_path() - Use format to turn realtive to res to full path
+ * @dst: Full path output (should be MAX_PATH in size) 
+ * @fmt: Format
+ * @...: Variadic arguments
+ */
+void get_res_pathf(wchar_t *dst, const wchar_t *fmt, ...);
+
 /**
  * load_procs() - Load library with procedures 
  * @path: Path to library

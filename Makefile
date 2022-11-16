@@ -9,7 +9,7 @@ DEPOBJS = lib/glad/src/glad.o lib/stb/stb_image.o lib/stb/stb_image_write.o
 GEN = -G "MinGW Makefiles"
 
 LDFLAGS = -municode -fno-exceptions -fno-rtti
-LDFLAGS += -lopengl32 -lole32 -ldbghelp -mwindows -mconsole
+LDFLAGS += -lopengl32 -mwindows -mconsole
 LDFLAGS += $(DEPOBJS)
 
 SRC = $(wildcard src/*.cpp)

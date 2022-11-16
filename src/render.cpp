@@ -723,7 +723,6 @@ static void create_sprite_prog(void)
 	glDeleteShader(gs);
 	glDeleteShader(vs);
 
-
 	glGenVertexArrays(1, &g_sprite_vao);
 	glGenBuffers(1, &g_sprite_vbo);
 
@@ -772,7 +771,7 @@ void init_gl(void)
 	memset(&pfd, 0, sizeof(pfd));
 	pfd.nSize = sizeof(pfd);
 	pfd.nVersion = 1;
-	pfd.dwFlags = PFD_DOUBLEBUFFER |  
+	pfd.dwFlags = PFD_DOUBLEBUFFER | 
 		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
 	pfd.iPixelType = PFD_TYPE_RGBA;
 	pfd.cColorBits = 32;
@@ -982,8 +981,6 @@ static void update_sprites(void)
 
 	render_tiles(buf);
 	if (g_running) {
-		
-
 		push_sprite(buf, g_cloud_x, 0.375F, 
 				LAYER_CLOUD, SPR_BIG_CLOUDS, 0);
 		push_sprite(buf, g_cloud_x + 14.0F, 0.375F, 

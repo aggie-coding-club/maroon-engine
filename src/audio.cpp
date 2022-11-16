@@ -1,5 +1,6 @@
-#include <windows.h>
 #include <xaudio2.h>
+#include <stdio.h>
+#include <windows.h>
 
 #include <stb_vorbis.c>
 
@@ -43,8 +44,8 @@ static const WAVEFORMATEX g_wave_fmt = {
 	.wBitsPerSample = 16
 };
 
-static const char *const g_music_paths[COUNTOF_MUS] = {
-	[MUS_SAPPHIRE_LAKE] = "sapphire-lake.ogg"
+static const wchar_t *const g_music_paths[COUNTOF_MUS] = {
+	[MUS_SAPPHIRE_LAKE] = L"sapphire-lake.ogg"
 };
 
 static HMODULE g_com_lib;
@@ -148,8 +149,9 @@ static void stop(void)
 static stb_vorbis *update_vorbis(stb_vorbis *vorb)
 {
 	long i;
-	const char *path;
-	char full_path[260];
+	const wchar_t *path;
+	wchar_t full_path[260];
+	FILE *f;
 
 	i = InterlockedExchange(&g_mus_qi, MUS_INVALID);
 	if (i == MUS_INVALID) {
@@ -158,14 +160,22 @@ static stb_vorbis *update_vorbis(stb_vorbis *vorb)
 
 	stb_vorbis_close(vorb);
 	path = g_music_paths[i];
-	sprintf(full_path, "res/music/%s", path);
 	if (i == MUS_NONE) {
 		stop();
 		return NULL;
 	} 
-	vorb = stb_vorbis_open_filename(full_path, NULL, NULL);
+
+	get_res_pathf(full_path, L"music\\%s", path);
+	f = _wfopen(full_path, L"rb");
+	if (!f) {
+		MessageBoxW(NULL, full_path, L"Error", MB_ICONERROR); 
+		fprintf(stderr, "vorbis: Failed to open %ld\n", i);
+		return NULL;
+	}
+
+	vorb = stb_vorbis_open_file(f, TRUE, NULL, NULL);
 	if (!vorb) {
-		fprintf(stderr, "vorbis: Failed to open %s\n", path);
+		fprintf(stderr, "vorbis: Failed to parse %ld\n", i);
 	} 
 	return vorb;
 }

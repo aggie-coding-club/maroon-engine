@@ -69,20 +69,6 @@ static int64_t g_perf_freq;
 static rect g_old_cam;
 
 /** 
- * cd_parent() - Transforms full path into the parent full path 
- * @path: Path to transform
- */
-static void cd_parent(wchar_t *path)
-{
-	wchar_t *find;
-
-	find = wcsrchr(path, '\\');
-	if (find) {
-		*find = '\0';
-	}
-}
-
-/** 
  * set_default_directory() - Set working directory to be repository folder 
  */
 static void set_default_directory(void)
@@ -314,7 +300,7 @@ static void open(void)
 	}
 
 	wcscpy(path, g_map_path);
-	GetFullPathNameW(L"res\\maps", MAX_PATH, init, NULL);
+	get_res_path(init, L"maps");
 
 	memset(&ofn, 0, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
@@ -347,7 +333,7 @@ static void save_as(void)
 	OPENFILENAMEW ofn;
 
 	wcscpy(path, g_map_path);
-	GetFullPathNameW(L"res\\maps", MAX_PATH, init, NULL);
+	get_res_path(init, L"maps");
 
 	memset(&ofn, 0, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
@@ -1055,6 +1041,7 @@ static void game_loop(void)
 		process_game_msgs();
 		update_entities();
 		render();
+		Sleep(10);
 		
 		end = query_perf_counter(); 
 		dpc = end - begin;
@@ -1095,6 +1082,7 @@ int __stdcall wWinMain(HINSTANCE ins, HINSTANCE prev, wchar_t *cmd, int show)
 	g_ins = ins;
 	QueryPerformanceFrequency((LARGE_INTEGER *) &g_perf_freq);
 	set_default_directory();
+	init_res_path();
 	init_tables();
 	init_xaudio2();
 	init_input();
