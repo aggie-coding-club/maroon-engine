@@ -27,6 +27,11 @@ inline v2 operator+(v2 a, v2 b)
 	return (v2) {a.x + b.x, a.y + b.y};
 }
 
+inline v2 operator-(v2 a, v2 b)
+{
+	return (v2) {a.x - b.x, a.y - b.y};
+}
+
 inline v2 operator+=(v2 a, v2 b)
 {
 	return (v2) {a.x + b.x, a.y + b.y};

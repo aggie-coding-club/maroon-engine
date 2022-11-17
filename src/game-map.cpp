@@ -16,7 +16,7 @@ uint8_t g_tile_to_spr[COUNTOF_TILES] = {
 
 const uint8_t g_tile_props[COUNTOF_TILES] = {
 	[TILE_BLANK] = 0,
-	[TILE_SOLID] = 0, 
+	[TILE_SOLID] = PROP_SOLID, 
 	[TILE_GRASS] = PROP_SOLID, 
 	[TILE_GROUND] = PROP_SOLID, 
 	[TILE_CAPTAIN] = 0,

@@ -27,11 +27,11 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 	[EM_CAPTAIN] = {
 		.mask = {
 			{
-				20.0F / TILE_LEN, 
+				24.0F / TILE_LEN, 
 				2.0F / TILE_LEN
 			},
 			{
-				44.0F / TILE_LEN,
+				39.0F / TILE_LEN,
 				32.0F / TILE_LEN
 			},
 		},
@@ -41,12 +41,12 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 	[EM_CRABBY] = {
 		.mask = {
 			{
-				17.0F / TILE_LEN,
+				28.0F / TILE_LEN,
 				6.0F / TILE_LEN,
 			},
 			{
-				58.0F / TILE_LEN,
-				28.0F / TILE_LEN
+				47.0F / TILE_LEN,
+				29.0F / TILE_LEN
 			}
 		},
 		.def_anim = ANIM_CRABBY_IDLE,
@@ -93,12 +93,6 @@ entity *create_entity(int tx, int ty, uint8_t em)
 
 	meta = g_entity_metas + em;
 	set_animation(e, meta->def_anim);
-
-	switch (em) {
-	case EM_CRABBY:
-		e->vel.x = 2.0F;
-		break;
-	}
 	
 	e->health = meta->max_health;
 	return e;
@@ -259,6 +253,11 @@ static int resolve_vert_col(entity *e, const box *ebox, const box *obox)
 	return 0;
 }
 
+static bool is_tile_solid(int tile)
+{
+	return g_tile_props[tile] & PROP_SOLID;
+}
+
 static int update_cols(entity *e, resolve_col_fn *resolve)
 {
 	const entity_meta *em;
@@ -283,15 +282,13 @@ static int update_cols(entity *e, resolve_col_fn *resolve)
 			box tbox;
 
 			tile = get_tile(x, y);
-			if (!tile) {
-				continue;
+			if (is_tile_solid(tile)) {
+				tbox.tl.x = x;
+				tbox.tl.y = y;
+				tbox.br.x = x + 1.0F;
+				tbox.br.y = y + 1.0F;
+				flags |= resolve(e, &ebox, &tbox);
 			}
-			
-			tbox.tl.x = x;
-			tbox.tl.y = y;
-			tbox.br.x = x + 1.0F;
-			tbox.br.y = y + 1.0F;
-			flags |= resolve(e, &ebox, &tbox);
 		}
 	}
 	return flags;
@@ -307,10 +304,10 @@ static void update_physics(entity *e)
 
 	e->pos.x += e->vel.x * g_dt;
 	update_cols(e, resolve_horz_col);
-	e->pos.y += e->vel.y * g_dt;
 
+	e->pos.y += e->vel.y * g_dt;
 	flags = update_cols(e, resolve_vert_col);
-	if ((flags & POSF)) {
+	if (flags & POSF) {
 		e->vel.y = 0.0F;
 		e->flags |= EF_GROUND;
 	} else if ((flags & NEGF) && e->vel.y < 0.0F) {
@@ -339,12 +336,30 @@ static bool can_jump(const entity *e)
 		int tile;
 
 		tile = get_tile(x, y - 1.0F);
-		if (tile) {
+		if (is_tile_solid(tile)) {
 			return false;
 		}
 	}
 
 	return e->flags & EF_GROUND;
+}
+
+static void idle_or_run_anim(entity *e, int run, int idle)
+{
+	if (fabsf(e->vel.x) > 0.05F) {
+		change_animation(e, run);
+	} else {
+		change_animation(e, idle);
+	}
+}
+
+static void auto_flip(entity *e)
+{
+	if (e->vel.x < 0.0F) {
+		e->flags &= ~EF_FLIP;
+	} else if (e->vel.x > 0.0F) {
+		e->flags |= EF_FLIP;
+	}
 }
 
 /**
@@ -374,10 +389,8 @@ static void update_captain(entity *e)
 		change_animation(e, ANIM_CAPTAIN_JUMP);
 	} else if (e->vel.y > 1.0F) {
 		change_animation(e, ANIM_CAPTAIN_FALL);
-	} else if (fabsf(e->vel.x) > 0.0F) {
-		change_animation(e, ANIM_CAPTAIN_RUN);
 	} else {
-		change_animation(e, ANIM_CAPTAIN_IDLE);
+		idle_or_run_anim(e, ANIM_CAPTAIN_RUN, ANIM_CAPTAIN_IDLE);
 	}
 
 	update_physics(e);
@@ -418,152 +431,76 @@ static void update_captain(entity *e)
 	bound_cam();
 }
 
+static bool crabby_to_player(entity *e)
+{
+	v2 dis;
+	const box *cap_mask;
+	float cap_width;
+
+	dis = e->pos - g_captain->pos;
+	if (fabsf(dis.y) >= 0.5F) {
+		return false;
+	}
+
+	cap_mask = &g_entity_metas[g_captain->em].mask; 
+	cap_width = cap_mask->br.x - cap_mask->tl.x;
+
+	/*crabby is far right of captain*/
+	if (dis.x > cap_width && dis.x < 3.0F * cap_width) {
+		e->vel.x = -3.0F;
+		return true;
+	}
+
+	/*crabby is near right of captain*/
+	if (dis.x > 0.0F && dis.x < cap_width) {
+		e->vel.x = 0.0F;
+		return true;
+	}
+
+	if (dis.x > -3.8F * cap_width && dis.x < -1.9F * cap_width) {
+		e->vel.x = 3.0F;
+		return true;
+	}
+	if (dis.x < 0.0F && dis.x > -1.9F * cap_width) {
+		e->vel.x = 0.0F;
+		return true;
+	}
+
+	return false;
+}
+
+static void crabby_walk(entity *e) 
+{
+	const entity_meta *meta;
+	box col;
+	int l, r;
+	int bl, br;
+
+	meta = g_entity_metas + e->em;
+
+	col = meta->mask + e->pos;
+	l = get_tile(col.tl.x - 0.15F, col.br.y - 1.0F);
+	r = get_tile(col.br.x, col.br.y - 1.0F);
+
+	bl = get_tile(col.tl.x, col.br.y + 0.1F);
+	br = get_tile(col.br.x, col.br.y + 0.1F);
+
+	if (!is_tile_solid(bl) || is_tile_solid(l)) {
+		e->vel.x = 1.0F;
+	} else if (!is_tile_solid(br) || is_tile_solid(r)) {
+		e->vel.x = -1.0F;
+	} else if (fabsf(e->vel.x) != 1.0F) {
+		e->vel.x = 1.0F;
+	}
+}
+
 static void update_crabby(entity *e)
 {
-	/* crabby movement */
-	const entity_meta *meta;
-	v2 offset;
-	uint8_t tile_id_left; 
-	uint8_t tile_id_right;
-	box collider;
-	bool touch_below;
-	bool touch_left;
-	bool touch_right;
-	bool gravity_on;
-
-	/* for player detection/charging */
-	int player_detected;
-	float dist_to_player;
-	float captain_width;
-	float tile_level_diff;
-
-	float crabby_speed = 1.0F;
-	
-	meta = g_entity_metas + e->em;
-	offset = e->pos + meta->mask.tl;
-
-	/* borrowing floor & wall detection from old update_captain() */
-	collider = {
-			{e->pos.x + meta->mask.tl.x, e->pos.y + meta->mask.tl.y},
-			{e->pos.x + meta->mask.br.x, e->pos.y + meta->mask.br.y}
-			};
-
-	touch_below = get_tile(collider.tl.x+0.5F, collider.br.y) ||
-		get_tile(collider.br.x-0.5F, collider.br.y);
-	touch_left = get_tile(collider.tl.x-0.15F, collider.br.y-1);
-	touch_right = get_tile(collider.br.x, collider.br.y-1);
-
-	gravity_on = false;
-
-	/**
-	 * detecting the player and charging at them
-	 * 
-	 * player_detected indicates direction of detection
-	 * using these integers:
-	 * 
-	 * -1 indicates left, 1 indicates right, and 0 indicates
-	 * no detection
-	 * -2 and 2 represent directional detection when crabby
-	 * is right next to player
-	 */
-	player_detected = 0;
-	/* horizontal distance to player */
-	dist_to_player = e->pos.x - g_captain->pos.x;
-	/* check for crabby and player at same tile level */
-	tile_level_diff = e->pos.y - g_captain->pos.y;
-	if (tile_level_diff < 0) {
-		tile_level_diff *= -1;
+	if (!crabby_to_player(e)) {
+		crabby_walk(e);
 	}
-	/* width of player using collision mask */
-	captain_width = (g_entity_metas + g_captain->em)->mask.br.x 
-					- (g_entity_metas + g_captain->em)->mask.tl.x;
-
-	/* determine if crabby is close enough to player on either side */
-	if (tile_level_diff < 0.5F) {
-		if (dist_to_player < 3 * captain_width && 
-			dist_to_player > captain_width) {		
-			player_detected = -1;
-		}
-		if (dist_to_player > 0.0F && dist_to_player < captain_width) {
-			player_detected = -2;
-		}
-		if (dist_to_player > -3.8F * captain_width && 
-			dist_to_player < -1.9F * captain_width) {
-			player_detected = 1;
-		}
-		if (dist_to_player < 0 && dist_to_player > -1.9F * captain_width) {
-			player_detected = 2;
-		}
-	}
-
-	/* movement behavior if player detected */
-	if (player_detected != 0) {
-		if (touch_below) {
-			e->vel.y = 0.0F;
-		}
-		else {
-			e->vel.y = g_gravity;
-			gravity_on = true;
-		}
-		
-		if (player_detected == -1) {
-			e->vel.x = -3.0F;
-		}
-		if (player_detected == -2) {
-			e->vel.x = 0.0F;
-		}
-		if (player_detected == 1) {
-			e->vel.x = 3.0F;
-		}
-		if (player_detected == 2) {
-			e->vel.x = 0.0F;
-		}
-	}
-
-	/* normal crabby movement */
-	if (player_detected == 0) {
-		if (e->vel.x == 0.0F || e->vel.x == 3.0F || e->vel.x == -3.0F) {
-			e->vel.x = crabby_speed;
-		}
-		
-		if (gravity_on) {
-			e->vel.x = 0.0F;
-			if (touch_below) {
-				e->vel.y = 0.0F;
-			}
-		}
-
-		tile_id_left = get_tile(offset.x, 
-				offset.y + meta->mask.br.y + 0.1F);
-		tile_id_right = get_tile(offset.x + 
-				(meta->mask.br.x - meta->mask.tl.x), 
-				offset.y + meta->mask.br.y + 0.1F);
-
-		if (!gravity_on) {
-			if (tile_id_left == TILE_SOLID || tile_id_left != TILE_GRASS || 
-				touch_left) {
-				e->vel.x = crabby_speed;
-			} else if (tile_id_right == TILE_SOLID || 
-					tile_id_right != TILE_GRASS || touch_right) {
-				e->vel.x = -crabby_speed;
-			}
-		}
-	}
-
-	/* selecting the animation */
-	if (fabsf(e->vel.x) > 0.05F) {
-		change_animation(e, ANIM_CRABBY_RUN);
-	} else {
-		change_animation(e, ANIM_CRABBY_IDLE);
-	}
-
-	if (e->vel.x < 0) {
-		e->flags &= ~EF_FLIP;
-	}
-
-	if (e->vel.x > 0) {
-		e->flags |= EF_FLIP;
-	}
+	idle_or_run_anim(e, ANIM_CRABBY_RUN, ANIM_CRABBY_IDLE);
+	auto_flip(e);
 	update_physics(e);
 }
 
