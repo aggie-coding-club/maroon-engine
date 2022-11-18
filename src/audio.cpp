@@ -348,9 +348,9 @@ int init_xaudio2(void)
 		goto free_lib;
 	}
 
-    	hr = g_xaudio2->CreateMasteringVoice(&g_master, XAUDIO2_DEFAULT_CHANNELS, 
-			XAUDIO2_DEFAULT_SAMPLERATE, 0, NULL, NULL, 
-			AudioCategory_GameEffects);
+    	hr = g_xaudio2->CreateMasteringVoice(&g_master, 
+			XAUDIO2_DEFAULT_CHANNELS, XAUDIO2_DEFAULT_SAMPLERATE, 
+			0, NULL, NULL, AudioCategory_GameEffects);
 	if (FAILED(hr)) {
 		/*all voices are destroyed by releasing g_xaudio2*/
 		goto release_xaudio2;
