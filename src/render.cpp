@@ -131,7 +131,7 @@ bool bound_cam(void)
 {
 	bool bound;
 	bound = !!bound_coord(&g_cam.x, g_gm->w, g_cam.w); 
-	bound |= !!bound_coord(&g_cam.y, g_gm->h, g_cam.h);
+	bound_coord(&g_cam.y, g_gm->h, g_cam.h);
 	return bound;
 }
 
@@ -941,8 +941,8 @@ static void render_tiles(square_buf *buf)
 			int tile;
 			float stx, sty;
 
-			atx = g_cam.x + tx;
-			aty = g_cam.y + ty;
+			atx = (int) g_cam.x + tx;
+			aty = (int) g_cam.y + ty;
 			tile = get_tile(atx, aty);
 	
 			stx = tx - fmodf(g_cam.x, 1.0F);
