@@ -99,6 +99,43 @@ static GLint g_sprite_view_ul;
 static GLint g_sprite_tex_ul;
 
 /**
+ * bound_coord() - Bound coordinate inside camera
+ * @v: Camera value to bound
+ * @gm: Dimension of game map
+ * @cam: Dimension of camera
+ *
+ * Return: 
+ * Return -1 if bounded left
+ * Return 1 if bounded right
+ * Return 0 if no bound needed
+ */
+static int bound_coord(float *v, float gm, float cam)
+{
+	float dif;
+
+	dif = gm - cam;
+
+	if (*v < 0.0F || dif < 0.0F) {
+		*v = 0.0F;
+		return -1;
+	} 
+
+	if (*v > dif) {
+		*v = dif; 
+		return 1;
+	} 
+	return 0;
+}
+
+bool bound_cam(void) 
+{
+	bool bound;
+	bound = !!bound_coord(&g_cam.x, g_gm->w, g_cam.w); 
+	bound |= !!bound_coord(&g_cam.y, g_gm->h, g_cam.h);
+	return bound;
+}
+
+/**
  * wgl_load() - load WGL extension function 
  * @name: name of function 
  *
@@ -884,8 +921,8 @@ static void render_tiles(square_buf *buf)
 	int max_y;
 	int ty;
 
-	max_x = min(g_cam.w + 1, g_gm->w);
-	max_y = min(g_cam.h + 1, g_gm->h);
+	max_x = fminf(g_cam.w + 1, g_gm->w);
+	max_y = fminf(g_cam.h + 1, g_gm->h);
 
 	for (ty = 0; ty < max_y; ty++) {
 		int tx;

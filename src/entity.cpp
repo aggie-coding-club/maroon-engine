@@ -20,8 +20,9 @@ float g_dt;
 DL_HEAD(g_entities);
 
 static entity *g_captain;
-static const float g_gravity = 2.0F;
-static int8_t cam_seek;
+static float g_focus;
+static float g_off;
+//static int8_t g_cam_seek;
 
 const entity_meta g_entity_metas[COUNTOF_EM] = {
 	[EM_CAPTAIN] = {
@@ -303,7 +304,10 @@ static void update_physics(entity *e)
 	int flags;
 
 	e->pos.x += e->vel.x * g_dt;
-	update_cols(e, resolve_horz_col);
+	flags = update_cols(e, resolve_horz_col);
+	if (flags & (POSF | NEGF)) {
+		e->vel.x = 0.0F;
+	}
 
 	e->pos.y += e->vel.y * g_dt;
 	flags = update_cols(e, resolve_vert_col);
@@ -362,6 +366,96 @@ static void auto_flip(entity *e)
 	}
 }
 
+#if 0
+static void update_cam(entity *e)
+{
+	const entity_meta *em;
+	float x;
+	float dx;
+	float w;
+
+	em = g_entity_metas + e->em;
+	x = e->pos.x + em->mask.tl.x; 
+	dx = e->vel.x * g_dt;
+	w = g_gm->w;
+
+	if (x > 4.0F && dx > 0.0F) {
+		if (g_focus < 0.0F) {
+			g_focus += dx;
+		} else {
+			g_focus = 1.0F;
+			if (g_off < 2.0F) {
+				dx += g_dt / 8.0F;
+				g_off += dx;
+			}
+			g_cam.x += dx;
+		}
+	} else if (x < w - 4.0F && dx < 0.0F) {
+		if (g_focus > 0.0F) {
+			g_focus += dx;
+		} else {
+			g_focus = -1.0F;
+			if (g_off > 0.0F) {
+				dx -= g_dt / 8.0F;
+				g_off += dx;
+			}
+			g_cam.x += dx;
+		}
+	}
+
+	if (g_cam.x < 0.0F) {
+		g_focus = 0.0F;
+		g_off = 0.0F;
+		g_cam.x = 0.0F;
+	} else if (g_cam.x > w - VIEW_TW) {
+		g_focus = 0.0F;
+		g_off = 0.0F;
+		g_cam.x = w - VIEW_TW;
+	}
+}
+#endif
+
+static void update_cam(entity *e) 
+{
+	box mask;
+	float off;
+	float dx;
+
+	mask = g_entity_metas[e->em].mask;
+	off = e->pos.x + mask.tl.x - g_cam.x;
+	dx = e->vel.x * g_dt;
+	if (e->vel.x > 0.0F) {
+		if (g_focus < 0.5F) {
+			g_focus += dx;
+		} else {
+			g_focus = 0.5F;
+			if (off < 3.0F) {
+				g_cam.x -= dx; 
+			} else if (off > 4.0F) { 
+				g_cam.x += dx; 
+			}
+			g_cam.x += dx;
+		}
+	} else if (e->vel.x < 0.0F) {
+		if (g_focus > -0.5F) {
+			g_focus += dx;
+		} else {
+			g_focus = -0.5F;
+			if (off < 4.0F) {
+				g_cam.x += dx; 
+			} else if (off > 4.5F) { 
+				g_cam.x -= dx; 
+			}
+			g_cam.x += dx;
+		}
+	}
+
+	if (bound_cam()) { 
+		g_focus = 0.0F;
+	}
+}
+
+
 /**
  * update_captain() - Update captain specific behavoir
  * @e: Captain to update
@@ -394,41 +488,42 @@ static void update_captain(entity *e)
 	}
 
 	update_physics(e);
+	update_cam(e);
 
+#if 0
 	/* camera follow */
 	box b = g_entity_metas[e->em].mask;
 	v2 cap_pos = e->pos + b.tl;
-	float bound = 2.0F;
+	float bound = 3.0F;
 
 	float dist_to_end = (g_cam.w - cap_pos.x) + g_cam.x;
 	float dist_to_start = (g_cam.w - dist_to_end);
 
 	/*TODO(Lenny): Make the camera slow down as it gets closer to cap*/
-	float catch_up_speed = 4.0F;
-	if (cam_seek) {
-		g_cam.x += catch_up_speed * cam_seek * g_dt;
+	float catch_up_speed = 6.0F;
+	if (g_cam_seek) {
+		g_cam.x += catch_up_speed * g_cam_seek * g_dt;
 
-		if (dist_to_end >= g_cam.w / 2 && cam_seek == 1) {
-			cam_seek = 0;
-			catch_up_speed = catch_up_speed;
-		} else if (dist_to_start >= g_cam.w / 2 && cam_seek == -1) {
-			cam_seek = 0;
-			catch_up_speed = catch_up_speed;
+		if (dist_to_end >= g_cam.w / 2 && g_cam_seek == 1) {
+			g_cam_seek = 0;
+		} else if (dist_to_start >= g_cam.w / 2 && g_cam_seek == -1) {
+			g_cam_seek = 0;
 		}
 	}
 
-	if (dist_to_end < bound && cam_seek == false) {
-		cam_seek = 1;
-	} else if (dist_to_start < bound && cam_seek == false) {
-		cam_seek = -1;
+	if (!g_cam_seek) {
+		if (dist_to_end < bound) {
+			g_cam_seek = 1;
+		} else if (dist_to_start < bound) {
+			g_cam_seek = -1;
+		}
 	}
 
 	if (g_cam.x < 0.0F) {
 		g_cam.x = 0.0F;
-		cam_seek = 0;
+		g_cam_seek = 0;
 	}
-
-	bound_cam();
+#endif
 }
 
 static bool crabby_to_player(entity *e)
@@ -543,6 +638,8 @@ void update_entities(void)
 void end_entities(void)
 {
 	g_captain = NULL;
+	g_focus = 0.0F;
+	g_off = 0.0F;
 	clear_entities();
 }
 

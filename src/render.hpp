@@ -47,26 +47,11 @@ extern bool g_running;
 extern float g_cloud_x;
 
 /**
- * bound_coord() - Bound coordinate inside camera
- * @v: Camera value to bound
- * @gm: Dimension of game map
- * @cam: Dimension of camera
- *
- * Return: Bounded value
- */
-inline float bound_coord(float v, float gm, float cam)
-{
-	return fclampf(v, 0.0F, fabsf(gm - cam)); 
-}
-
-/**
  * bound_cam() - Bounds camera to inside borders 
+ *
+ * Return: Returns true if camera position changed
  */
-inline void bound_cam(void) 
-{
-	g_cam.x = bound_coord(g_cam.x, g_gm->w, g_cam.w);
-	g_cam.y = bound_coord(g_cam.y, g_gm->h, g_cam.h);
-}
+bool bound_cam(void); 
 
 /**
  * init_gl() - initialize OpenGL context and load necessary extensions 
