@@ -28,13 +28,9 @@ struct box {
 /**
  * struct entity_meta - Includes constant info for entity 
  * @mask: Collision mask
- * @def_anim: Default animation 
- * @max_health: max health of entity
  */
 struct entity_meta {
 	box mask;
-	uint8_t def_anim;
-	int max_health;
 };
 
 /**
@@ -70,11 +66,11 @@ struct entity {
  * g_dt - Frame delta in seconds
  * g_entites - Linked list of entities
  * g_entity_metas - Metadata of all entity
- * g_key_down - states for key down presses
  */
 extern float g_dt;
 extern dl_head g_entities;
 extern const entity_meta g_entity_metas[COUNTOF_EM];
+extern const uint8_t g_def_anims[COUNTOF_EM]; 
 
 /**
  * operator+ - Offset box by 2D vector

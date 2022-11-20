@@ -61,22 +61,15 @@ static void init_tile_to_em(void)
 
 static void init_anim_to_tile(void)
 {
-	const entity_meta *meta;
-	const uint8_t *tp;
-	int n;
+	int i;
 
 	memset(g_anim_to_tile, TILE_INVALID, COUNTOF_ANIM);
 
-	meta = g_entity_metas;
-	tp = g_em_to_tile;
-	n = COUNTOF_EM;
-	while (n-- > 0) {
+	for (i = 0; i < COUNTOF_EM; i++) {
 		int anim;
 
-		anim = meta->def_anim;
-		g_anim_to_tile[anim] = *tp;
-		meta++;
-		tp++;
+		anim = g_def_anims[i];
+		g_anim_to_tile[anim] = g_em_to_tile[i];
 	}
 }
 
@@ -159,14 +152,12 @@ void destroy_game_map(game_map *gm)
 	free(gm);
 }
 
-static bool in_game_map(float x, float y)
-{
-	return x >= 0.0F && x < g_gm->w && y >= 0.0F && y < g_gm->h;
-}
-
 uint8_t get_tile(float x, float y)
 {
-	if (!in_game_map(x, y)) {
+	if (y < 0.0F) {
+		return TILE_BLANK;
+	}
+	if (x < 0.0F || x >= g_gm->w || y >= g_gm->h) {
 		return TILE_SOLID;
 	}
 	return g_gm->rows[(int) y][(int) x];

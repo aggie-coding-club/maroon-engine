@@ -34,8 +34,6 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				32.0F / TILE_LEN
 			},
 		},
-		.def_anim = ANIM_CAPTAIN_IDLE,
-		.max_health = 10
 	},
 	[EM_CRABBY] = {
 		.mask = {
@@ -48,9 +46,17 @@ const entity_meta g_entity_metas[COUNTOF_EM] = {
 				29.0F / TILE_LEN
 			}
 		},
-		.def_anim = ANIM_CRABBY_IDLE,
-		.max_health = 3
 	}
+};
+
+const uint8_t g_def_anims[COUNTOF_EM] = {
+	[EM_CAPTAIN] = ANIM_CAPTAIN_IDLE,
+	[EM_CRABBY] = ANIM_CRABBY_IDLE
+};
+
+static const uint8_t g_healths[COUNTOF_EM] = {
+	[EM_CAPTAIN] = 10,
+	[EM_CRABBY] = 3
 };
 
 /**
@@ -74,7 +80,6 @@ static void set_animation(entity *e, int aid)
 entity *create_entity(int tx, int ty, uint8_t em)
 {
 	entity *e;
-	const entity_meta *meta;
 
 	e = (entity *) xmalloc(sizeof(*e));
 
@@ -90,10 +95,9 @@ entity *create_entity(int tx, int ty, uint8_t em)
 
 	e->flags = 0;
 
-	meta = g_entity_metas + em;
-	set_animation(e, meta->def_anim);
+	set_animation(e, g_def_anims[em]);
 	
-	e->health = meta->max_health;
+	e->health = g_healths[em];
 	return e;
 }
 
@@ -512,20 +516,6 @@ static void update_crabby(entity *e)
 	auto_flip(e);
 	update_physics(e);
 }
-
-void heal(entity *e, int heal_amount)
-{
-	e->health = e->health + heal_amount;
-}
-
-void take_damage(entity *e, int damage_amount)
-{
-	e->health = e->health - damage_amount;
-	if (e->health < 0) {
-		/* add whatever happens upon death*/
-	}
-}
-
 
 static void update_specific(entity *e)
 {
