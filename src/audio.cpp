@@ -396,6 +396,7 @@ end_com:
 void end_xaudio2(void)
 {
 	if (g_xaudio2_lib) { 
+		TerminateThread(g_stream_thrd, 0);
 		CloseHandle(g_stream_thrd);
 		CloseHandle(g_stream_ev);
 		CloseHandle(g_buf_end_ev);

@@ -19,44 +19,40 @@ typedef int resolve_col_fn(entity *e, const box *ebox, const box *obox);
 float g_dt;
 DL_HEAD(g_entities);
 
-static entity *g_captain;
-static float g_focus;
-
-const entity_meta g_entity_metas[COUNTOF_EM] = {
-	[EM_CAPTAIN] = {
-		.mask = {
-			{
-				24.0F / TILE_LEN, 
-				2.0F / TILE_LEN
-			},
-			{
-				39.0F / TILE_LEN,
-				32.0F / TILE_LEN
-			},
-		},
-	},
-	[EM_CRABBY] = {
-		.mask = {
-			{
-				28.0F / TILE_LEN,
-				6.0F / TILE_LEN,
-			},
-			{
-				47.0F / TILE_LEN,
-				29.0F / TILE_LEN
-			}
-		},
-	}
-};
-
 const uint8_t g_def_anims[COUNTOF_EM] = {
 	[EM_CAPTAIN] = ANIM_CAPTAIN_IDLE,
 	[EM_CRABBY] = ANIM_CRABBY_IDLE
 };
 
+static entity *g_captain;
+static float g_focus;
+
 static const uint8_t g_healths[COUNTOF_EM] = {
 	[EM_CAPTAIN] = 10,
 	[EM_CRABBY] = 3
+};
+
+static const box g_masks[COUNTOF_EM] = {
+	[EM_CAPTAIN] = {
+		{
+			24.0F / TILE_LEN, 
+			2.0F / TILE_LEN
+		},
+		{
+			39.0F / TILE_LEN,
+			32.0F / TILE_LEN
+		},
+	},
+	[EM_CRABBY] = {
+		{
+			28.0F / TILE_LEN,
+			6.0F / TILE_LEN,
+		},
+		{
+			47.0F / TILE_LEN,
+			29.0F / TILE_LEN
+		}
+	}
 };
 
 /**
@@ -220,18 +216,18 @@ static int get_col_flags(const box *ebox, const box *obox)
 
 static int resolve_horz_col(entity *e, const box *ebox, const box *obox)
 {
-	const entity_meta *em;
+	box mask;
 	int flags;
 
-	em = g_entity_metas + e->em;
+	mask = g_masks[e->em];
 	flags = get_col_flags(ebox, obox);
 
 	if (flags & (TLF | BLF)) {
-		e->pos.x = obox->br.x - em->mask.tl.x; 
+		e->pos.x = obox->br.x - mask.tl.x; 
 		return NEGF;
 	} 
 	if (flags & (TRF | BRF)) {
-		e->pos.x = obox->tl.x - em->mask.br.x;
+		e->pos.x = obox->tl.x - mask.br.x;
 		return POSF;
 	} 
 	return 0;
@@ -239,18 +235,18 @@ static int resolve_horz_col(entity *e, const box *ebox, const box *obox)
 
 static int resolve_vert_col(entity *e, const box *ebox, const box *obox)
 {
-	const entity_meta *em;
+	box mask;
 	int flags;
 
-	em = g_entity_metas + e->em;
+	mask = g_masks[e->em];
 	flags = get_col_flags(ebox, obox);
 
 	if (flags & (TLF | TRF)) {
-		e->pos.y = obox->br.y - em->mask.tl.y; 
+		e->pos.y = obox->br.y - mask.tl.y; 
 		return NEGF;
 	} 
 	if (flags & (BLF | BRF)) {
-		e->pos.y = obox->tl.y - em->mask.br.y;
+		e->pos.y = obox->tl.y - mask.br.y;
 		return POSF;
 	}
 	return 0;
@@ -263,7 +259,7 @@ static bool is_tile_solid(int tile)
 
 static int update_cols(entity *e, resolve_col_fn *resolve)
 {
-	const entity_meta *em;
+	box mask;
 	box ebox;
 	int flags;
 
@@ -271,8 +267,8 @@ static int update_cols(entity *e, resolve_col_fn *resolve)
 	int x1, y1;
 	int x, y;
 
-	em = g_entity_metas + e->em;
-	ebox = em->mask + e->pos;
+	mask = g_masks[e->em];
+	ebox = mask + e->pos;
 	flags = 0;
 
 	x0 = floorf(ebox.tl.x);
@@ -325,14 +321,14 @@ static void update_physics(entity *e)
 
 static bool can_jump(const entity *e) 
 {
-	const entity_meta *em;
+	box mask;
 	box ebox;
 
 	int x0, x1;
 	int x, y;
 
-	em = g_entity_metas + e->em;
-	ebox = em->mask + e->pos;
+	mask = g_masks[e->em];
+	ebox = mask + e->pos;
 
 	x0 = floorf(ebox.tl.x);
 	x1 = ceilf(ebox.br.x);
@@ -374,7 +370,7 @@ static void update_cam(entity *e)
 	float off;
 	float dx;
 
-	mask = g_entity_metas[e->em].mask;
+	mask = g_masks[e->em];
 	off = e->pos.x + mask.tl.x - g_cam.x;
 	dx = e->vel.x * g_dt;
 	if (e->vel.x > 0.0F) {
@@ -447,7 +443,7 @@ static void update_captain(entity *e)
 static bool crabby_to_player(entity *e)
 {
 	v2 dis;
-	const box *cap_mask;
+	box cap_mask;
 	float cap_width;
 
 	dis = e->pos - g_captain->pos;
@@ -455,8 +451,8 @@ static bool crabby_to_player(entity *e)
 		return false;
 	}
 
-	cap_mask = &g_entity_metas[g_captain->em].mask; 
-	cap_width = cap_mask->br.x - cap_mask->tl.x;
+	cap_mask = g_masks[g_captain->em]; 
+	cap_width = cap_mask.br.x - cap_mask.tl.x;
 
 	/*crabby is far right of captain*/
 	if (dis.x > cap_width && dis.x < 3.0F * cap_width) {
@@ -484,14 +480,13 @@ static bool crabby_to_player(entity *e)
 
 static void crabby_walk(entity *e) 
 {
-	const entity_meta *meta;
-	box col;
+	box mask, col;
 	int l, r;
 	int bl, br;
 
-	meta = g_entity_metas + e->em;
+	mask = g_masks[e->em];
 
-	col = meta->mask + e->pos;
+	col = mask + e->pos;
 	l = get_tile(col.tl.x - 0.15F, col.br.y - 1.0F);
 	r = get_tile(col.br.x, col.br.y - 1.0F);
 

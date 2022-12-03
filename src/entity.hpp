@@ -26,14 +26,6 @@ struct box {
 };
 
 /**
- * struct entity_meta - Includes constant info for entity 
- * @mask: Collision mask
- */
-struct entity_meta {
-	box mask;
-};
-
-/**
  * misc:
  * @node: Used to point to next entity
  * @v2i: Spawn position
@@ -65,11 +57,10 @@ struct entity {
 /** 
  * g_dt - Frame delta in seconds
  * g_entites - Linked list of entities
- * g_entity_metas - Metadata of all entity
+ * g_def_anims - Default animations index 
  */
 extern float g_dt;
 extern dl_head g_entities;
-extern const entity_meta g_entity_metas[COUNTOF_EM];
 extern const uint8_t g_def_anims[COUNTOF_EM]; 
 
 /**
