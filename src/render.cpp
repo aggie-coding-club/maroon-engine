@@ -860,7 +860,8 @@ static void render_sprites(square_buf *buf)
  * @id: ID of sprite
  * @flip: horizontally flip sprite when > 0
  */
-static void push_sprite(square_buf *buf, float x, float y, int layer, int id, int flip)
+static void push_sprite(square_buf *buf, float x, float y, 
+		int layer, int id, int flip)
 {
 	int px0, py0;
 	sprite *spr;

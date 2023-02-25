@@ -527,7 +527,7 @@ static __stdcall INT_PTR dlg_proc(HWND wnd, UINT msg,
 		SetDlgItemInt(wnd, IDD_HEIGHT, g_gm->h, FALSE);
 		return TRUE;
 	case WM_COMMAND:
-		switch (wp) {
+		switch (LOWORD(wp)) {
 		case IDOK:
 			attempt_resize(wnd);
 			break;
